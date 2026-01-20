@@ -22,7 +22,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: sh -c "pnpm migrate:apply && pnpm dev"
+    command: sh -c "pnpm db:generate && pnpm migrate:apply && pnpm dev"
     networks:
       - stock-pos-network
 
