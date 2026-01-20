@@ -1,0 +1,26 @@
+import { body } from 'express-validator';
+
+export const resetPasswordRequestValidator = [
+  body('username')
+    .trim()
+    .notEmpty()
+    .withMessage('Username is required')
+    .isLength({ min: 3, max: 50 })
+    .withMessage('Username must be between 3 and 50 characters'),
+];
+
+export const resetPasswordValidator = [
+  body('user_id')
+    .notEmpty()
+    .withMessage('User ID is required')
+    .isInt({ min: 1 })
+    .withMessage('User ID must be a positive integer'),
+  
+  body('new_password')
+    .notEmpty()
+    .withMessage('New password is required')
+    .isLength({ min: 6 })
+    .withMessage('New password must be at least 6 characters')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('New password must contain at least one uppercase letter, one lowercase letter, and one number'),
+];

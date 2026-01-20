@@ -1,0 +1,20 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# Build
+dist/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+
+# IDE
+.idea/
+.vscode/
+/src/database/generated
