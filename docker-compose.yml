@@ -1,0 +1,97 @@
+version: "3.8"
+
+services:
+  # App
+  app-dev:
+    build:
+      context: .
+      target: development
+    container_name: stock-pos-app-dev
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: development
+      PORT: ${PORT:-3000}
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-stock_pos}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+    volumes:
+      - .:/app
+      - ./src/database/prisma:/app/prisma
+      - /app/node_modules
+      - /app/dist
+      
+    
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - stock-pos-network
+    command: sh -c "pnpm migrate:apply && pnpm dev"
+    profiles:
+      - dev
+# Database
+  db:
+    image: postgres:15-alpine
+    container_name: stock-pos-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-stock_pos}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - stock-pos-network
+
+  # Redis for Bull Queue (optional, if you use it)
+  redis:
+    image: redis:7-alpine
+    container_name: stock-pos-redis
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - stock-pos-network
+
+
+  nginx:
+    image: nginx:alpine
+    container_name: stock-pos-nginx
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - nginx-cache:/var/cache/nginx
+      - nginx-logs:/var/log/nginx
+    restart: unless-stopped
+    networks:
+      - stock-pos-network
+
+volumes:
+  postgres-data:
+  nginx-cache:
+  nginx-logs:
+
+networks:
+  stock-pos-network:
+    driver: bridge

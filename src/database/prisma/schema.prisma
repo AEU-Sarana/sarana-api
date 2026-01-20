@@ -7,6 +7,7 @@ datasource db {
   provider = "postgresql"
 }
 
+
 // Auth Domain
 model User {
   userId         Int       @id @default(autoincrement()) @map("user_id")

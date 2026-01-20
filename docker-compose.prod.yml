@@ -1,0 +1,28 @@
+services:
+  app:
+    build:
+      context: .
+      target: production
+    container_name: stock-pos-app
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: ${PORT:-3000}
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: sh -c "pnpm db:migrate:deploy && pnpm start"
+    restart: unless-stopped
+    networks:
+      - stock-pos-network
+
+  nginx:
+    depends_on:
+      - app

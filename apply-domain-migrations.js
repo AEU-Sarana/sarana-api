@@ -21,36 +21,28 @@ const domainConfig = {
   auth: {
     tables: ['users'],
   },
-
   product: {
     tables: ['products'],
   },
-
   shift: {
     tables: ['shifts'],
   },
-
   order: {
     // child tables FIRST
     tables: ['order_items', 'orders'],
   },
-
   stock: {
     tables: ['stock_movements', 'stocks'],
   },
-
   telegram: {
     tables: ['telegram_config'],
   },
-
   'device-binding': {
     tables: ['device_bindings'],
   },
-
   setting: {
     tables: ['settings'],
   },
-
   shared: {
     tables: ['audit_logs'],
   },
@@ -69,6 +61,7 @@ const migrationOrder = [
   'stock/20260118000007_create_stock_movements_table',
   'telegram/20260118000008_create_telegram_config_table',
   'device-binding/20260118000009_create_device_bindings_table',
+  'device-binding/20260118000010_add_pending_status',
   'setting/202601180000010_create_settings_table',
   'shared/202601180000011_create_audit_logs_table',
 ];
@@ -101,7 +94,7 @@ async function tableExists(client, tableName) {
 ================================ */
 async function applyMigrations(client) {
   console.log('🚀 Applying migrations...\n');
-
+  
   for (const migrationPath of migrationOrder) {
     const fullPath = path.join(
       __dirname,
@@ -109,20 +102,21 @@ async function applyMigrations(client) {
       migrationPath,
       'migration.sql'
     );
-
+    
     if (!fs.existsSync(fullPath)) {
       console.log(`⚠️  Skipped (missing): ${migrationPath}`);
       continue;
     }
-
+    
     const sql = fs.readFileSync(fullPath, 'utf-8');
     const name = migrationPath.split('/').pop();
     const tableName = extractTableName(sql);
     const isRenameMigration = sql.toLowerCase().includes('rename to');
-
-    // For rename migrations, always try to execute (they handle their own logic)
-    if (isRenameMigration) {
-      // Don't skip rename migrations - let the SQL handle the logic
+    const isAlterMigration = sql.toLowerCase().includes('alter table');
+    
+    // For rename/alter migrations, always try to execute (they handle their own logic)
+    if (isRenameMigration || isAlterMigration) {
+      // Don't skip - let the SQL handle the logic
     } else {
       // Check if table already exists (for CREATE TABLE migrations)
       if (tableName && await tableExists(client, tableName)) {
@@ -131,9 +125,8 @@ async function applyMigrations(client) {
         continue;
       }
     }
-
+    
     console.log(`📝 ${name}`);
-
     try {
       await client.query(sql);
       console.log(`✅ Applied\n`);
@@ -149,26 +142,24 @@ async function applyMigrations(client) {
 ================================ */
 async function resetDomains(client, domains) {
   console.log('🔁 Resetting domains...\n');
-
+  
   // HARD SAFETY GUARD
   if (domains.includes('auth') && process.env.ALLOW_AUTH_RESET !== 'true') {
     throw new Error(
       '❌ Resetting auth domain is BLOCKED. Set ALLOW_AUTH_RESET=true to override.'
     );
   }
-
+  
   for (const domain of domains) {
     if (!domainConfig[domain]) {
       throw new Error(`❌ Unknown domain: ${domain}`);
     }
-
+    
     console.log(`🧨 Domain: ${domain}`);
-
     for (const table of domainConfig[domain].tables) {
       console.log(`   DROP TABLE ${table}`);
       await client.query(`DROP TABLE IF EXISTS ${table} CASCADE`);
     }
-
     console.log('');
   }
 }
@@ -179,30 +170,29 @@ async function resetDomains(client, domains) {
 async function main() {
   const mode = process.argv[2]; // apply | reset
   const domains = process.argv.slice(3);
-
+  
   if (!mode || !['apply', 'reset'].includes(mode)) {
     console.error('❌ Usage: node apply-domain-migrations.js <apply|reset> [domains...]');
     process.exit(1);
   }
-
+  
   if (mode === 'reset' && domains.length === 0) {
     console.error('❌ Reset requires at least one domain');
     process.exit(1);
   }
-
+  
   const client = await pool.connect();
-
   try {
     await client.query('BEGIN');
-
+    
     if (mode === 'reset') {
       await resetDomains(client, domains);
     }
-
+    
     if (mode === 'apply') {
       await applyMigrations(client);
     }
-
+    
     await client.query('COMMIT');
     console.log('✨ Done');
   } catch (err) {
