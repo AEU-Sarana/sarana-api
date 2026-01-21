@@ -1,0 +1,78 @@
+---
+# App deployment tasks
+- name: Create deployment directory
+  file:
+    path: '{{ deploy_path }}'
+    state: directory
+    mode: '0755'
+
+- name: Create .env file from template
+  template:
+    src: env.j2
+    dest: '{{ deploy_path }}/.env'
+    mode: '0600'
+  no_log: true
+
+- name: Create docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: '{{ deploy_path }}/docker-compose.yml'
+    mode: '0644'
+
+- name: Stop old container if exists
+  docker_container:
+    name: '{{ docker_container_name }}'
+    state: stopped
+  ignore_errors: yes
+  register: stop_result
+
+- name: Backup old container if exists
+  command: 'docker rename {{ docker_container_name }} {{ docker_container_name }}-old-{{ ansible_date_time.iso8601_basic_short }}'
+  when: stop_result.changed
+  ignore_errors: yes
+
+- name: Create and start Docker container
+  docker_container:
+    name: '{{ docker_container_name }}'
+    image: '{{ docker_image }}'
+    state: started
+    restart_policy: unless-stopped
+    networks:
+      - name: '{{ docker_network }}'
+    ports:
+      - '{{ app_port }}:3000'
+    env:
+      NODE_ENV: '{{ app_env }}'
+      PORT: '3000'
+      DATABASE_URL: 'postgresql://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_host }}:{{ postgres_port }}/{{ postgres_db }}'
+      REDIS_URL: 'redis://{{ redis_host }}:{{ redis_port }}'
+      JWT_SECRET: '{{ jwt_secret }}'
+      JWT_REFRESH_SECRET: '{{ jwt_refresh_secret }}'
+    volumes:
+      - '{{ deploy_path }}/.env:/app/.env:ro'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    tags:
+      - '{{ environment }}'
+      - 'version={{ app_version }}'
+
+- name: Wait for container to be healthy
+  shell: "docker inspect --format='{{.State.Health.Status}}' {{ docker_container_name }}"
+  register: container_health
+  until: container_health.stdout == "healthy"
+  retries: 10
+  delay: 5
+  changed_when: false
+
+- name: Display deployment info
+  debug:
+    msg:
+      - '✅ Container deployed: {{ docker_container_name }}'
+      - 'Image: {{ docker_image }}'
+      - 'Version: {{ app_version }}'
+      - 'Port: {{ app_port }}'
+      - 'Environment: {{ app_env }}'

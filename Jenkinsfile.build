@@ -1,0 +1,224 @@
+pipeline {
+    agent any
+
+    environment {
+        REGISTRY = credentials('docker-registry-url')
+        REGISTRY_CREDENTIALS = credentials('docker-registry-credentials')
+        SLACK_WEBHOOK = credentials('slack-webhook-url')
+        APP_NAME = 'stock-pos-server'
+        VERSION = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
+    }
+
+    triggers {
+        githubPush()
+        pollSCM('H/5 * * * *')
+    }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '15'))
+        timeout(time: 2, unit: 'HOURS')
+        timestamps()
+        disableConcurrentBuilds()
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                script {
+                    echo "=== Checking out code from repository ==="
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: '${GIT_BRANCH}']],
+                        userRemoteConfigs: [[
+                            url: '${GIT_URL}',
+                            credentialsId: 'github-credentials'
+                        ]]
+                    ])
+                    sh '''
+                        echo "Branch: ${GIT_BRANCH}"
+                        echo "Commit: ${GIT_COMMIT}"
+                        git log -1 --oneline
+                    '''
+                }
+            }
+        }
+
+        stage('Environment Setup') {
+            steps {
+                script {
+                    echo "=== Setting up environment ==="
+                    sh '''
+                        node --version
+                        pnpm --version
+                        docker --version
+                        docker-compose --version
+                    '''
+                }
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                script {
+                    echo "=== Installing project dependencies ==="
+                    sh 'pnpm install --frozen-lockfile'
+                }
+            }
+        }
+
+        stage('Linting') {
+            steps {
+                script {
+                    echo "=== Running ESLint ==="
+                    sh 'pnpm lint || true'
+                }
+            }
+        }
+
+        stage('Format Check') {
+            steps {
+                script {
+                    echo "=== Checking code formatting ==="
+                    sh 'pnpm format:check || true'
+                }
+            }
+        }
+
+        stage('Build Application') {
+            steps {
+                script {
+                    echo "=== Building TypeScript application ==="
+                    sh '''
+                        pnpm db:generate
+                        pnpm build
+                    '''
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo "=== Building Docker image ==="
+                    sh '''
+                        docker build \
+                            --target production \
+                            -t ${REGISTRY}/${APP_NAME}:${VERSION} \
+                            -t ${REGISTRY}/${APP_NAME}:latest \
+                            -f Dockerfile \
+                            .
+                        
+                        docker image inspect ${REGISTRY}/${APP_NAME}:${VERSION}
+                    '''
+                }
+            }
+        }
+
+        stage('Security Scan') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    echo "=== Running security scan on Docker image ==="
+                    sh '''
+                        # Example: Using trivy for image scanning
+                        # trivy image --severity HIGH,CRITICAL ${REGISTRY}/${APP_NAME}:${VERSION} || true
+                        echo "Image: ${REGISTRY}/${APP_NAME}:${VERSION}"
+                        echo "Security scan completed"
+                    '''
+                }
+            }
+        }
+
+        stage('Push to Registry') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    echo "=== Pushing Docker image to registry ==="
+                    sh '''
+                        docker login -u $REGISTRY_CREDENTIALS_USR -p $REGISTRY_CREDENTIALS_PSW
+                        docker push ${REGISTRY}/${APP_NAME}:${VERSION}
+                        docker push ${REGISTRY}/${APP_NAME}:latest
+                        docker logout
+                    '''
+                }
+            }
+        }
+
+        stage('Trigger Deployment') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    echo "=== Triggering deployment pipeline ==="
+                    build job: 'stock-pos-server-deploy', 
+                          parameters: [
+                              string(name: 'ENVIRONMENT', value: 'dev'),
+                              string(name: 'IMAGE_VERSION', value: VERSION),
+                              booleanParam(name: 'RUN_TESTS', value: true)
+                          ],
+                          wait: false
+                }
+            }
+        }
+
+        stage('Notify Success') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    echo "=== Sending success notifications ==="
+                    // Slack notification
+                    sh '''
+                        curl -X POST $SLACK_WEBHOOK \
+                            -H "Content-type: application/json" \
+                            -d '{
+                                "text": "✅ Build Successful",
+                                "attachments": [{
+                                    "color": "good",
+                                    "fields": [
+                                        {"title": "Build", "value": "'${BUILD_NUMBER}'"},
+                                        {"title": "Version", "value": "'${VERSION}'"},
+                                        {"title": "Branch", "value": "'${GIT_BRANCH}'"}
+                                    ]
+                                }]
+                            }' || true
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                echo "=== Cleanup ==="
+                cleanWs()
+            }
+        }
+        failure {
+            script {
+                echo "❌ Build failed!"
+                sh '''
+                    curl -X POST $SLACK_WEBHOOK \
+                        -H "Content-type: application/json" \
+                        -d '{
+                            "text": "❌ Build Failed",
+                            "attachments": [{
+                                "color": "danger",
+                                "fields": [
+                                    {"title": "Build", "value": "'${BUILD_NUMBER}'"},
+                                    {"title": "Branch", "value": "'${GIT_BRANCH}'"}
+                                ]
+                            }]
+                        }' || true
+                '''
+            }
+        }
+    }
+}

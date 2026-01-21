@@ -1,0 +1,43 @@
+---
+# Docker setup tasks
+- name: Install Docker dependencies
+  apt:
+    name:
+      - docker.io
+      - docker-compose
+      - python3-docker
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
+- name: Ensure Docker service is running
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Create docker network
+  docker_network:
+    name: '{{ docker_network }}'
+    state: present
+    driver: bridge
+
+- name: Login to Docker Registry
+  docker_login:
+    registry: '{{ docker_registry }}'
+    username: '{{ docker_registry_user | default(omit) }}'
+    password: '{{ docker_registry_password | default(omit) }}'
+  when: docker_registry_user is defined
+
+- name: Pull Docker image
+  docker_image:
+    name: '{{ docker_image }}'
+    source: pull
+    force: yes
+
+- name: Display Docker setup info
+  debug:
+    msg:
+      - 'Docker network: {{ docker_network }}'
+      - 'Docker image: {{ docker_image }}'
+      - 'Registry: {{ docker_registry }}'

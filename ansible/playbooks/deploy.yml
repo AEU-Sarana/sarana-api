@@ -1,0 +1,25 @@
+---
+# Main deployment playbook
+- name: Deploy Stock POS Server
+  hosts: "{{ inventory_hostname.split('-')[0] }}" # dev, staging, prod
+  become: yes
+  vars:
+    docker_container_name: stock-pos-app
+    docker_network: stock-pos-network
+    healthcheck_url: 'http://localhost:{{ app_port }}/health'
+
+  roles:
+    - docker-setup
+    - app-deploy
+    - database-migrate
+    - health-check
+
+  post_tasks:
+    - name: Display deployment summary
+      debug:
+        msg:
+          - 'Deployment completed successfully!'
+          - 'Environment: {{ environment }}'
+          - 'Version: {{ app_version }}'
+          - 'Image: {{ docker_image }}'
+          - 'Host: {{ inventory_hostname }}'

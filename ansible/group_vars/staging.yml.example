@@ -1,0 +1,49 @@
+---
+# Example group_vars for staging environment
+# Copy to: ansible/group_vars/staging.yml
+
+app_env: staging
+environment: staging
+app_version: latest
+
+# Docker Configuration
+docker_registry: registry.example.com
+docker_container_name: stock-pos-app-staging
+docker_network: stock-pos-network
+deploy_path: /opt/stock-pos-server
+
+# Database Configuration
+postgres_user: staging_user
+postgres_password: "{{ vault_postgres_password }}"  # Use Ansible vault
+postgres_host: db-staging.example.com
+postgres_port: 5432
+postgres_db: stock_pos_staging
+
+# Redis Configuration
+redis_host: redis-staging.example.com
+redis_port: 6379
+
+# JWT Configuration (use Ansible vault for secrets)
+jwt_secret: "{{ vault_jwt_secret }}"
+jwt_refresh_secret: "{{ vault_jwt_refresh_secret }}"
+
+# CORS
+allowed_origins: "https://staging.example.com,https://app-staging.example.com"
+
+# Application Port
+app_port: 3000
+
+# Deployment Options
+run_migrations: false  # Set true when needed
+
+# Resource Limits
+docker_cpu_limit: "1"
+docker_memory_limit: "1G"
+docker_cpu_reservation: "0.5"
+docker_memory_reservation: "512M"
+
+# Health Check
+health_check_interval: 30
+health_check_timeout: 10
+health_check_retries: 3
+health_check_start_period: 40
