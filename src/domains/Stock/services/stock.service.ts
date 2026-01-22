@@ -1,5 +1,6 @@
 import  prisma  from '@src/database/client';
 import { StockMovementType } from '@src/domains/Stock/enums/stock-movement-type.enum';
+import { ProductStatus } from '@src/domains/Product/enums/product-status.enum';
 import {
   GetStockRequest,
   GetStockResponse,
@@ -127,7 +128,7 @@ export class StockService {
       where: { productId: product_id },
     });
 
-    if (!product || product.deactivatedDate || product.status !== 'ACTIVE') {
+    if (!product || product.deactivatedDate || product.status !== ProductStatus.ACTIVE) {
       throw new ValidationException('Product not found or inactive');
     }
 
@@ -264,7 +265,7 @@ export class StockService {
       where: { productId: product_id },
     });
 
-    if (!product || product.deactivatedDate || product.status !== 'ACTIVE') {
+    if (!product || product.deactivatedDate || product.status !== ProductStatus.ACTIVE) {
       throw new ValidationException('Product not found or inactive');
     }
 
@@ -383,7 +384,7 @@ export class StockService {
       where: { productId: product_id },
     });
 
-    if (!product || product.deactivatedDate || product.status !== 'ACTIVE') {
+    if (!product || product.deactivatedDate || product.status !== ProductStatus.ACTIVE) {
       throw new ValidationException('Product not found or inactive');
     }
 

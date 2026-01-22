@@ -19,7 +19,7 @@ const router: IRouter = Router();
 // Mount domain routes
 router.use('/auth', authRoutes);
 router.use('/products', productRoutes);
-router.use('/stock', stockRoutes);
+router.use('/stocks', stockRoutes);
 router.use('/orders', orderRoutes);
 router.use('/shifts', shiftRoutes);
 router.use('/reports', reportRoutes);

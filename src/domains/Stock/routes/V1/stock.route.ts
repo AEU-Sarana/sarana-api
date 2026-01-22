@@ -3,7 +3,6 @@ import { authenticateToken } from '@src/shared/middleware/auth.middleware';
 import { requireAdmin, requirePermission } from '@src/shared/middleware/authorization.middleware';
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
 import { Permission } from '@src/shared/config/permissions';
-import { param, query, body } from 'express-validator';
 import { StockController } from '@src/domains/Stock/controllers/V1/stock.controller';
 import { getStockMovementsValidator, getStockValidator, stockAdjustValidator, stockInValidator, stockReturnValidator } from '../../validators/V1';
 
@@ -20,12 +19,13 @@ router.get(
   StockController.getStock
 );
 
-// Get stock for product - All users
+// Get stock movements - Admin only (MUST be before /:productId route)
 router.get(
-  '/:productId',
-  requirePermission(Permission.STOCK_VIEW),
-  ...validateRequest(getStockValidator),
-  StockController.getStock
+  '/movements',
+  requireAdmin,
+  requirePermission(Permission.STOCK_HISTORY_VIEW),
+  ...validateRequest(getStockMovementsValidator),
+  StockController.getStockMovements
 );
 
 // Stock In - Admin only
@@ -55,13 +55,12 @@ router.post(
   StockController.stockReturn
 );
 
-// Get stock movements - Admin only
+// Get stock for product - All users (MUST be last to avoid matching specific routes)
 router.get(
-  '/movements',
-  requireAdmin,
-  requirePermission(Permission.STOCK_HISTORY_VIEW),
-  ...validateRequest(getStockMovementsValidator),
-  StockController.getStockMovements
+  '/:productId',
+  requirePermission(Permission.STOCK_VIEW),
+  ...validateRequest(getStockValidator),
+  StockController.getStock
 );
 
 export default router;
