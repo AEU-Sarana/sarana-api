@@ -5,6 +5,10 @@ import morgan from 'morgan';
 import { env } from '@src/shared/config/env';
 import apiRoutes from '@src/routes/api';
 import { errorMiddleware } from '@src/shared/middleware/error.middleware';
+import { registerStockEventListeners } from '@src/domains/Stock/events/stock.listeners';
+
+// Register event listeners
+registerStockEventListeners();
 
 const app: Application = express();
 
