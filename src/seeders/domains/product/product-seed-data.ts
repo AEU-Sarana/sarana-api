@@ -4,7 +4,7 @@ import { SeederHelper } from '../utils/seeder-helper';
 export interface ProductSeedData {
   productCode: string;
   productName: string;
-  qrCode: string;
+  barcode: string;
   price: number;
   category?: string;
   description?: string;
@@ -20,7 +20,7 @@ export const productSeedData: ProductSeedData[] = Array.from({ length: 50 }, (_,
   return {
     productCode: DataGenerator.generateProductCode('PROD', index),
     productName: DataGenerator.generateProductName(category, index),
-    qrCode: DataGenerator.generateQRCode('QR', index),
+    barcode: DataGenerator.generateBarcode('BC', index),
     price: parseFloat((Math.random() * 990 + 10).toFixed(2)), // 10 to 1000
     category,
     description: `Description for ${DataGenerator.generateProductName(category, index)}`,

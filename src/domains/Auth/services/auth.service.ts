@@ -14,6 +14,7 @@ import {
 } from '@src/domains/Auth/types/auth.types';
 import { BusinessLogicException, ValidationException } from '@src/shared/exceptions';
 import { logger } from '@src/shared/utils/logger';
+import { sendPasswordResetEmailJob } from '@src/domains/Auth/jobs/send-password-reset-email.job';
 
 export class AuthService {
   /**
@@ -249,6 +250,8 @@ export class AuthService {
       select: {
         userId: true,
         username: true,
+        email: true,
+        fullName: true,
         role: true,
         status: true,
       },
@@ -277,8 +280,24 @@ export class AuthService {
     // Or use JWT with short expiry (15 minutes)
 
     // Send password reset email (async job)
-    // TODO: Implement email service
-    // await sendPasswordResetEmailJob.enqueue({ userId: user.userId, resetToken });
+    // If user has no email, we silently skip (security + data quality)
+    if (!user.email) {
+      logger.warn('Password reset requested but user has no email', { userId: user.userId });
+      return;
+    }
+
+    // Fire-and-forget (do not block the response)
+    void sendPasswordResetEmailJob({
+      toEmail: user.email,
+      username: user.username,
+      fullName: user.fullName,
+      resetToken,
+    }).catch((error) => {
+      logger.error('Failed to enqueue/send password reset email', {
+        userId: user.userId,
+        error: (error as any)?.message || error,
+      });
+    });
 
     logger.info('Password reset requested', { userId: user.userId });
   }

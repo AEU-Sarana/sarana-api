@@ -57,7 +57,7 @@ model Product {
   productId         Int       @id @default(autoincrement()) @map("product_id")
   productCode       String    @unique @map("product_code") @db.VarChar(50)
   productName       String    @map("product_name") @db.VarChar(200)
-  qrCode            String    @unique @map("qr_code") @db.VarChar(255)
+  barcode           String    @unique @map("barcode") @db.VarChar(255)
   price             Decimal   @db.Decimal(10, 2)
   category          String?   @db.VarChar(100)
   description       String?   @db.Text
@@ -79,7 +79,7 @@ model Product {
 
   @@map("products")
   @@index([productCode])
-  @@index([qrCode])
+  @@index([barcode], name: "idx_products_barcode")
   @@index([status])
   @@index([category])
 }

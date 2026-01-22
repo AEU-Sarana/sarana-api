@@ -9,9 +9,9 @@ export class DataGenerator {
   }
 
   /**
-   * Generate a unique QR code
+   * Generate a unique barcode
    */
-  static generateQRCode(prefix: string = 'QR', index: number = 0): string {
+  static generateBarcode(prefix: string = 'BC', index: number = 0): string {
     return `${prefix}-${Date.now()}-${index}`;
   }
 

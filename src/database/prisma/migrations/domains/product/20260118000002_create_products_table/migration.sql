@@ -2,7 +2,7 @@ CREATE TABLE products (
     product_id SERIAL PRIMARY KEY,
     product_code VARCHAR(50) NOT NULL UNIQUE,
     product_name VARCHAR(200) NOT NULL,
-    qr_code VARCHAR(255) NOT NULL UNIQUE,
+    barcode VARCHAR(255) NOT NULL UNIQUE,
     price DECIMAL(10,2) NOT NULL,
     category VARCHAR(100),
     description TEXT,
@@ -17,6 +17,6 @@ CREATE TABLE products (
 );
 
 CREATE INDEX idx_products_product_code ON products(product_code);
-CREATE INDEX idx_products_qr_code ON products(qr_code);
+CREATE INDEX idx_products_barcode ON products(barcode);
 CREATE INDEX idx_products_status ON products(status);
 CREATE INDEX idx_products_category ON products(category);

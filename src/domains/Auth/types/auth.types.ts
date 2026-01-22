@@ -57,3 +57,11 @@ export interface RefreshTokenPayload {
   iat: number;
   exp?: number;
 }
+
+// Jobs
+export interface SendPasswordResetEmailJobPayload {
+  toEmail: string;
+  username: string;
+  fullName?: string | null;
+  resetToken: string;
+}

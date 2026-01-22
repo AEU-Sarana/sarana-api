@@ -4,6 +4,10 @@ import { logger } from '@src/shared/utils/logger';
 export interface AuditLogData {
   userId?: number;
   action: string;
+  // Alias used by services; mapped to `entityType` for persistence
+  resource?: string;
+  // Extra metadata (not currently persisted to DB; safe for callers to pass)
+  details?: Record<string, any>;
   entityType?: string;
   entityId?: number;
   oldValues?: Record<string, any>;
@@ -22,7 +26,7 @@ export class AuditLogService {
         data: {
           userId: data.userId,
           action: data.action,
-          entityType: data.entityType,
+          entityType: data.entityType ?? data.resource,
           entityId: data.entityId,
           oldValues: data.oldValues as any,
           newValues: data.newValues as any,

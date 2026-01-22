@@ -10,6 +10,7 @@ import {
   logoutValidator,
   refreshTokenValidator,
   changePasswordValidator,
+  resetPasswordRequestValidator,
   resetPasswordValidator,
 } from '@src/domains/Auth/validators/V1/index';
 
@@ -21,6 +22,14 @@ router.post(
   authRateLimiter,
   ...validateRequest(loginValidator),
   AuthController.login
+);
+
+// POST /api/v1/auth/reset-password-request
+router.post(
+  '/reset-password-request',
+  authRateLimiter,
+  ...validateRequest(resetPasswordRequestValidator),
+  AuthController.requestPasswordReset
 );
 
 // POST /api/v1/auth/logout

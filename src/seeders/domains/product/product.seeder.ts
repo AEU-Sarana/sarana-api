@@ -14,7 +14,7 @@ export class ProductSeeder extends BaseSeeder {
         where: { productCode: productData.productCode },
         update: {
           productName: productData.productName,
-          qrCode: productData.qrCode,
+          barcode: productData.barcode,
           price: productData.price,
           category: productData.category,
           description: productData.description,
@@ -26,7 +26,7 @@ export class ProductSeeder extends BaseSeeder {
         create: {
           productCode: productData.productCode,
           productName: productData.productName,
-          qrCode: productData.qrCode,
+          barcode: productData.barcode,
           price: productData.price,
           category: productData.category,
           description: productData.description,
