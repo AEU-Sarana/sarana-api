@@ -10,8 +10,10 @@ import {
   logoutValidator,
   refreshTokenValidator,
   changePasswordValidator,
+  changePINValidator,
   resetPasswordRequestValidator,
   resetPasswordValidator,
+  resetPINValidator,
 } from '@src/domains/Auth/validators/V1/index';
 
 const router: IRouter = Router();
@@ -63,6 +65,14 @@ router.post(
   AuthController.changePassword
 );
 
+// POST /api/v1/auth/change-pin
+router.post(
+  '/change-pin',
+  authenticateToken,
+  ...validateRequest(changePINValidator),
+  AuthController.changePIN
+);
+
 // POST /api/v1/auth/reset-password (Admin only)
 router.post(
   '/reset-password',
@@ -70,6 +80,15 @@ router.post(
   requirePermission(Permission.AUTH_RESET_PASSWORD),
   ...validateRequest(resetPasswordValidator),
   AuthController.resetPassword
+);
+
+// POST /api/v1/auth/reset-pin (Admin only)
+router.post(
+  '/reset-pin',
+  authenticateToken,
+  requirePermission(Permission.AUTH_RESET_PASSWORD),
+  ...validateRequest(resetPINValidator),
+  AuthController.resetPIN
 );
 
 export default router;

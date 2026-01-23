@@ -16,9 +16,19 @@ export interface ChangePasswordRequest {
   confirm_password: string;
 }
 
+export interface ChangePINRequest {
+  current_pin: string;
+  new_pin: string;
+}
+
 export interface ResetPasswordRequest {
   user_id: number;
   new_password: string;
+}
+
+export interface ResetPINRequest {
+  user_id: number;
+  new_pin: string;
 }
 
 // Response Types

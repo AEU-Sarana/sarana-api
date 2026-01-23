@@ -13,6 +13,7 @@ import {
   updateUserValidator,
   deactivateUserValidator,
 } from '@src/domains/User/validators/V1';
+import { createPinValidator } from '../../validators/V1/create-pin.validator';
 
 const router: IRouter = Router();
 
@@ -68,6 +69,14 @@ router.delete(
   requirePermission(Permission.USER_DELETE),
   ...validateRequest(deactivateUserValidator),
   UserController.deactivateUser
+);
+
+//Set user PIN
+router.put(
+  '/:id/pin',
+  requirePermission(Permission.USER_UPDATE),
+  ...validateRequest(createPinValidator),
+  UserController.setUserPIN
 );
 
 export default router;

@@ -234,31 +234,14 @@ export class StockService {
   }
 
   /**
-   * Stock Adjustment (Admin only, PIN required)
+   * Stock Adjustment (Admin only)
    * Adjusts stock (can be positive or negative)
    */
   static async stockAdjust(
     request: StockAdjustRequest,
     currentUserId: number
   ): Promise<StockAdjustResponse> {
-    const { product_id, quantity, reason, pin } = request;
-
-    // Verify PIN (implement PIN verification service)
-    const user = await prisma.user.findUnique({
-      where: { userId: currentUserId },
-    });
-
-    if (!user || !user.pinHash) {
-      throw new ValidationException('PIN not configured for user');
-    }
-
-    // Verify PIN (use bcrypt)
-    const bcrypt = await import('bcrypt');
-    const isValidPIN = await bcrypt.compare(pin, user.pinHash);
-
-    if (!isValidPIN) {
-      throw new ValidationException('Invalid PIN');
-    }
+    const { product_id, quantity, reason} = request;
 
     // Validate product exists and is active
     const product = await prisma.product.findUnique({
@@ -323,7 +306,6 @@ export class StockService {
         reason: reason,
         stockBefore: stock.quantity,
         stockAfter: updatedStock.quantity,
-        pinVerified: true,
       },
     });
 

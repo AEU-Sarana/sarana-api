@@ -192,6 +192,7 @@ export class UserService {
       throw new ValidationException('Username already exists');
     }
 
+
     // Check if email already exists (if provided)
     if (email) {
       const existingEmail = await prisma.user.findFirst({
@@ -442,5 +443,54 @@ export class UserService {
       deactivated_date: updatedUser.deactivatedDate,
       deactivated_by: currentUserId,
     };
+  }
+
+  
+  /**
+   * Set user PIN
+  */
+  static async setUserPIN(
+    userId: number,
+    pin: string,
+    currentUserId: number
+  ): Promise<void> {
+    // Validate user exists
+    const user = await prisma.user.findUnique({
+      where: { userId },
+    });
+
+    if (!user || user.deactivatedDate) {
+      throw new ValidationException('User not found');
+    }
+
+    // Validate PIN format
+    if (!/^\d{4,6}$/.test(pin)) {
+      throw new ValidationException('PIN must be 4-6 numeric digits');
+    }
+
+    // Hash PIN
+    const { hashPIN } = await import('@src/shared/services/pin.service');
+    const pinHash = await hashPIN(pin);
+
+    // Update user PIN
+    await prisma.user.update({
+      where: { userId },
+      data: {
+        pinHash: pinHash,
+        updatedBy: currentUserId,
+        updatedAt: new Date(),
+      },
+    });
+
+    // Audit log
+    await auditLogService.createAuditLog({
+      userId: currentUserId,
+      action: 'SET_USER_PIN',
+      resource: 'User',
+      entityId: userId,
+      details: { targetUserId: userId },
+    });
+
+    logger.info('User PIN set', { userId, setBy: currentUserId });
   }
 }

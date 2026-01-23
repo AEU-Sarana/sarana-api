@@ -186,4 +186,43 @@ export class UserController {
       throw error;
     }
   }
+
+
+  /**
+   * PUT /api/v1/users/:id/pin
+   * Set user PIN
+  */
+  static async setUserPIN(req: Request, res: Response): Promise<void> {
+    try {
+      const user = req.user as UserPayload;
+      const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const userId = parseInt(idParam, 10);
+      const { pin } = req.body;
+
+      if (isNaN(userId)) {
+        res.status(400).json({
+          success: false,
+          message: 'Invalid user ID',
+          code: 'INVALID_USER_ID',
+        });
+        return;
+      }
+
+      await UserService.setUserPIN(userId, pin, user.userId);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          user_id: userId,
+          pin_configured: true,
+          updated_at: new Date(),
+        },
+        message: 'PIN configured successfully',
+      });
+    } catch (error: any) {
+      logger.error('Set user PIN error', { error: error.message });
+      throw error;
+    }
+  }
+
 }

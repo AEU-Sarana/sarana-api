@@ -15,6 +15,7 @@ import {
 import { BusinessLogicException, ValidationException } from '@src/shared/exceptions';
 import { logger } from '@src/shared/utils/logger';
 import { sendPasswordResetEmailJob } from '@src/domains/Auth/jobs/send-password-reset-email.job';
+import { auditLogService } from '@src/shared/services/audit-log.service';
 
 export class AuthService {
   /**
@@ -337,5 +338,95 @@ export class AuthService {
     });
 
     logger.info('Password reset completed', { userId: user.userId, adminUserId });
+  }
+
+  /**
+   * Reset user PIN
+  */
+  static async resetPIN(
+    userId: number,
+    newPin: string,
+    currentUserId: number
+  ): Promise<void> {
+    // Validate PIN format
+    if (!/^\d{4,6}$/.test(newPin)) {
+      throw new ValidationException('PIN must be 4-6 numeric digits');
+    }
+
+    // Hash PIN
+    const { hashPIN } = await import('@src/shared/services/pin.service');
+    const pinHash = await hashPIN(newPin);
+
+    // Update user PIN
+    await prisma.user.update({
+      where: { userId },
+      data: {
+        pinHash: pinHash,
+        updatedBy: currentUserId,
+        updatedAt: new Date(),
+      },
+    });
+
+    // Audit log
+    await auditLogService.createAuditLog({
+      userId: currentUserId,
+      action: 'RESET_PIN',
+      resource: 'User',
+      entityId: userId,
+      details: { targetUserId: userId },
+    });
+  }
+
+  /**
+   *​Change user PIN
+  */
+  static async changePIN(
+    currentUserId: number,
+    currentPin: string,
+    newPin: string
+  ): Promise<void> {
+    // Get user
+    const user = await prisma.user.findUnique({
+      where: { userId: currentUserId },
+    });
+
+    if (!user || !user.pinHash) {
+      throw new ValidationException('PIN not configured for user');
+    }
+
+    // Verify current PIN
+    const { verifyPIN } = await import('@src/shared/services/pin.service');
+    const isValidPIN = await verifyPIN(currentPin, user.pinHash);
+
+    if (!isValidPIN) {
+      throw new ValidationException('Current PIN is incorrect');
+    }
+
+    // Validate new PIN format
+    if (!/^\d{4,6}$/.test(newPin)) {
+      throw new ValidationException('PIN must be 4-6 numeric digits');
+    }
+
+    // Hash new PIN
+    const { hashPIN } = await import('@src/shared/services/pin.service');
+    const pinHash = await hashPIN(newPin);
+
+    // Update user PIN
+    await prisma.user.update({
+      where: { userId: currentUserId },
+      data: {
+        pinHash: pinHash,
+        updatedBy: currentUserId,
+        updatedAt: new Date(),
+      },
+    });
+
+    // Audit log
+    await auditLogService.createAuditLog({
+      userId: currentUserId,
+      action: 'CHANGE_PIN',
+      resource: 'User',
+      entityId: currentUserId,
+    });
   }
 }

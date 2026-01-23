@@ -4,7 +4,9 @@ import {
   LoginRequest, 
   RefreshTokenRequest,
   ChangePasswordRequest,
+  ChangePINRequest,
   ResetPasswordRequest,
+  ResetPINRequest,
 } from '@src/domains/Auth/types/auth.types';
 import { UserPayload } from '@src/shared/middleware/auth.middleware';
 import { logger } from '@src/shared/utils/logger';
@@ -171,6 +173,79 @@ export class AuthController {
       });
     } catch (error: any) {
       logger.error('Reset password error', { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * POST /api/v1/auth/reset-pin (Admin only)
+   */
+  static async resetPIN(req: Request, res: Response): Promise<void> {
+    try {
+      const request: ResetPINRequest = req.body;
+      const adminUser = req.user as UserPayload;
+
+      await AuthService.resetPIN(request.user_id, request.new_pin, adminUser.userId);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          user_id: request.user_id,
+          pin_reset: true,
+        },
+        message: 'PIN reset successful',
+      });
+    } catch (error: any) {
+      logger.error('Reset PIN error', { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * POST /api/v1/auth/change-pin
+   */
+  static async changePIN(req: Request, res: Response): Promise<void> {
+    try {
+      const user = req.user as UserPayload;
+      const request: ChangePINRequest = req.body;
+
+      await AuthService.changePIN(user.userId, request.current_pin, request.new_pin);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          pin_changed: true,
+        },
+        message: 'PIN changed successfully',
+      });
+    } catch (error: any) {
+      logger.error('Change PIN error', { error: error.message });
+      
+      // Handle validation errors with custom format
+      if (error.message === 'Current PIN is incorrect') {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_PIN',
+            message: 'Current PIN is incorrect',
+            details: {},
+          },
+        });
+        return;
+      }
+
+      if (error.message === 'PIN not configured for user') {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'PIN_NOT_CONFIGURED',
+            message: 'PIN not configured for user',
+            details: {},
+          },
+        });
+        return;
+      }
+      
       throw error;
     }
   }

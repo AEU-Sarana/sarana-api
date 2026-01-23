@@ -61,7 +61,6 @@ export interface StockAdjustRequest {
   product_id: number;
   quantity: number; // Can be negative
   reason?: string;
-  pin: string;
 }
 
 export interface StockAdjustResponse {

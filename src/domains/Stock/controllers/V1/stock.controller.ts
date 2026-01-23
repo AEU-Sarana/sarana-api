@@ -71,7 +71,6 @@ export class StockController {
         product_id: req.body.product_id,
         quantity: req.body.quantity,
         reason: req.body.reason,
-        pin: req.body.pin,
       };
 
       const response = await StockService.stockAdjust(request, user.userId);
