@@ -24,6 +24,12 @@ router.get(
   ProductController.listProducts
 );
 
+// Get product categories - All users (MUST be before /:id route)
+router.get(
+  '/categories',
+  ProductController.getCategories
+);
+
 // Get product details - All users
 router.get(
   '/:id',

@@ -63,3 +63,12 @@ export interface UpdateProductRequest {
 }
 
 export interface UpdateProductResponse extends ProductResponse {}
+
+export interface CategoryCount {
+  category: string;
+  count: number;
+}
+
+export interface GetCategoriesResponse {
+  categories: CategoryCount[];
+}

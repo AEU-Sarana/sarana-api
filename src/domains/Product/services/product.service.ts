@@ -8,6 +8,7 @@ import {
   CreateProductResponse,
   UpdateProductRequest,
   UpdateProductResponse,
+  GetCategoriesResponse,
 } from '@src/domains/Product/types/product.types';
 import { ValidationException, BusinessLogicException } from '@src/shared/exceptions';
 import { logger } from '@src/shared/utils/logger';
@@ -297,5 +298,57 @@ export class ProductService {
     });
 
     logger.info('Product deleted (soft)', { productId, userId: currentUserId });
+  }
+
+  /**
+   * Get product categories with counts
+   */
+  static async getCategories(
+    currentUserId: number
+  ): Promise<GetCategoriesResponse> {
+    // Get all products grouped by category
+    const products = await prisma.product.findMany({
+      where: {
+        deactivatedDate: null,
+        category: {
+          not: null,
+        },
+      },
+      select: {
+        category: true,
+      },
+    });
+
+    // Count products by category
+    const categoryMap = new Map<string, number>();
+    
+    products.forEach((product) => {
+      if (product.category) {
+        const count = categoryMap.get(product.category) || 0;
+        categoryMap.set(product.category, count + 1);
+      }
+    });
+
+    // Convert to array format
+    const categories: Array<{ category: string; count: number }> = Array.from(
+      categoryMap.entries()
+    ).map(([category, count]) => ({
+      category,
+      count,
+    }));
+
+    // Sort by category name
+    categories.sort((a, b) => a.category.localeCompare(b.category));
+
+    await auditLogService.createAuditLog({
+      userId: currentUserId,
+      action: 'VIEW_CATEGORIES',
+      resource: 'Product',
+      details: { categoryCount: categories.length },
+    });
+
+    return {
+      categories,
+    };
   }
 }

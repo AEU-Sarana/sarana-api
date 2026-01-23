@@ -29,6 +29,22 @@ export class ProductController {
     }
   }
 
+  static async getCategories(req: Request, res: Response): Promise<void> {
+    try {
+      const user = req.user as UserPayload;
+      const response = await ProductService.getCategories(user.userId);
+
+      res.status(200).json({
+        success: true,
+        data: response,
+        message: 'Categories retrieved',
+      });
+    } catch (error: any) {
+      logger.error('Get categories error', { error: error.message });
+      throw error;
+    }
+  }
+
   static async getProduct(req: Request, res: Response): Promise<void> {
     try {
       const user = req.user as UserPayload;
