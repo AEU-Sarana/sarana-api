@@ -16,6 +16,7 @@ import { BusinessLogicException, ValidationException } from '@src/shared/excepti
 import { logger } from '@src/shared/utils/logger';
 import { sendPasswordResetEmailJob } from '@src/domains/Auth/jobs/send-password-reset-email.job';
 import { auditLogService } from '@src/shared/services/audit-log.service';
+import { CurrentUser } from '../types/user.types';
 
 export class AuthService {
   /**
@@ -163,7 +164,7 @@ export class AuthService {
   /**
    * Get current user information
    */
-  static async getCurrentUser(userId: number) {
+  static async getCurrentUser(userId: number): Promise<CurrentUser> {
     const user = await prisma.user.findUnique({
       where: { userId },
       select: {
@@ -193,7 +194,7 @@ export class AuthService {
       username: user.username,
       email: user.email,
       full_name: user.fullName,
-      role: user.role,
+      role: user.role as UserRole,
       phone: user.phone,
       status: user.status,
       device_id: user.deviceId,

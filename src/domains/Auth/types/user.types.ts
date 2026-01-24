@@ -10,6 +10,18 @@ export interface User {
   updatedAt: Date;
 }
 
+export interface CurrentUser {
+  user_id: number;
+  username: string;
+  email: string | null;
+  full_name: string;
+  role: UserRole;
+  phone: string | null;
+  status: UserStatus;
+  device_id: string | null;
+  is_device_bound: boolean; 
+}
+
 export interface CreateUserRequest {
   username: string;
   password: string;
