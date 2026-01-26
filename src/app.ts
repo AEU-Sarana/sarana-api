@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { env } from '@src/shared/config/env';
 import apiRoutes from '@src/routes/api';
+import storageRoutes from '@src/routes/storage.routes';
 import { errorMiddleware } from '@src/shared/middleware/error.middleware';
 import { registerStockEventListeners } from '@src/domains/Stock/events/stock.listeners';
 
@@ -27,6 +28,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 if (env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
+
+// Storage routes (for serving files) - must be before API routes
+app.use('/', storageRoutes);
 
 // API routes
 app.use('/api', apiRoutes);

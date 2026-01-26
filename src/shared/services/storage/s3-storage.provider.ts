@@ -6,6 +6,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { env } from '@src/shared/config/env';
 import { logger } from '@src/shared/utils/logger';
+import { getLocalNetworkIP } from '@src/shared/utils/helpers';
 import type {
   IStorageProvider,
   FileUploadResult,
@@ -227,7 +228,31 @@ export class S3StorageProvider implements IStorageProvider {
       return `${baseUrl}/${key}`;
     }
 
-    // Fallback: construct URL from endpoint
+    // For MinIO in development, use nginx proxy path
+    // This allows access from browser/mobile apps
+    // Format: http://host:port/storage/bucket/key
+    if (env.STORAGE_PROVIDER === 'minio') {
+      // Get base URL from environment variables (priority order)
+      let baseUrl = env.API_BASE_URL || env.APP_URL || env.FRONTEND_URL;
+      
+      // If no base URL configured, construct from network IP and nginx port
+      if (!baseUrl) {
+        const protocol = env.STORAGE_USE_SSL ? 'https' : 'http';
+        // Try to get network IP, fallback to localhost
+        const networkIP = getLocalNetworkIP();
+        const host = process.env.API_HOST || networkIP || 'localhost';
+        const port = env.NGINX_HTTP_PORT || 8080;
+        baseUrl = `${protocol}://${host}:${port}`;
+      }
+      
+      // Remove trailing slash
+      baseUrl = baseUrl.replace(/\/$/, '');
+      
+      // Return full URL with storage path
+      return `${baseUrl}/storage/${this.bucket}/${key}`;
+    }
+
+    // Fallback: construct URL from endpoint (for other providers)
     const endpoint = env.STORAGE_ENDPOINT || '';
     const baseUrl = endpoint.replace(/\/$/, '');
     return `${baseUrl}/${this.bucket}/${key}`;

@@ -14,12 +14,87 @@ import { ValidationException, BusinessLogicException } from '@src/shared/excepti
 import { logger } from '@src/shared/utils/logger';
 import { auditLogService } from '@src/shared/services/audit-log.service';
 import { fileStorageService } from '@src/shared/services/file-storage.service';
+import { env } from '@src/shared/config/env';
+import { getLocalNetworkIP } from '@src/shared/utils/helpers';
 
 export class ProductService {
   /**
+   * Normalize image URL - convert old MinIO URLs to new nginx proxy format
+  */
+  private static normalizeImageUrl(imagePath: string | null): string | null {
+    if (!imagePath) return null;
+
+    
+    if (imagePath.startsWith('/storage/')) {
+    
+      let baseUrl = env.API_BASE_URL || env.APP_URL || env.FRONTEND_URL;
+      if (!baseUrl) {
+        const protocol = env.STORAGE_USE_SSL ? 'https' : 'http';
+        const networkIP = getLocalNetworkIP();
+        const host = process.env.API_HOST || networkIP || 'localhost';
+        const port = env.NGINX_HTTP_PORT || 8080;
+        baseUrl = `${protocol}://${host}:${port}`;
+      }
+      baseUrl = baseUrl.replace(/\/$/, '');
+      return imagePath.startsWith('http') ? imagePath : `${baseUrl}${imagePath}`;
+    }
+
+    
+    if (imagePath.includes('/storage/')) {
+      return imagePath;
+    }
+
+    
+    try {
+      const url = new URL(imagePath);
+      const pathParts = url.pathname.split('/').filter(Boolean);
+      
+      // Find bucket (usually first part after domain)
+      if (pathParts.length >= 2) {
+        const bucket = pathParts[0];
+        const key = pathParts.slice(1).join('/');
+        
+        // Get base URL
+        let baseUrl = env.API_BASE_URL || env.APP_URL || env.FRONTEND_URL;
+        if (!baseUrl) {
+          const protocol = env.STORAGE_USE_SSL ? 'https' : 'http';
+          const networkIP = getLocalNetworkIP();
+          const host = process.env.API_HOST || networkIP || 'localhost';
+          const port = env.NGINX_HTTP_PORT || 8080;
+          baseUrl = `${protocol}://${host}:${port}`;
+        }
+        baseUrl = baseUrl.replace(/\/$/, '');
+        
+        // Return new format URL
+        return `${baseUrl}/storage/${bucket}/${key}`;
+      }
+    } catch (error) {
+      const match = imagePath.match(/\/([^\/]+)\/(.+)$/);
+      if (match) {
+        const bucket = match[1];
+        const key = match[2];
+        
+        let baseUrl = env.API_BASE_URL || env.APP_URL || env.FRONTEND_URL;
+        if (!baseUrl) {
+          const protocol = env.STORAGE_USE_SSL ? 'https' : 'http';
+          const networkIP = getLocalNetworkIP();
+          const host = process.env.API_HOST || networkIP || 'localhost';
+          const port = env.NGINX_HTTP_PORT || 8080;
+          baseUrl = `${protocol}://${host}:${port}`;
+        }
+        baseUrl = baseUrl.replace(/\/$/, '');
+        
+        return `${baseUrl}/storage/${bucket}/${key}`;
+      }
+    }
+
+    // If we can't parse it, return as is (might be external URL)
+    return imagePath;
+  }
+  /**
    * List products with filters
    * Supports: page, limit, status, category, search, barcode
-   */
+  */
   static async listProducts(
     request: ListProductsRequest,
     currentUserId: number
@@ -68,7 +143,7 @@ export class ProductService {
         price: Number(p.price),
         category: p.category,
         description: p.description,
-        image_path: p.imagePath,
+        image_path: this.normalizeImageUrl(p.imagePath),
         low_stock_threshold: p.lowStockThreshold,
         status: (p.status as any) as ProductStatus,
         created_at: p.createdAt,
@@ -113,7 +188,7 @@ export class ProductService {
       price: Number(product.price),
       category: product.category,
       description: product.description,
-      image_path: product.imagePath,
+      image_path: this.normalizeImageUrl(product.imagePath),
       low_stock_threshold: product.lowStockThreshold,
       status: (product.status as any) as ProductStatus,
       created_at: product.createdAt,
@@ -127,7 +202,7 @@ export class ProductService {
    * @param request - Product creation request
    * @param currentUserId - Current user ID
    * @param imageFile - Optional uploaded image file
-   */
+  */
   static async createProduct(
     request: CreateProductRequest,
     currentUserId: number,
@@ -222,7 +297,7 @@ export class ProductService {
       price: Number(product.price),
       category: product.category,
       description: product.description,
-      image_path: product.imagePath,
+      image_path: this.normalizeImageUrl(product.imagePath),
       low_stock_threshold: product.lowStockThreshold,
       status: (product.status as any) as ProductStatus,
       created_at: product.createdAt,
@@ -237,7 +312,7 @@ export class ProductService {
    * @param request - Product update request
    * @param currentUserId - Current user ID
    * @param imageFile - Optional new image file to upload
-   */
+  */
   static async updateProduct(
     productId: number,
     request: UpdateProductRequest,
@@ -366,7 +441,7 @@ export class ProductService {
       price: Number(updated.price),
       category: updated.category,
       description: updated.description,
-      image_path: updated.imagePath,
+      image_path: this.normalizeImageUrl(updated.imagePath),
       low_stock_threshold: updated.lowStockThreshold,
       status: (updated.status as any) as ProductStatus,
       created_at: updated.createdAt,
@@ -377,16 +452,11 @@ export class ProductService {
   /**
    * Soft delete product (Admin only)
    * Also deletes associated image from storage
-   */
+  */
   static async deleteProduct(productId: number, currentUserId: number): Promise<void> {
     const existing = await prisma.product.findUnique({ where: { productId } });
     if (!existing || existing.deactivatedDate) throw new ValidationException('Product not found');
 
-    // Optional rule: prevent deletion if used in orders (if table exists)
-    // const usedCount = await prisma.orderItem.count({ where: { productId } });
-    // if (usedCount > 0) throw new BusinessLogicException('Cannot delete product with order history');
-
-    // Delete product image from storage if exists
     if (existing.imagePath) {
       try {
         // Extract key from URL using storage service helper
