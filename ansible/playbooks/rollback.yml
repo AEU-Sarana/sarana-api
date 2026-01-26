@@ -1,0 +1,58 @@
+---
+# Rollback playbook for emergency recovery
+- name: Rollback Stock POS Server Deployment
+  hosts: "{{ inventory_hostname.split('-')[0] }}"
+  become: yes
+
+  vars:
+    docker_container_name: stock-pos-app
+    rollback_version: "{{ rollback_to_version | default('latest') }}"
+
+  tasks:
+    - name: Set rollback image
+      set_fact:
+        docker_image: '{{ docker_registry }}/stock-pos-server:{{ rollback_version }}'
+
+    - name: Stop current container
+      docker_container:
+        name: '{{ docker_container_name }}'
+        state: stopped
+      register: stop_result
+
+    - name: Backup current container
+      command: 'docker rename {{ docker_container_name }} {{ docker_container_name }}-backup-{{ ansible_date_time.iso8601_basic_short }}'
+      ignore_errors: yes
+
+    - name: Pull rollback image
+      docker_image:
+        name: '{{ docker_image }}'
+        source: pull
+
+    - name: Start container with rollback image
+      docker_container:
+        name: '{{ docker_container_name }}'
+        image: '{{ docker_image }}'
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - '{{ app_port }}:3000'
+        networks:
+          - name: '{{ docker_network }}'
+        env:
+          NODE_ENV: '{{ app_env }}'
+          DATABASE_URL: 'postgresql://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_host }}:{{ postgres_port }}/{{ postgres_db }}'
+          REDIS_URL: 'redis://{{ redis_host }}:{{ redis_port }}'
+
+    - name: Wait for service to recover
+      uri:
+        url: 'http://localhost:{{ app_port }}/health'
+        method: GET
+        status_code: 200
+      register: health_check
+      retries: 10
+      delay: 5
+      until: health_check.status == 200
+
+    - name: Rollback successful notification
+      debug:
+        msg: '✅ Rollback to version {{ rollback_version }} completed successfully'

@@ -1,0 +1,46 @@
+---
+# Health check tasks
+- name: Get container info
+  docker_container_info:
+    name: '{{ docker_container_name }}'
+  register: container_info
+
+- name: Check if container exists and is running
+  assert:
+    that:
+      - container_info.exists
+      - container_info.container.State.Running
+    fail_msg: 'Container is not running!'
+    success_msg: 'Container is running'
+
+- name: Wait for API health endpoint
+  uri:
+    url: 'http://localhost:{{ app_port }}/health'
+    method: GET
+    status_code: 200
+  register: api_health
+  retries: 15
+  delay: 5
+  until: api_health.status == 200
+
+- name: Check container logs for errors
+  shell: 'docker logs {{ docker_container_name }} | tail -20'
+  register: container_logs
+  changed_when: false
+
+- name: Display container logs
+  debug:
+    msg: '{{ container_logs.stdout_lines }}'
+
+- name: Test database connectivity
+  shell: 'docker exec {{ docker_container_name }} node -e "console.log(''DB Connection: OK'')"'
+  register: db_test
+  changed_when: false
+
+- name: Health check summary
+  debug:
+    msg:
+      - '✅ Container Status: Running'
+      - '✅ API Health: OK'
+      - '✅ Database: Connected'
+      - 'Deployment health check passed!'

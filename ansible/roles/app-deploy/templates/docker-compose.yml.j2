@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  app:
+    image: {{ docker_image }}
+    container_name: {{ docker_container_name }}
+    environment:
+      NODE_ENV: {{ app_env }}
+      PORT: 3000
+      DATABASE_URL: postgresql://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_host }}:{{ postgres_port }}/{{ postgres_db }}
+      REDIS_URL: redis://{{ redis_host }}:{{ redis_port }}
+      JWT_SECRET: {{ jwt_secret }}
+      JWT_REFRESH_SECRET: {{ jwt_refresh_secret }}
+    ports:
+      - "{{ app_port }}:3000"
+    networks:
+      - {{ docker_network }}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+networks:
+  {{ docker_network }}:
+    external: true

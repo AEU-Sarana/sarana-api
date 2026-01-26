@@ -1,0 +1,31 @@
+services:
+  app:
+    build:
+      context: .
+      target: development
+    container_name: stock-pos-app-dev
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: development
+      PORT: ${PORT:-3000}
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-stock_pos}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-dev-secret}
+      JWT_EXPIRES_IN: 7d
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/dist
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: sh -c "pnpm db:generate && pnpm migrate:apply && pnpm dev"
+    networks:
+      - stock-pos-network
+
+  nginx:
+    depends_on:
+      - app
