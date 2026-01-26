@@ -1,4 +1,5 @@
 import multer from 'multer';
+import type { Request, Response, NextFunction } from 'express';
 import { APP_CONSTANTS } from '@src/shared/config/constants';
 
 /**
@@ -28,6 +29,7 @@ const fileFilter = (
 
 /**
  * Multer instance for product image uploads
+ * Accepts any field name for flexibility (image, file, photo, etc.)
  */
 export const productImageUpload = multer({
   storage,
@@ -39,6 +41,26 @@ export const productImageUpload = multer({
 });
 
 /**
+ * Middleware to handle single image upload with any field name
+ * This allows clients to use any field name (image, file, photo, etc.)
+ */
+export const productImageUploadAny = (req: Request, res: Response, next: NextFunction) => {
+  productImageUpload.any()(req as any, res, (err) => {
+    if (err) {
+      return next(err);
+    }
+    
+    // Multer's .any() puts files in req.files array
+    // We need to put the first file in req.file for compatibility
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+      (req as any).file = req.files[0];
+    }
+    
+    next();
+  });
+};
+
+/**
  * Multer instance for general file uploads
  */
 export const fileUpload = multer({
@@ -47,4 +69,3 @@ export const fileUpload = multer({
     fileSize: APP_CONSTANTS.MAX_FILE_SIZE,
   },
 });
-

@@ -74,12 +74,50 @@ export class S3StorageProvider implements IStorageProvider {
       // Build object key (path in storage)
       const key = folder ? `${folder}/${filename}` : filename;
 
-      // Prepare metadata
-      const metadata: Record<string, string> = {
-        originalName: file.originalname,
-        uploadedAt: new Date().toISOString(),
-        ...(options?.metadata || {}),
+    
+      const sanitizeMetadataKey = (key: string): string => {
+        return key.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
       };
+
+      const sanitizeMetadataValue = (value: string): string => {
+        // Very aggressive sanitization - only allow safe characters for HTTP headers
+        return String(value)
+          .replace(/[\x00-\x1F\x7F]/g, '') 
+          .replace(/["'\[\]{}()<>]/g, '') 
+          .replace(/[\r\n\t]/g, ' ') 
+          .replace(/[^\x20-\x7E]/g, '')
+          .replace(/\s+/g, ' ') 
+          .trim()
+          .substring(0, 1024); 
+      };
+
+      // Start with minimal safe metadata
+      const metadata: Record<string, string> = {
+        originalname: sanitizeMetadataValue(file.originalname),
+        uploadedat: new Date().toISOString(),
+      };
+
+      // Add custom metadata with sanitized keys and values
+      // Be very conservative - only add if it passes strict validation
+      if (options?.metadata) {
+        for (const [key, value] of Object.entries(options.metadata)) {
+          const sanitizedKey = sanitizeMetadataKey(key);
+          const sanitizedValue = sanitizeMetadataValue(String(value));
+          
+          // Only add if:
+          // 1. Value is not empty after sanitization
+          // 2. Key is valid (lowercase alphanumeric with hyphens/underscores)
+          // 3. Value contains only safe ASCII characters
+          if (sanitizedValue && 
+              /^[a-z0-9_-]+$/.test(sanitizedKey) && 
+              /^[\x20-\x7E]*$/.test(sanitizedValue) &&
+              !/["'\[\]{}()<>]/.test(sanitizedValue)) {
+            metadata[sanitizedKey] = sanitizedValue;
+          } else {
+            logger.debug(`Skipping metadata entry: ${sanitizedKey} (sanitized from ${key})`);
+          }
+        }
+      }
 
       // Upload to S3-compatible storage
       // Note: ACL is deprecated in some S3 services (R2, etc.)
@@ -90,8 +128,33 @@ export class S3StorageProvider implements IStorageProvider {
         Key: key,
         Body: file.buffer,
         ContentType: options?.contentType || file.mimetype,
-        Metadata: metadata,
       };
+
+      // Only add Metadata if it's not empty and has valid entries
+      // S3 metadata has strict requirements - be very conservative
+      // Only allow printable ASCII characters (no special chars that could break HTTP headers)
+      const validMetadata: Record<string, string> = {};
+      for (const [key, value] of Object.entries(metadata)) {
+        if (value && typeof value === 'string' && value.length > 0 && value.length <= 1024) {
+          // Double-check: key must be valid and value must only contain safe ASCII
+          const isValidKey = /^[a-z0-9_-]+$/.test(key);
+          // Only allow printable ASCII (32-126) - no control chars, no extended ASCII
+          const isValidValue = /^[\x20-\x7E]*$/.test(value) && !/["'\[\]{}()<>]/.test(value);
+          if (isValidKey && isValidValue) {
+            validMetadata[key] = value;
+          } else {
+            logger.warn(`Skipping invalid metadata: ${key}=${value.substring(0, 50)} (key valid: ${isValidKey}, value valid: ${isValidValue})`);
+          }
+        }
+      }
+      
+      // If no valid metadata, don't add Metadata field at all
+      if (Object.keys(validMetadata).length > 0) {
+        putObjectParams.Metadata = validMetadata;
+        logger.debug(`Uploading with metadata: ${JSON.stringify(validMetadata)}`);
+      } else {
+        logger.debug('No valid metadata to upload, skipping Metadata field');
+      }
 
       // Add ACL if public access is desired (may not work for R2, but won't break)
       if (options?.public !== false) {
@@ -100,7 +163,20 @@ export class S3StorageProvider implements IStorageProvider {
 
       const command = new PutObjectCommand(putObjectParams);
 
-      await this.s3Client.send(command);
+      try {
+        await this.s3Client.send(command);
+      } catch (error: any) {
+        // If error is related to metadata, retry without metadata
+        if (error.message && error.message.includes('header content') && putObjectParams.Metadata) {
+          logger.warn('Metadata caused upload error, retrying without metadata', { error: error.message });
+          delete putObjectParams.Metadata;
+          const retryCommand = new PutObjectCommand(putObjectParams);
+          await this.s3Client.send(retryCommand);
+          logger.info('Upload succeeded after removing metadata');
+        } else {
+          throw error;
+        }
+      }
 
       // Generate public URL
       const url = this.getPublicUrl(key);

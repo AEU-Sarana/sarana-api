@@ -144,6 +144,12 @@ export class ProductService {
       low_stock_threshold,
     } = request;
 
+    // Convert string values to numbers if needed
+    const priceNumber = typeof price === 'string' ? parseFloat(price) : price;
+    const lowStockThresholdNumber = low_stock_threshold !== undefined && low_stock_threshold !== null
+      ? (typeof low_stock_threshold === 'string' ? parseInt(low_stock_threshold, 10) : low_stock_threshold)
+      : null;
+
     // Uniqueness checks
     const existingCode = await prisma.product.findFirst({
       where: { productCode: product_code, deactivatedDate: null },
@@ -187,11 +193,11 @@ export class ProductService {
         productCode: product_code,
         productName: product_name,
         barcode: barcode,
-        price,
+        price: priceNumber,
         category,
         description,
         imagePath: finalImagePath,
-        lowStockThreshold: low_stock_threshold,
+        lowStockThreshold: lowStockThresholdNumber,
         status: 'active',
         createdBy: currentUserId,
         updatedBy: currentUserId,
@@ -315,17 +321,27 @@ export class ProductService {
       }
     }
 
+    // Convert string values to numbers if needed
+    const priceNumber = request.price !== undefined
+      ? (typeof request.price === 'string' ? parseFloat(request.price) : request.price)
+      : undefined;
+    const lowStockThresholdNumber = request.low_stock_threshold !== undefined
+      ? (typeof request.low_stock_threshold === 'string' 
+          ? parseInt(request.low_stock_threshold, 10) 
+          : request.low_stock_threshold)
+      : undefined;
+
     const updated = await prisma.product.update({
       where: { productId },
       data: {
         productCode: request.product_code ?? undefined,
         productName: request.product_name ?? undefined,
         barcode: request.barcode ?? undefined,
-        price: request.price ?? undefined,
+        price: priceNumber,
         category: request.category ?? undefined,
         description: request.description ?? undefined,
         imagePath: finalImagePath ?? undefined,
-        lowStockThreshold: request.low_stock_threshold ?? undefined,
+        lowStockThreshold: lowStockThresholdNumber,
         status: request.status ? (request.status === 'active' ? 'active' : 'inactive') : undefined,
         updatedBy: currentUserId,
         updatedAt: new Date(),
