@@ -13,6 +13,7 @@ import {
 import { ValidationException, BusinessLogicException } from '@src/shared/exceptions';
 import { logger } from '@src/shared/utils/logger';
 import { auditLogService } from '@src/shared/services/audit-log.service';
+import { fileStorageService } from '@src/shared/services/file-storage.service';
 
 export class ProductService {
   /**
@@ -122,10 +123,15 @@ export class ProductService {
 
   /**
    * Create product (Admin only)
+   * 
+   * @param request - Product creation request
+   * @param currentUserId - Current user ID
+   * @param imageFile - Optional uploaded image file
    */
   static async createProduct(
     request: CreateProductRequest,
-    currentUserId: number
+    currentUserId: number,
+    imageFile?: Express.Multer.File
   ): Promise<CreateProductResponse> {
     const {
       product_code,
@@ -149,6 +155,33 @@ export class ProductService {
     });
     if (existingBarcode) throw new BusinessLogicException('Barcode already exists');
 
+    // Handle image upload if provided
+    let finalImagePath = image_path || null;
+    if (imageFile) {
+      try {
+        const uploadResult = await fileStorageService.uploadFile(
+          imageFile,
+          'products',
+          {
+            filename: `product-${product_code}`,
+            public: true,
+            metadata: {
+              productCode: product_code,
+              uploadedBy: currentUserId.toString(),
+            },
+          }
+        );
+        finalImagePath = uploadResult.url;
+        logger.info('Product image uploaded', { 
+          productCode: product_code, 
+          imageUrl: finalImagePath 
+        });
+      } catch (error) {
+        logger.error('Failed to upload product image:', error);
+        throw new BusinessLogicException('Failed to upload product image');
+      }
+    }
+
     const product = await prisma.product.create({
       data: {
         productCode: product_code,
@@ -157,7 +190,7 @@ export class ProductService {
         price,
         category,
         description,
-        imagePath: image_path,
+        imagePath: finalImagePath,
         lowStockThreshold: low_stock_threshold,
         status: 'active',
         createdBy: currentUserId,
@@ -193,11 +226,17 @@ export class ProductService {
 
   /**
    * Update product (Admin only)
+   * 
+   * @param productId - Product ID to update
+   * @param request - Product update request
+   * @param currentUserId - Current user ID
+   * @param imageFile - Optional new image file to upload
    */
   static async updateProduct(
     productId: number,
     request: UpdateProductRequest,
-    currentUserId: number
+    currentUserId: number,
+    imageFile?: Express.Multer.File
   ): Promise<UpdateProductResponse> {
     const existing = await prisma.product.findUnique({ where: { productId } });
     if (!existing || existing.deactivatedDate) throw new ValidationException('Product not found');
@@ -225,6 +264,57 @@ export class ProductService {
       if (barcodeUsed) throw new BusinessLogicException('Barcode already exists');
     }
 
+    // Handle image upload/replacement
+    let finalImagePath = request.image__path ?? existing.imagePath;
+    let oldImageKey: string | null = null;
+
+    if (imageFile) {
+      try {
+        // Extract old image key from URL if exists
+        if (existing.imagePath) {
+          oldImageKey = fileStorageService.extractKeyFromUrl(existing.imagePath);
+        }
+
+        // Upload new image
+        const uploadResult = await fileStorageService.uploadFile(
+          imageFile,
+          'products',
+          {
+            filename: `product-${request.product_code || existing.productCode}`,
+            public: true,
+            metadata: {
+              productCode: request.product_code || existing.productCode,
+              productId: productId.toString(),
+              uploadedBy: currentUserId.toString(),
+            },
+          }
+        );
+        finalImagePath = uploadResult.url;
+        logger.info('Product image updated', { 
+          productId, 
+          imageUrl: finalImagePath 
+        });
+
+        // Delete old image if it exists
+        if (oldImageKey) {
+          try {
+            await fileStorageService.deleteFile(oldImageKey);
+            logger.info('Old product image deleted', { productId, oldImageKey });
+          } catch (deleteError) {
+            logger.warn('Failed to delete old product image', { 
+              productId, 
+              oldImageKey, 
+              error: deleteError 
+            });
+            // Don't throw - image deletion failure shouldn't block update
+          }
+        }
+      } catch (error) {
+        logger.error('Failed to upload product image:', error);
+        throw new BusinessLogicException('Failed to upload product image');
+      }
+    }
+
     const updated = await prisma.product.update({
       where: { productId },
       data: {
@@ -234,7 +324,7 @@ export class ProductService {
         price: request.price ?? undefined,
         category: request.category ?? undefined,
         description: request.description ?? undefined,
-        imagePath: request.image__path ?? undefined,
+        imagePath: finalImagePath ?? undefined,
         lowStockThreshold: request.low_stock_threshold ?? undefined,
         status: request.status ? (request.status === 'active' ? 'active' : 'inactive') : undefined,
         updatedBy: currentUserId,
@@ -270,6 +360,7 @@ export class ProductService {
 
   /**
    * Soft delete product (Admin only)
+   * Also deletes associated image from storage
    */
   static async deleteProduct(productId: number, currentUserId: number): Promise<void> {
     const existing = await prisma.product.findUnique({ where: { productId } });
@@ -278,6 +369,31 @@ export class ProductService {
     // Optional rule: prevent deletion if used in orders (if table exists)
     // const usedCount = await prisma.orderItem.count({ where: { productId } });
     // if (usedCount > 0) throw new BusinessLogicException('Cannot delete product with order history');
+
+    // Delete product image from storage if exists
+    if (existing.imagePath) {
+      try {
+        // Extract key from URL using storage service helper
+        const imageKey = fileStorageService.extractKeyFromUrl(existing.imagePath);
+        
+        if (imageKey) {
+          await fileStorageService.deleteFile(imageKey);
+          logger.info('Product image deleted', { productId, imageKey });
+        } else {
+          logger.warn('Could not extract image key from URL', { 
+            productId, 
+            imagePath: existing.imagePath 
+          });
+        }
+      } catch (error) {
+        logger.warn('Failed to delete product image', { 
+          productId, 
+          imagePath: existing.imagePath, 
+          error 
+        });
+        // Don't throw - image deletion failure shouldn't block product deletion
+      }
+    }
 
     await prisma.product.update({
       where: { productId },

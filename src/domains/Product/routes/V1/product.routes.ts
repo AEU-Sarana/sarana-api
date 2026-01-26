@@ -11,6 +11,7 @@ import {
   updateProductValidator,
   deleteProductValidator,
 } from '@src/domains/Product/validators/V1/index';
+import { productImageUpload } from '@src/shared/utils/multer.config';
 
 const router: IRouter = Router();
 
@@ -42,6 +43,7 @@ router.post(
   '/',
   requireAdmin,
   requirePermission(Permission.PRODUCT_CREATE),
+  productImageUpload.single('image'), // Handle single image upload
   ...validateRequest(createProductValidator),
   ProductController.createProduct
 );
@@ -51,6 +53,7 @@ router.put(
   '/:id',
   requireAdmin,
   requirePermission(Permission.PRODUCT_UPDATE),
+  productImageUpload.single('image'), // Handle single image upload
   ...validateRequest(updateProductValidator),
   ProductController.updateProduct
 );

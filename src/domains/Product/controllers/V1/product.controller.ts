@@ -67,7 +67,8 @@ export class ProductController {
   static async createProduct(req: Request, res: Response): Promise<void> {
     try {
       const user = req.user as UserPayload;
-      const response = await ProductService.createProduct(req.body, user.userId);
+      const imageFile = req.file; // Get uploaded file from multer
+      const response = await ProductService.createProduct(req.body, user.userId, imageFile);
 
       res.status(201).json({
         success: true,
@@ -85,7 +86,8 @@ export class ProductController {
       const user = req.user as UserPayload;
       const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const productId = parseInt(idParam, 10);
-      const response = await ProductService.updateProduct(productId, req.body, user.userId);
+      const imageFile = req.file; // Get uploaded file from multer
+      const response = await ProductService.updateProduct(productId, req.body, user.userId, imageFile);
 
       res.status(200).json({
         success: true,
