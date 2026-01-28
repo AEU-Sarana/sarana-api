@@ -1,4 +1,5 @@
 import  prisma  from '@src/database/client';
+import type { Prisma } from '@src/database/generated/client';
 import { StockMovementType } from '@src/domains/Stock/enums/stock-movement-type.enum';
 import { ProductStatus } from '@src/domains/Product/enums/product-status.enum';
 import {
@@ -619,10 +620,13 @@ export class StockService {
     price: number,
     orderId: number,
     shiftId: number,
-    currentUserId: number
+    currentUserId: number,
+    tx?: Prisma.TransactionClient
   ): Promise<void> {
+    const db = tx ?? prisma;
+
     // Get stock record
-    const stock = await prisma.stock.findUnique({
+    const stock = await db.stock.findUnique({
       where: { productId: productId },
     });
 
@@ -631,7 +635,7 @@ export class StockService {
     }
 
     // Create stock movement
-    await prisma.stockMovement.create({
+    await db.stockMovement.create({
       data: {
         productId: productId,
         movementType: 'STOCK_OUT',
@@ -645,7 +649,7 @@ export class StockService {
     });
 
     // Update stock quantity
-    await prisma.stock.update({
+    await db.stock.update({
       where: { productId: productId },
       data: {
         quantity: stock.quantity - quantity,

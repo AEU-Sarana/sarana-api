@@ -151,7 +151,8 @@ export class OrderSyncService {
                 item.unit_price,
                 newOrder.orderId,
                 orderData.shift_id,
-                currentUserId
+                currentUserId,
+                tx
               );
             }
 
