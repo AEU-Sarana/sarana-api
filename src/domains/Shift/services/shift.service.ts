@@ -55,6 +55,33 @@ export class ShiftService {
       },
     });
 
+    // Normalize stock snapshot into the contract shape
+    let stockVersion: number | null = null;
+    let lastSyncTime: Date | null = null;
+    let products: any[] = [];
+
+    if ('stocks' in stockSnapshot) {
+      stockVersion = 'version' in stockSnapshot ? stockSnapshot.version ?? null : null;
+      lastSyncTime = stockSnapshot.last_sync_time ?? null;
+
+      products = stockSnapshot.stocks.map((s: any) => ({
+        product_id: s.product_id,
+        product_code: s.product_code,
+        product_name: s.product_name,
+        price: typeof s.price === 'number' ? s.price : null,
+        stock: {
+          quantity: s.quantity,
+          stock_version: s.stock_version ?? null,
+        },
+      }));
+    }
+
+    const stockResponse = {
+      version: stockVersion,
+      last_sync_time: lastSyncTime ? lastSyncTime.toISOString() : null,
+      products,
+    };
+
     await auditLogService.createAuditLog({
       userId: currentUserId,
       action: 'START_SHIFT',
@@ -67,11 +94,11 @@ export class ShiftService {
       shift_id: shift.shiftId,
       seller_id: shift.sellerId,
       shift_date: shift.shiftDate.toISOString().slice(0, 10),
-      start_time: shift.startTime,
+      start_time: shift.startTime.toISOString(),
       opening_cash: Number(shift.openingCash),
       status: shift.status,
-      stock: stockSnapshot,
-      created_at: shift.createdAt,
+      stock: stockResponse,
+      created_at: shift.createdAt.toISOString(),
     };
   }
 
@@ -172,8 +199,18 @@ export class ShiftService {
     if (status) where.status = status;
     if (start_date || end_date) {
       where.shiftDate = {};
-      if (start_date) where.shiftDate.gte = start_date;
-      if (end_date) where.shiftDate.lte = end_date;
+      if (start_date) {
+        // Convert date string to Date object (start of day)
+        const startDate = new Date(start_date);
+        startDate.setHours(0, 0, 0, 0);
+        where.shiftDate.gte = startDate;
+      }
+      if (end_date) {
+        // Convert date string to Date object (end of day)
+        const endDate = new Date(end_date);
+        endDate.setHours(23, 59, 59, 999);
+        where.shiftDate.lte = endDate;
+      }
     }
 
     const total = await prisma.shift.count({ where });
