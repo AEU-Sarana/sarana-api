@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+
+# IDE
+.idea/
+.vscode/
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+doc/
+*.md
+!README.md
+
+# Docker files (don't copy into itself)
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# CI/CD
+Jenkinsfile*
+.github/
+
+# Ansible
+ansible/
+
+# Scripts (if not needed in container)
+scripts/
+
+# Generated files
+/src/database/generated
