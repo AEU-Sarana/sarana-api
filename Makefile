@@ -78,7 +78,7 @@ logs:
 	$(COMPOSE_CMD) logs -f
 
 app-logs:
-	$(COMPOSE_CMD) logs -f app
+	$(COMPOSE_CMD) logs -f app-dev
 
 nginx-logs:
 	$(COMPOSE_CMD) logs -f nginx
@@ -93,13 +93,13 @@ redis-logs:
 # App / DB
 # ==============================
 shell:
-	$(COMPOSE_CMD) exec app sh
+	$(COMPOSE_CMD) exec app-dev sh
 
 migrate:
-	$(COMPOSE_CMD) exec app pnpm db:migrate:deploy
+	$(COMPOSE_CMD) exec app-dev pnpm db:migrate:deploy
 
 seed:
-	$(COMPOSE_CMD) exec app pnpm db:seed
+	$(COMPOSE_CMD) exec app-dev pnpm db:seed
 
 # ==============================
 # Health & Cleanup
