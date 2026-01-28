@@ -1,0 +1,102 @@
+export interface StartShiftRequest {
+    opening_cash: number;
+  }
+  
+  export interface StartShiftResponse {
+    shift_id: number;
+    seller_id: number;
+    shift_date: string;
+    start_time: Date;
+    opening_cash: number;
+    status: string;
+    stock: any; // stock snapshot response
+    created_at: Date;
+  }
+  
+  export interface CloseShiftRequest {
+    actual_cash: number;
+  }
+  
+  export interface CloseShiftResponse {
+    shift_id: number;
+    end_time: Date;
+    actual_cash: number;
+    expected_cash: number;
+    short_amount: number;
+    over_amount: number;
+    total_sales_count: number;
+    total_sales_amount: number;
+    status: string;
+    report_sent_status: string;
+    updated_at: Date;
+  }
+  
+  export interface ListShiftsRequest {
+    page?: number;
+    limit?: number;
+    seller_id?: number;
+    status?: string;
+    start_date?: string;
+    end_date?: string;
+  }
+  
+  export interface ListShiftItem {
+    shift_id: number;
+    seller_id: number;
+    seller_name: string | null;
+    shift_date: string;
+    start_time: Date;
+    end_time: Date | null;
+    opening_cash: number;
+    actual_cash: number | null;
+    total_sales_count: number;
+    total_sales_amount: number;
+    status: string;
+    created_at: Date;
+  }
+  
+  export interface ListShiftsResponse {
+    shifts: ListShiftItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  }
+  
+  export interface GetShiftResponse {
+    shift_id: number;
+    seller_id: number;
+    seller_name: string | null;
+    shift_date: string;
+    start_time: Date;
+    end_time: Date | null;
+    opening_cash: number;
+    expected_cash: number | null;
+    actual_cash: number | null;
+    short_amount: number | null;
+    over_amount: number | null;
+    total_sales_count: number;
+    total_sales_amount: number;
+    status: string;
+    orders: Array<{
+      order_id: number;
+      receipt_number: string;
+      order_date: Date;
+      total_amount: number;
+    }>;
+    created_at: Date;
+    updated_at: Date;
+  }
+  
+  export interface GetShiftReconciliationResponse {
+    shift_id: number;
+    reconciliation: {
+      expected_cash: number;
+      actual_cash: number;
+      difference: number;
+      orders_summary: { total_orders: number; total_amount: number; cash_collected: number };
+      stock_movements: Array<{
+        product_id: number;
+        product_name: string | null;
+        quantity_sold: number;
+        stock_deduction: number;
+      }>;
+    };
+  }

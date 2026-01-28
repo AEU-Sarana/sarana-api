@@ -19,9 +19,14 @@ export class DataGenerator {
    * Generate a unique receipt number
    */
   static generateReceiptNumber(index: number = 0): string {
-    const date = new Date();
-    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
-    return `RCP-${dateStr}-${String(index + 1).padStart(4, '0')}`;
+    // Must be globally unique (there is a unique constraint on `receipt_number`).
+    // The previous implementation used only YYYYMMDD + incremental index, which
+    // collides when re-running seed on the same day.
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
+    const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, ''); // HHMMSS
+    const rand = Math.random().toString(36).slice(2, 6).toUpperCase(); // 4 chars
+    return `RCP-${dateStr}-${timeStr}-${String(index + 1).padStart(4, '0')}-${rand}`;
   }
 
   /**
