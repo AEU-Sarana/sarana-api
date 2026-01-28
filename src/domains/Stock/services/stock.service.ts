@@ -33,8 +33,62 @@ export class StockService {
         include: { product: true },
       });
 
+      // If stock doesn't exist, check if product exists and create stock record automatically
       if (!stock) {
-        throw new ValidationException('Stock not found for product');
+        const product = await prisma.product.findUnique({
+          where: { productId: product_id },
+        });
+
+        if (!product || product.deactivatedDate) {
+          throw new ValidationException('Product not found');
+        }
+
+        // Automatically create stock record with quantity 0 for products without stock record
+        const newStock = await prisma.stock.create({
+          data: {
+            productId: product.productId,
+            quantity: 0,
+            stockVersion: 1,
+          },
+          include: { product: true },
+        });
+
+        await auditLogService.createAuditLog({
+          userId: currentUserId,
+          action: 'VIEW_STOCK',
+          resource: 'Stock',
+          entityId: newStock.stockId,
+          details: { productId: product_id, note: 'Stock record auto-created' },
+        });
+
+        // Calculate stock status
+        const quantity = newStock.quantity;
+        const threshold = newStock.product.lowStockThreshold || 0;
+        let stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative';
+        if (quantity < 0) {
+          stockStatus = 'negative';
+        } else if (quantity === 0) {
+          stockStatus = 'out_of_stock';
+        } else if (threshold > 0 && quantity <= threshold) {
+          stockStatus = 'low_stock';
+        } else {
+          stockStatus = 'in_stock';
+        }
+
+        // Return flattened format for single stock
+        return {
+          stock_id: newStock.stockId,
+          product_id: newStock.productId,
+          product_code: newStock.product.productCode,
+          product_name: newStock.product.productName,
+          category: newStock.product.category,
+          quantity: newStock.quantity,
+          low_stock_threshold: newStock.product.lowStockThreshold,
+          stock_version: newStock.stockVersion,
+          status: stockStatus,
+          last_sync_time: newStock.lastSyncTime,
+          updated_at: newStock.updatedAt,
+        };
       }
 
       await auditLogService.createAuditLog({
@@ -45,72 +99,155 @@ export class StockService {
         details: { productId: product_id },
       });
 
+      // Calculate stock status
+      const quantity = stock.quantity;
+      const threshold = stock.product.lowStockThreshold || 0;
+      let stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative';
+      if (quantity < 0) {
+        stockStatus = 'negative';
+      } else if (quantity === 0) {
+        stockStatus = 'out_of_stock';
+      } else if (threshold > 0 && quantity <= threshold) {
+        stockStatus = 'low_stock';
+      } else {
+        stockStatus = 'in_stock';
+      }
+
+      // Return flattened format for single stock
       return {
-        stock: {
-          stock_id: stock.stockId,
-          product_id: stock.productId,
-          quantity: stock.quantity,
-          stock_version: stock.stockVersion,
-          last_sync_time: stock.lastSyncTime,
-          updated_at: stock.updatedAt,
-          product: {
-            product_id: stock.product.productId,
-            product_name: stock.product.productName,
-            product_code: stock.product.productCode,
-          },
-        },
+        stock_id: stock.stockId,
+        product_id: stock.productId,
+        product_code: stock.product.productCode,
+        product_name: stock.product.productName,
+        category: stock.product.category,
+        quantity: stock.quantity,
+        low_stock_threshold: stock.product.lowStockThreshold,
+        stock_version: stock.stockVersion,
+        status: stockStatus,
+        last_sync_time: stock.lastSyncTime,
+        updated_at: stock.updatedAt,
       };
     }
 
-    // Get all stock levels (with pagination)
-    const { page = 1, limit = 50 } = request;
-    const where: any = {};
-
-    if (version) {
-      where.stockVersion = version;
+    // Get all stock levels (with pagination and filters)
+    const { page = 1, limit = 50, version: stockVersion, status, category, search } = request;
+    
+    // Build where clause for stock
+    const stockWhere: any = {};
+    if (stockVersion) {
+      stockWhere.stockVersion = stockVersion;
     }
 
-    const total = await prisma.stock.count({ where });
-    const skip = (page - 1) * limit;
-
-    const stocks = await prisma.stock.findMany({
-      where,
-      skip,
-      take: limit,
-      include: { product: true },
-      orderBy: { updatedAt: 'desc' },
+    // Get all stocks with products for summary calculation (before pagination)
+    const allStocks = await prisma.stock.findMany({
+      where: stockWhere,
+      include: {
+        product: true,
+      },
     });
+
+    // Filter by product conditions (category, search, active products only)
+    let filteredStocks = allStocks.filter((s) => {
+      if (!s.product || s.product.deactivatedDate) {
+        return false;
+      }
+
+      if (category && s.product.category !== category) {
+        return false;
+      }
+
+      if (search) {
+        const searchLower = search.toLowerCase();
+        const matchesName = s.product.productName.toLowerCase().includes(searchLower);
+        const matchesCode = s.product.productCode.toLowerCase().includes(searchLower);
+        if (!matchesName && !matchesCode) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    // Calculate stock status for each item
+    const stocksWithStatus = filteredStocks.map((s) => {
+      const quantity = s.quantity;
+      const threshold = s.product?.lowStockThreshold || 0;
+      
+      let stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative';
+      if (quantity < 0) {
+        stockStatus = 'negative';
+      } else if (quantity === 0) {
+        stockStatus = 'out_of_stock';
+      } else if (threshold > 0 && quantity <= threshold) {
+        stockStatus = 'low_stock';
+      } else {
+        stockStatus = 'in_stock';
+      }
+
+      return {
+        ...s,
+        stockStatus,
+      };
+    });
+
+    // Apply status filter if provided
+    let finalStocks = stocksWithStatus;
+    if (status) {
+      finalStocks = stocksWithStatus.filter((s) => s.stockStatus === status);
+    }
+
+    // Calculate summary from all filtered stocks (before pagination)
+    const summary = {
+      total_products: finalStocks.length,
+      total_stock_quantity: finalStocks.reduce((sum, s) => sum + s.quantity, 0),
+      low_stock_count: finalStocks.filter((s) => s.stockStatus === 'low_stock').length,
+      out_of_stock_count: finalStocks.filter((s) => s.stockStatus === 'out_of_stock').length,
+      negative_stock_count: finalStocks.filter((s) => s.stockStatus === 'negative').length,
+    };
+
+    // Apply pagination
+    const total = finalStocks.length;
+    const skip = (page - 1) * limit;
+    const paginatedStocks = finalStocks.slice(skip, skip + limit);
 
     await auditLogService.createAuditLog({
       userId: currentUserId,
       action: 'LIST_STOCK',
       resource: 'Stock',
-      details: { filters: { version } },
+      details: { filters: { version: stockVersion, status, category, search } },
     });
 
-    return {
-      stocks: stocks.map((s) => ({
+    // Build response object
+    const response: GetStockResponse = {
+      stocks: paginatedStocks.map((s) => ({
         stock_id: s.stockId,
         product_id: s.productId,
+        product_code: s.product!.productCode,
+        product_name: s.product!.productName,
+        category: s.product!.category,
         quantity: s.quantity,
+        low_stock_threshold: s.product!.lowStockThreshold,
         stock_version: s.stockVersion,
+        status: s.stockStatus,
         last_sync_time: s.lastSyncTime,
         updated_at: s.updatedAt,
-        product: {
-          product_id: s.product.productId,
-          product_name: s.product.productName,
-          product_code: s.product.productCode,
-        },
       })),
+      summary,
       pagination: {
         page,
         limit,
         total,
         totalPages: Math.ceil(total / limit),
       },
-      version: stocks[0]?.stockVersion || 1,
-      last_sync_time: stocks[0]?.lastSyncTime || null,
     };
+
+    // Only include version and last_sync_time when version parameter is provided (for sync)
+    if (stockVersion !== undefined) {
+      response.version = stockVersion;
+      response.last_sync_time = paginatedStocks[0]?.lastSyncTime || null;
+    }
+
+    return response;
   }
 
   /**

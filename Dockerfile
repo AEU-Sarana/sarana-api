@@ -12,6 +12,8 @@ COPY package.json pnpm-lock.yaml ./
 
 # Development stage
 FROM base AS development
+# Configure pnpm to use store inside container
+RUN pnpm config set store-dir /app/.pnpm-store
 RUN pnpm install
 COPY . .
 RUN pnpm db:generate

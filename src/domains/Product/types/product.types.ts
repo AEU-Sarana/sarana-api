@@ -19,6 +19,7 @@ export interface ProductResponse {
     description: string | null;
     image_path: string | null;
     low_stock_threshold: number | null;
+    stock_quantity: number;
     status: ProductStatus;
     created_at: Date;
     updated_at: Date;
@@ -30,7 +31,7 @@ export interface ListProductsResponse {
         page: number;
         limit: number;
         total: number;
-        total_pages: number;
+        totalPages: number;
     }
 }
 

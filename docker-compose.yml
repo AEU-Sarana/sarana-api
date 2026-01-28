@@ -9,8 +9,9 @@ services:
     container_name: stock-pos-app-dev
     env_file:
       - .env
-    ports:
-      - "${PORT:-3000}:3000"
+    # Port mapping removed - access only through nginx (port 8080)
+    # ports:
+    #   - "${PORT:-3000}:3000"
     environment:
       NODE_ENV: development
       PORT: ${PORT:-3000}
@@ -33,7 +34,7 @@ services:
     restart: unless-stopped
     networks:
       - stock-pos-network
-    command: sh -c "pnpm migrate:apply && pnpm dev"
+    command: sh -c "pnpm config set store-dir /app/.pnpm-store && pnpm install && (cd /app/node_modules/@prisma/client/runtime && ln -sf query_compiler_fast_bg.postgresql.mjs query_compiler_bg.postgresql.mjs 2>/dev/null || true) && pnpm migrate:apply && pnpm dev"
     profiles:
       - dev
 # Database
@@ -78,8 +79,8 @@ services:
     image: minio/minio:latest
     container_name: stock-pos-minio
     ports:
-      - "${MINIO_API_PORT:-9000}:9000"      # API port
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"   # Console port
+      - "${MINIO_API_PORT:-9000}:9000"      
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"   
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -108,6 +109,8 @@ services:
       - ./docker/nginx/ssl:/etc/nginx/ssl:ro
       - nginx-cache:/var/cache/nginx
       - nginx-logs:/var/log/nginx
+    depends_on:
+      - app-dev
     restart: unless-stopped
     networks:
       - stock-pos-network

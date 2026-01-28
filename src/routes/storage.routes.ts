@@ -8,8 +8,16 @@ import { authenticateToken } from '@src/shared/middleware/auth.middleware';
 
 const router: IRouter = Router();
 
-// All storage routes require authentication
-router.use(authenticateToken);
+// Apply auth middleware only to storage routes
+// Since this router is mounted at '/', we need to check the path first
+router.use((req: Request, res: Response, next: any) => {
+  // Only apply authentication to storage routes
+  if (req.path.startsWith('/storage/')) {
+    return authenticateToken(req, res, next);
+  }
+  // For all other routes, skip authentication
+  next();
+});
 
 router.get(/^\/storage\/([^\/]+)\/(.+)$/, async (req: Request, res: Response) => {
   try {

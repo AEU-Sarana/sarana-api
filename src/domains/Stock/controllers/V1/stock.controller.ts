@@ -17,17 +17,37 @@ export class StockController {
       const user = req.user as UserPayload;
       const productIdStr = getStringValue(req.params.productId);
       const versionStr = getStringValue(req.query.version as string | string[] | undefined);
+      const statusStr = getStringValue(req.query.status as string | string[] | undefined);
+      const categoryStr = getStringValue(req.query.category as string | string[] | undefined);
+      const searchStr = getStringValue(req.query.search as string | string[] | undefined);
       const pageStr = getStringValue(req.query.page as string | string[] | undefined);
       const limitStr = getStringValue(req.query.limit as string | string[] | undefined);
+
+      logger.info('Get stock request', {
+        productId: productIdStr,
+        userId: user.userId,
+        path: req.path,
+        url: req.url,
+        filters: { version: versionStr, status: statusStr, category: categoryStr, search: searchStr },
+      });
 
       const request = {
         product_id: productIdStr ? parseInt(productIdStr, 10) : undefined,
         version: versionStr ? parseInt(versionStr, 10) : undefined,
+        status: statusStr as 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative' | undefined,
+        category: categoryStr,
+        search: searchStr,
         page: pageStr ? parseInt(pageStr, 10) : 1,
         limit: limitStr ? parseInt(limitStr, 10) : 50,
       };
 
       const response = await StockService.getStock(request, user.userId);
+
+      logger.info('Get stock response', {
+        productId: request.product_id,
+        isSingleStock: !!request.product_id,
+        hasStocks: 'stocks' in response,
+      });
 
       res.status(200).json({
         success: true,
@@ -35,7 +55,11 @@ export class StockController {
         message: 'Stock retrieved successfully',
       });
     } catch (error: any) {
-      logger.error('Get stock error', { error: error.message });
+      logger.error('Get stock error', { 
+        error: error.message,
+        stack: error.stack,
+        productId: req.params.productId,
+      });
       throw error;
     }
   }

@@ -20,6 +20,9 @@ importers:
       '@prisma/client':
         specifier: ^7.3.0
         version: 7.3.0(prisma@7.3.0(@types/react@19.2.8)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(typescript@5.9.3))(typescript@5.9.3)
+      '@prisma/engines':
+        specifier: ^7.3.0
+        version: 7.3.0
       axios:
         specifier: ^1.13.3
         version: 1.13.3

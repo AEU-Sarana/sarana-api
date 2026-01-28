@@ -125,6 +125,9 @@ export class ProductService {
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
+      include: {
+        stock: true, // Include stock relation to get quantity
+      },
     });
 
     await auditLogService.createAuditLog({
@@ -145,6 +148,7 @@ export class ProductService {
         description: p.description,
         image_path: this.normalizeImageUrl(p.imagePath),
         low_stock_threshold: p.lowStockThreshold,
+        stock_quantity: p.stock?.quantity || 0,
         status: (p.status as any) as ProductStatus,
         created_at: p.createdAt,
         updated_at: p.updatedAt,
@@ -153,7 +157,7 @@ export class ProductService {
         page,
         limit,
         total,
-        total_pages: Math.ceil(total / limit),
+        totalPages: Math.ceil(total / limit),
       },
     };
   }
@@ -167,6 +171,9 @@ export class ProductService {
   ): Promise<GetProductResponse> {
     const product = await prisma.product.findUnique({
       where: { productId },
+      include: {
+        stock: true, // Include stock relation to get quantity
+      },
     });
 
     if (!product || product.deactivatedDate) {
@@ -190,6 +197,7 @@ export class ProductService {
       description: product.description,
       image_path: this.normalizeImageUrl(product.imagePath),
       low_stock_threshold: product.lowStockThreshold,
+      stock_quantity: product.stock?.quantity || 0,
       status: (product.status as any) as ProductStatus,
       created_at: product.createdAt,
       updated_at: product.updatedAt,
@@ -263,31 +271,70 @@ export class ProductService {
       }
     }
 
-    const product = await prisma.product.create({
-      data: {
-        productCode: product_code,
-        productName: product_name,
-        barcode: barcode,
-        price: priceNumber,
-        category,
-        description,
-        imagePath: finalImagePath,
-        lowStockThreshold: lowStockThresholdNumber,
-        status: 'active',
-        createdBy: currentUserId,
-        updatedBy: currentUserId,
-      },
+    // Create product and stock in a transaction
+    const product = await prisma.$transaction(async (tx) => {
+      const newProduct = await tx.product.create({
+        data: {
+          productCode: product_code,
+          productName: product_name,
+          barcode: barcode,
+          price: priceNumber,
+          category,
+          description,
+          imagePath: finalImagePath,
+          lowStockThreshold: lowStockThresholdNumber,
+          status: 'active',
+          createdBy: currentUserId,
+          updatedBy: currentUserId,
+        },
+      });
+
+      // Automatically create stock record with quantity 0
+      const newStock = await tx.stock.create({
+        data: {
+          productId: newProduct.productId,
+          quantity: 0,
+          stockVersion: 1,
+        },
+      });
+
+      logger.info('Stock created automatically for new product', {
+        stockId: newStock.stockId,
+        productId: newProduct.productId,
+        quantity: 0,
+      });
+
+      // Return product with stock relation
+      return await tx.product.findUnique({
+        where: { productId: newProduct.productId },
+        include: {
+          stock: true,
+        },
+      });
     });
+
+    if (!product) {
+      throw new BusinessLogicException('Failed to create product');
+    }
 
     await auditLogService.createAuditLog({
       userId: currentUserId,
       action: 'CREATE_PRODUCT',
       resource: 'Product',
       entityId: product.productId,
-      details: { productCode: product.productCode, productName: product.productName },
+      details: {
+        productCode: product.productCode,
+        productName: product.productName,
+        stockCreated: true,
+        stockId: product.stock?.stockId,
+      },
     });
 
-    logger.info('Product created', { productId: product.productId, userId: currentUserId });
+    logger.info('Product and stock created', {
+      productId: product.productId,
+      stockId: product.stock?.stockId,
+      userId: currentUserId,
+    });
 
     return {
       product_id: product.productId,
@@ -299,6 +346,7 @@ export class ProductService {
       description: product.description,
       image_path: this.normalizeImageUrl(product.imagePath),
       low_stock_threshold: product.lowStockThreshold,
+      stock_quantity: product.stock?.quantity || 0,
       status: (product.status as any) as ProductStatus,
       created_at: product.createdAt,
       updated_at: product.updatedAt,
@@ -421,6 +469,9 @@ export class ProductService {
         updatedBy: currentUserId,
         updatedAt: new Date(),
       },
+      include: {
+        stock: true, // Include stock relation to get quantity
+      },
     });
 
     await auditLogService.createAuditLog({
@@ -443,6 +494,7 @@ export class ProductService {
       description: updated.description,
       image_path: this.normalizeImageUrl(updated.imagePath),
       low_stock_threshold: updated.lowStockThreshold,
+      stock_quantity: updated.stock?.quantity || 0,
       status: (updated.status as any) as ProductStatus,
       created_at: updated.createdAt,
       updated_at: updated.updatedAt,

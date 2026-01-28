@@ -3,6 +3,9 @@ import { StockMovementType } from '../enums/stock-movement-type.enum';
 export interface GetStockRequest {
   product_id?: number;
   version?: number;
+  status?: 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative';
+  category?: string;
+  search?: string;
   page?: number;
   limit?: number;
 }
@@ -21,10 +24,48 @@ export interface StockResponse {
   };
 }
 
-export interface GetStockResponse {
-  stock?: StockResponse;
-  stocks?: StockResponse[];
-  pagination?: {
+export interface StockListResponse {
+  stock_id: number;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  category: string | null;
+  quantity: number;
+  low_stock_threshold: number | null;
+  stock_version: number;
+  status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative';
+  last_sync_time: Date | null;
+  updated_at: Date;
+}
+
+export interface StockSummary {
+  total_products: number;
+  total_stock_quantity: number;
+  low_stock_count: number;
+  out_of_stock_count: number;
+  negative_stock_count: number;
+}
+
+// Single stock response (when product_id is provided) - flattened format
+export interface GetStockByProductResponse {
+  stock_id: number;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  category: string | null;
+  quantity: number;
+  low_stock_threshold: number | null;
+  stock_version: number;
+  status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative';
+  last_sync_time: Date | null;
+  updated_at: Date;
+}
+
+// List stock response (when product_id is NOT provided)
+export interface GetStockListResponse {
+  stocks: StockListResponse[];
+  summary: StockSummary;
+  pagination: {
     page: number;
     limit: number;
     total: number;
@@ -33,6 +74,8 @@ export interface GetStockResponse {
   version?: number;
   last_sync_time?: Date | null;
 }
+
+export type GetStockResponse = GetStockByProductResponse | GetStockListResponse;
 
 export interface StockInRequest {
   product_id: number;
