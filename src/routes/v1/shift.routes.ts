@@ -1,9 +1,9 @@
 import { Router, type IRouter } from 'express';
-import productRoutes from '@src/domains/Product/routes/V1/product.routes';
+import shiftRoutes from '@src/domains/Shift/routes/V1/shift.routes';
 
 const router: IRouter = Router();
 
-router.use('/', productRoutes);
+router.use('/', shiftRoutes);
 
 export default router;
 

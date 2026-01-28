@@ -1,8 +1,8 @@
 import { Router, type IRouter } from 'express';
-import stockRoutes from '@src/domains/Stock/routes/V1/stock.route';
+import orderRoutes from '@src/domains/Order/routes/V1/order.routes';
 
 const router: IRouter = Router();
 
-router.use('/', stockRoutes);
+router.use('/', orderRoutes);
 
 export default router;

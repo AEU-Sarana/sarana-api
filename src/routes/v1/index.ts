@@ -1,22 +1,22 @@
 import { Router, type IRouter } from 'express';
 
-// Import domain routes
-import authRoutes from '@src/domains/Auth/routes/V1/auth.routes';
-import productRoutes from '@src/domains/Product/routes/V1/product.routes';
-import stockRoutes from '@src/domains/Stock/routes/V1/stock.route';
-import orderRoutes from '@src/domains/Order/routes/V1/order.routes';
-import shiftRoutes from '@src/domains/Shift/routes/V1/shift.routes';
-import reportRoutes from '@src/domains/Report/routes/V1/report.routes';
-import telegramRoutes from '@src/domains/Telegram/routes/V1/telegram.routes';
-import backupRoutes from '@src/domains/Backup/routes/V1/backup.routes';
-import userRoutes from '@src/domains/User/routes/V1/user.routes';
-import deviceBindingRoutes from '@src/domains/DeviceBinding/routes/V1/device-binding.routes';
-import settingsRoutes from '@src/domains/Setting/routes/V1/settings.routes';
-import dashboardRoutes from '@src/domains/Dashbord/routes/V1/dashboard.routes';
+// Import route modules
+import authRoutes from './auth.routes';
+import productRoutes from './product.routes';
+import stockRoutes from './stock.routes';
+import orderRoutes from './order.routes';
+import shiftRoutes from './shift.routes';
+import reportRoutes from './report.routes';
+import telegramRoutes from './telegram.routes';
+import backupRoutes from './backup.routes';
+import userRoutes from './user.routes';
+import deviceBindingRoutes from './device-binding.routes';
+import settingRoutes from './setting.routes';
+import dashboardRoutes from './dashboard.routes';
 
 const router: IRouter = Router();
 
-// Mount domain routes
+// Mount route modules
 router.use('/auth', authRoutes);
 router.use('/products', productRoutes);
 router.use('/stocks', stockRoutes);
@@ -27,7 +27,7 @@ router.use('/telegram', telegramRoutes);
 router.use('/backup', backupRoutes);
 router.use('/users', userRoutes);
 router.use('/device-bindings', deviceBindingRoutes);
-router.use('/settings', settingsRoutes);
+router.use('/settings', settingRoutes);
 router.use('/dashboard', dashboardRoutes);
 
 export default router;
