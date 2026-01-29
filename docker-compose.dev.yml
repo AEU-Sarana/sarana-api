@@ -2,7 +2,7 @@ services:
   # Dev app service. The Makefile expects the service name "app".
   # The base docker-compose.yml uses "app-dev"; this override provides "app"
   # so `make up/down/shell/logs` work consistently in dev.
-  app:
+  app-dev:
     build:
       context: .
       target: development
@@ -31,4 +31,4 @@ services:
 
   nginx:
     depends_on:
-      - app
+      - app-dev

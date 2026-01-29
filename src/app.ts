@@ -7,9 +7,11 @@ import apiRoutes from '@src/routes/api';
 import storageRoutes from '@src/routes/storage.routes';
 import { errorMiddleware } from '@src/shared/middleware/error.middleware';
 import { registerStockEventListeners } from '@src/domains/Stock/events/stock.listeners';
+import { registerReportEventListeners } from '@src/domains/Report/events/report.listeners';
 
 // Register event listeners
 registerStockEventListeners();
+registerReportEventListeners();
 
 const app: Application = express();
 
