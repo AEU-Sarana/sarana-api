@@ -74,8 +74,14 @@ export interface StartShiftResponse {
     created_at: Date;
   }
   
+  export interface SellerInfo {
+    id: number;
+    name: string;
+  }
+
   export interface ListShiftsResponse {
     shifts: ListShiftItem[];
+    sellers: SellerInfo[];
     pagination: { page: number; limit: number; total: number; totalPages: number };
   }
   

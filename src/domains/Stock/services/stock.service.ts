@@ -82,6 +82,8 @@ export class StockService {
           product_id: newStock.productId,
           product_code: newStock.product.productCode,
           product_name: newStock.product.productName,
+          product_image: newStock.product.imagePath,
+          barcode: newStock.product.barcode,
           category: newStock.product.category,
           quantity: newStock.quantity,
           low_stock_threshold: newStock.product.lowStockThreshold,
@@ -120,6 +122,8 @@ export class StockService {
         product_id: stock.productId,
         product_code: stock.product.productCode,
         product_name: stock.product.productName,
+        product_image: stock.product.imagePath,
+        barcode: stock.product.barcode,
         category: stock.product.category,
         quantity: stock.quantity,
         low_stock_threshold: stock.product.lowStockThreshold,
@@ -131,7 +135,7 @@ export class StockService {
     }
 
     // Get all stock levels (with pagination and filters)
-    const { page = 1, limit = 50, version: stockVersion, status, category, search } = request;
+    const { page = 1, limit = 50, version: stockVersion, status, category, search,barcode } = request;
     
     // Build where clause for stock
     const stockWhere: any = {};
@@ -148,11 +152,22 @@ export class StockService {
     });
 
     // Base set for stable summary: active products only (not affected by filters)
-    const baseStocks = allStocks.filter((s) => !!s.product && !s.product.deactivatedDate);
+    // const baseStocks = allStocks.filter((s) => !!s.product && !s.product.deactivatedDate);
+    const baseStocks = allStocks.filter(
+      (s) =>
+        !!s.product &&
+        !s.product.deactivatedDate &&
+        (stockVersion === undefined || s.stockVersion === stockVersion)
+    );
+    
 
     // Filter by product conditions (category, search, active products only)
     let filteredStocks = allStocks.filter((s) => {
       if (!s.product || s.product.deactivatedDate) {
+        return false;
+      }
+
+      if (barcode && s.product.barcode !== barcode) {
         return false;
       }
 
@@ -164,7 +179,8 @@ export class StockService {
         const searchLower = search.toLowerCase();
         const matchesName = s.product.productName.toLowerCase().includes(searchLower);
         const matchesCode = s.product.productCode.toLowerCase().includes(searchLower);
-        if (!matchesName && !matchesCode) {
+        const matchesBarcode = (s.product.barcode || '').toLowerCase().includes(searchLower);
+        if (!matchesName && !matchesCode && !matchesBarcode) {
           return false;
         }
       }
@@ -232,6 +248,8 @@ export class StockService {
         product_id: s.productId,
         product_code: s.product!.productCode,
         product_name: s.product!.productName,
+        product_image: s.product!.imagePath,
+        barcode: s.product!.barcode,
         category: s.product!.category,
         price: Number(s.product!.price),
         quantity: s.quantity,
@@ -251,10 +269,19 @@ export class StockService {
     };
 
     // Only include version and last_sync_time when version parameter is provided (for sync)
-    if (stockVersion !== undefined) {
-      response.version = stockVersion;
-      response.last_sync_time = paginatedStocks[0]?.lastSyncTime || null;
-    }
+    // if (stockVersion !== undefined) {
+    //   response.version = stockVersion;
+    //   response.last_sync_time =
+    //   paginatedStocks.length > 0
+    //     ? paginatedStocks.reduce((latest, s) =>
+    //         !latest || (s.lastSyncTime && s.lastSyncTime > latest)
+    //           ? s.lastSyncTime
+    //           : latest,
+    //         null as Date | null
+    //       )
+    //     : null;
+
+    // }
 
     return response;
   }

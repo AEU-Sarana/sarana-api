@@ -3,6 +3,7 @@ import { StockService } from '@src/domains/Stock/services/stock.service';
 import { StockMovementService } from '@src/domains/Stock/services/stock-movement.service';
 import { logger } from '@src/shared/utils/logger';
 import { UserPayload } from '@src/shared/middleware/auth.middleware';
+import { GetStockRequest } from '../../types/stock.types';
 
 // Helper function to safely extract string from query/param
 function getStringValue(value: string | string[] | undefined): string | undefined {
@@ -16,27 +17,31 @@ export class StockController {
     try {
       const user = req.user as UserPayload;
       const productIdStr = getStringValue(req.params.productId);
-      const versionStr = getStringValue(req.query.version as string | string[] | undefined);
+      const stockVersionStr = getStringValue(req.query.stock_version as string | string[] | undefined);
       const statusStr = getStringValue(req.query.status as string | string[] | undefined);
       const categoryStr = getStringValue(req.query.category as string | string[] | undefined);
       const searchStr = getStringValue(req.query.search as string | string[] | undefined);
       const pageStr = getStringValue(req.query.page as string | string[] | undefined);
       const limitStr = getStringValue(req.query.limit as string | string[] | undefined);
+      const barcodeStr = getStringValue(req.query.barcode as string | string[] | undefined);
 
       logger.info('Get stock request', {
         productId: productIdStr,
         userId: user.userId,
         path: req.path,
         url: req.url,
-        filters: { version: versionStr, status: statusStr, category: categoryStr, search: searchStr },
+        filters: { stock_version: stockVersionStr, status: statusStr, category: categoryStr, search: searchStr, barcode: barcodeStr },
       });
 
-      const request = {
+      const normalize = (v?: string) => (v && v.trim() !== '' ? v.trim() : undefined);
+
+      const request : GetStockRequest = {
         product_id: productIdStr ? parseInt(productIdStr, 10) : undefined,
-        version: versionStr ? parseInt(versionStr, 10) : undefined,
+        version: normalize(stockVersionStr) ? parseInt(stockVersionStr!, 10) : undefined,
         status: statusStr as 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative' | undefined,
         category: categoryStr,
         search: searchStr,
+        barcode: barcodeStr,
         page: pageStr ? parseInt(pageStr, 10) : 1,
         limit: limitStr ? parseInt(limitStr, 10) : 50,
       };

@@ -64,7 +64,7 @@ export class AuditLogService {
         }
       } else {
         // Log other errors but don't throw (audit logging should not break main flow)
-        logger.error('Failed to create audit log:', error);
+      logger.error('Failed to create audit log:', error);
       }
     }
   }

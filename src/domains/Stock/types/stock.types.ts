@@ -6,6 +6,7 @@ export interface GetStockRequest {
   status?: 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative';
   category?: string;
   search?: string;
+  barcode?: string;
   page?: number;
   limit?: number;
 }
@@ -52,6 +53,8 @@ export interface GetStockByProductResponse {
   product_id: number;
   product_code: string;
   product_name: string;
+  product_image: string | null;
+  barcode: string;
   category: string | null;
   quantity: number;
   low_stock_threshold: number | null;

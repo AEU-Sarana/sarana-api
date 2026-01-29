@@ -226,6 +226,32 @@ export class ShiftService {
       },
     });
 
+    // Get all unique sellers who have shifts (for filtering dropdown)
+    const allShifts = await prisma.shift.findMany({
+      select: {
+        sellerId: true,
+        seller: {
+          select: {
+            userId: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    // Extract unique sellers
+    const uniqueSellers = new Map<number, { id: number; name: string }>();
+    allShifts.forEach((shift) => {
+      if (shift.seller) {
+        uniqueSellers.set(shift.seller.userId, {
+          id: shift.seller.userId,
+          name: shift.seller.fullName,
+        });
+      }
+    });
+
+    const sellers = Array.from(uniqueSellers.values()).sort((a, b) => a.name.localeCompare(b.name));
+
     await auditLogService.createAuditLog({
       userId: currentUserId,
       action: 'LIST_SHIFTS',
@@ -248,6 +274,7 @@ export class ShiftService {
         status: s.status,
         created_at: s.createdAt,
       })),
+      sellers,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   }
