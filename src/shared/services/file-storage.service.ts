@@ -41,8 +41,13 @@ export class FileStorageService {
       throw new Error(`File size exceeds maximum allowed size of ${APP_CONSTANTS.MAX_FILE_SIZE} bytes`);
     }
 
-    // Validate file type (for images)
-    if (!APP_CONSTANTS.ALLOWED_IMAGE_TYPES.includes(file.mimetype as typeof APP_CONSTANTS.ALLOWED_IMAGE_TYPES[number])) {
+    // Validate file type (for images) - skip for reports (CSV/PDF)
+    const isReportFile = options?.contentType?.includes('csv') || 
+                         options?.contentType?.includes('pdf') ||
+                         file.mimetype?.includes('csv') ||
+                         file.mimetype?.includes('pdf');
+    
+    if (!isReportFile && !APP_CONSTANTS.ALLOWED_IMAGE_TYPES.includes(file.mimetype as typeof APP_CONSTANTS.ALLOWED_IMAGE_TYPES[number])) {
       throw new Error(`File type not allowed. Allowed types: ${APP_CONSTANTS.ALLOWED_IMAGE_TYPES.join(', ')}`);
     }
 

@@ -8,10 +8,14 @@ import storageRoutes from '@src/routes/storage.routes';
 import { errorMiddleware } from '@src/shared/middleware/error.middleware';
 import { registerStockEventListeners } from '@src/domains/Stock/events/stock.listeners';
 import { registerReportEventListeners } from '@src/domains/Report/events/report.listeners';
+import { registerReportExportProcessor } from '@src/domains/Report/queues/report-export.processor';
 
 // Register event listeners
 registerStockEventListeners();
 registerReportEventListeners();
+
+// Register queue processors
+registerReportExportProcessor();
 
 
 const app: Application = express();

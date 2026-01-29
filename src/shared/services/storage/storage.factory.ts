@@ -9,7 +9,7 @@ import { S3StorageProvider } from './s3-storage.provider';
  * Creates and returns the appropriate storage provider based on configuration.
  * 
  * Supported providers:
- * - minio: MinIO (local development)
+ * - minio: MinIO (S3-compatible local development)
  * - r2: Cloudflare R2
  * - wasabi: Wasabi Cloud Storage
  * - s3: AWS S3
@@ -39,7 +39,7 @@ export class StorageFactory {
         break;
 
       default:
-        logger.warn(`Unknown storage provider: ${provider}. Falling back to S3-compatible provider.`);
+        logger.warn(`Unknown storage provider: ${provider}. Falling back to S3-compatible provider (MinIO).`);
         this.instance = new S3StorageProvider();
     }
 

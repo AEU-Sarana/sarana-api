@@ -48,7 +48,7 @@ export class ReportExportService {
         fs.mkdirSync(tmpDir, { recursive: true });
       }
 
-      const finalFileName = fileName || `report_${Date.now()}.csv`;
+      const finalFileName = fileName ? `${fileName}.csv` : `report_${Date.now()}.csv`;
       const filePath = path.join(tmpDir, finalFileName);
 
       fs.writeFileSync(filePath, csv, 'utf8');

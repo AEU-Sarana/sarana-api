@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { authenticateToken } from '@src/shared/middleware/auth.middleware';
 import { requireAdmin } from '@src/shared/middleware/authorization.middleware';
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
-
 import {
   getDailyReportValidator,
   getSalesHistoryReportValidator,
@@ -21,8 +20,7 @@ router.get(
   '/daily',
   authenticateToken,
   requireAdmin,
-  getDailyReportValidator,
-  validateRequest,
+  ...validateRequest(getDailyReportValidator),
   ReportController.getDailyReport
 );
 
@@ -33,8 +31,7 @@ router.get(
   '/sales',
   authenticateToken,
   requireAdmin,
-  getSalesHistoryReportValidator,
-  validateRequest,
+  ...validateRequest(getSalesHistoryReportValidator),
   ReportController.getSalesHistoryReport
 );
 
@@ -45,8 +42,7 @@ router.get(
   '/stock',
   authenticateToken,
   requireAdmin,
-  getStockReportValidator,
-  validateRequest,
+  ...validateRequest(getStockReportValidator),
   ReportController.getStockReport
 );
 
@@ -57,9 +53,10 @@ router.post(
   '/export',
   authenticateToken,
   requireAdmin,
-  exportReportValidator,
-  validateRequest,
+  ...validateRequest(exportReportValidator),
   ReportController.exportReport
 );
+
+// Export status and download endpoints removed since we now process synchronously
 
 export default router;

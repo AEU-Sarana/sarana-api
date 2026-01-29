@@ -2,14 +2,12 @@ import { query } from 'express-validator';
 
 export const getSalesHistoryReportValidator = [
   query('start_date')
-    .notEmpty()
-    .withMessage('start_date is required')
+    .optional()
     .matches(/^\d{4}-\d{2}-\d{2}$/)
     .withMessage('start_date must be in YYYY-MM-DD format'),
 
   query('end_date')
-    .notEmpty()
-    .withMessage('end_date is required')
+    .optional()
     .matches(/^\d{4}-\d{2}-\d{2}$/)
     .withMessage('end_date must be in YYYY-MM-DD format'),
 

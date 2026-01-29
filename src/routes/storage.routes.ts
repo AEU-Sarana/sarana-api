@@ -1,6 +1,5 @@
 import { Router, type IRouter, Request, Response } from 'express';
 import { fileStorageService } from '@src/shared/services/file-storage.service';
-import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { env } from '@src/shared/config/env';
 import { StorageFactory } from '@src/shared/services/storage/storage.factory';
 import { logger } from '@src/shared/utils/logger';
@@ -55,9 +54,7 @@ router.get(/^\/storage\/([^\/]+)\/(.+)$/, async (req: Request, res: Response) =>
       });
     }
 
-    const storageProvider = StorageFactory.getInstance();
-    
-   
+    // S3-compatible storage (MinIO, R2, etc.)
     const { S3Client, GetObjectCommand } = await import('@aws-sdk/client-s3');
     
     const s3Client = new S3Client({
@@ -75,7 +72,7 @@ router.get(/^\/storage\/([^\/]+)\/(.+)$/, async (req: Request, res: Response) =>
       Key: key,
     });
 
-    logger.debug('Fetching file from MinIO:', { bucket, key });
+    logger.debug('Fetching file from S3-compatible storage:', { bucket, key });
     const response = await s3Client.send(command);
     
     // Get metadata from response

@@ -3,6 +3,8 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
+  CreateBucketCommand,
+  HeadBucketCommand,
 } from '@aws-sdk/client-s3';
 import { env } from '@src/shared/config/env';
 import { logger } from '@src/shared/utils/logger';
@@ -54,6 +56,47 @@ export class S3StorageProvider implements IStorageProvider {
     logger.info(`Storage provider initialized: ${env.STORAGE_PROVIDER}`);
     logger.info(`Storage endpoint: ${env.STORAGE_ENDPOINT}`);
     logger.info(`Storage bucket: ${this.bucket}`);
+
+    // Ensure bucket exists (non-blocking, will retry on first upload if needed)
+    this.ensureBucketExists().catch((error) => {
+      logger.warn('Failed to verify bucket existence on startup, will retry on first upload', {
+        bucket: this.bucket,
+        error: error.message,
+      });
+    });
+  }
+
+  /**
+   * Ensure bucket exists, create if it doesn't
+   */
+  private async ensureBucketExists(): Promise<void> {
+    try {
+      // Check if bucket exists
+      await this.s3Client.send(
+        new HeadBucketCommand({ Bucket: this.bucket })
+      );
+      logger.info(`Bucket ${this.bucket} exists`);
+    } catch (error: any) {
+      // Bucket doesn't exist or access denied
+      if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+        try {
+          // Create bucket - for MinIO/local development, don't specify region
+          await this.s3Client.send(
+            new CreateBucketCommand({
+              Bucket: this.bucket,
+            })
+          );
+          logger.info(`Bucket ${this.bucket} created successfully`);
+        } catch (createError: any) {
+          logger.error(`Failed to create bucket ${this.bucket}:`, createError);
+          // Don't throw - let first upload attempt handle the error
+        }
+      } else {
+        // Other error (permission denied, etc.)
+        logger.warn(`Could not verify bucket ${this.bucket}:`, error.message);
+        // Don't throw - let first upload attempt handle the error
+      }
+    }
   }
 
   /**
@@ -70,7 +113,7 @@ export class S3StorageProvider implements IStorageProvider {
       const randomString = Math.random().toString(36).substring(7);
       const extension = this.getFileExtension(file.originalname);
       const customFilename = options?.filename || `${timestamp}-${randomString}`;
-      const filename = `${customFilename}${extension}`;
+      const filename = customFilename.includes('.') ? customFilename : `${customFilename}${extension}`;
 
       // Build object key (path in storage)
       const key = folder ? `${folder}/${filename}` : filename;
@@ -220,42 +263,9 @@ export class S3StorageProvider implements IStorageProvider {
    * Get public URL for a file
    */
   getPublicUrl(key: string): string {
-    if (this.publicUrl) {
-      // Use configured public URL
-      const baseUrl = this.publicUrl.endsWith('/') 
-        ? this.publicUrl.slice(0, -1) 
-        : this.publicUrl;
-      return `${baseUrl}/${key}`;
-    }
-
-    // For MinIO in development, use nginx proxy path
-    // This allows access from browser/mobile apps
-    // Format: http://host:port/storage/bucket/key
-    if (env.STORAGE_PROVIDER === 'minio') {
-      // Get base URL from environment variables (priority order)
-      let baseUrl = env.API_BASE_URL || env.APP_URL || env.FRONTEND_URL;
-      
-      // If no base URL configured, construct from network IP and nginx port
-      if (!baseUrl) {
-        const protocol = env.STORAGE_USE_SSL ? 'https' : 'http';
-        // Try to get network IP, fallback to localhost
-        const networkIP = getLocalNetworkIP();
-        const host = process.env.API_HOST || networkIP || 'localhost';
-        const port = env.NGINX_HTTP_PORT || 8080;
-        baseUrl = `${protocol}://${host}:${port}`;
-      }
-      
-      // Remove trailing slash
-      baseUrl = baseUrl.replace(/\/$/, '');
-      
-      // Return full URL with storage path
-      return `${baseUrl}/storage/${this.bucket}/${key}`;
-    }
-
-    // Fallback: construct URL from endpoint (for other providers)
-    const endpoint = env.STORAGE_ENDPOINT || '';
-    const baseUrl = endpoint.replace(/\/$/, '');
-    return `${baseUrl}/${this.bucket}/${key}`;
+    // Always use our authenticated storage route instead of direct MinIO URLs
+    const baseUrl = env.API_BASE_URL || `http://localhost:${env.PORT}`;
+    return `${baseUrl}/storage/${env.STORAGE_BUCKET || 'stock-pos-storage'}/${key}`;
   }
 
   /**
