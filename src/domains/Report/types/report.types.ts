@@ -11,17 +11,15 @@ export interface DailySalesReportRequest {
 export interface TopProduct {
   product_id: number;
   product_name: string;
-  product_code: string;
   quantity_sold: number;
   revenue: number;
 }
 
 export interface ShiftSummary {
   shift_id: number;
-  seller_id: number;
+  seller_name: string;
   total_sales: number;
   total_orders: number;
-  average_order_value: number;
 }
 
 export interface LowStockItem {
@@ -34,12 +32,14 @@ export interface LowStockItem {
 
 export interface DailySalesReportResponse {
   date: string;
-  total_sales: number;
-  total_orders: number;
-  average_order_value: number;
+  summary: {
+    total_sales: number;
+    total_orders: number;
+    total_shifts: number;
+    average_order_value: number;
+  };
   shifts: ShiftSummary[];
   top_products: TopProduct[];
-  low_stock_items: LowStockItem[];
 }
 
 /**
@@ -73,15 +73,22 @@ export interface SalesHistorySummary {
   average_daily_sales: number;
 }
 
+export interface SalesReportItem {
+  date: string; // YYYY-MM-DD
+  total_sales: number;
+  total_orders: number;
+  total_shifts: number;
+}
+
 export interface SalesHistoryReportResponse {
-  items: SalesHistoryItem[];
-  summary: SalesHistorySummary;
+  sales: SalesReportItem[];
   pagination: {
     page: number;
     limit: number;
     total: number;
     totalPages: number;
   };
+  summary: SalesHistorySummary;
 }
 
 /**
@@ -94,12 +101,9 @@ export interface StockReportRequest {
 export interface StockReportItem {
   product_id: number;
   product_name: string;
-  product_code: string;
-  category: string | null;
-  quantity: number;
+  current_stock: number;
   low_stock_threshold: number | null;
   status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative';
-  updated_at: Date;
 }
 
 export interface StockReportSummary {
@@ -110,7 +114,7 @@ export interface StockReportSummary {
 
 export interface StockReportResponse {
   summary: StockReportSummary;
-  items: StockReportItem[];
+  stock_report: StockReportItem[];
 }
 
 /**

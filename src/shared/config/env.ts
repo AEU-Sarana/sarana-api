@@ -51,7 +51,7 @@ export const env = {
   APP_URL: process.env.APP_URL,
   API_BASE_URL: process.env.API_BASE_URL, // Base URL for API (e.g., http://192.168.18.10:8080)
   
-  // Storage (S3-compatible: MinIO, R2, Wasabi, AWS S3)
+  // Storage (MinIO, R2, Wasabi, AWS S3)
   STORAGE_PROVIDER: process.env.STORAGE_PROVIDER || 'minio',
   STORAGE_ENDPOINT: process.env.STORAGE_ENDPOINT,
   STORAGE_ACCESS_KEY: process.env.STORAGE_ACCESS_KEY,

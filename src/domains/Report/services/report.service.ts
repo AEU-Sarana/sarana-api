@@ -9,6 +9,7 @@ import { ReportExportService } from './report-export.service';
 import { eventBus } from '@src/shared/events/event-bus';
 import { ReportGeneratedEvent } from '../events/report-generated.event';
 import { ReportExportedEvent } from '../events/report-exported.event';
+import { Prisma } from '@src/database/generated/client';
 
 export class ReportService {
 
@@ -72,6 +73,7 @@ export class ReportService {
         ...(seller_id ? { sellerId: seller_id } : {}),
       },
       include: {
+        seller: { select: { fullName: true } },
         orders: {
           where: {
             createdAt: {
@@ -89,10 +91,9 @@ export class ReportService {
       const shiftOrders = s.orders.length;
       return {
         shift_id: s.shiftId,
-        seller_id: s.sellerId,
+        seller_name: s.seller?.fullName || 'Unknown',
         total_sales: shiftTotal,
         total_orders: shiftOrders,
-        average_order_value: shiftOrders > 0 ? shiftTotal / shiftOrders : 0
       };
     });
 
@@ -126,52 +127,20 @@ export class ReportService {
     const top_products: TopProduct[] = topProductsRaw.map(p => ({
       product_id: p.productId,
       product_name: p.productName,
-      product_code: 'N/A', // Not directly available in GroupBy without join, we can fetch if strictly needed or ignore
       quantity_sold: p._sum.quantity || 0,
       revenue: Number(p._sum.subtotal || 0),
     }));
 
-    // Fetch product codes if needed (optional optimization: fetch all top product details in one query)
-    if (top_products.length > 0) {
-      const productIds = top_products.map(p => p.product_id);
-      const productDetails = await prisma.product.findMany({
-        where: { productId: { in: productIds } },
-        select: { productId: true, productCode: true }
-      });
-      const codeMap = new Map(productDetails.map(p => [p.productId, p.productCode]));
-      top_products.forEach(p => {
-        p.product_code = codeMap.get(p.product_id) || 'N/A';
-      });
-    }
-
-
-    // Low stock items
-    // Efficient DB query using raw SQL to compare columns
-    const lowStockRaw = await prisma.$queryRaw`
-        SELECT p.product_id, p.product_name, p.product_code, s.quantity, p.low_stock_threshold
-        FROM products p
-        JOIN stocks s ON p.product_id = s.product_id
-        WHERE p.status = 'active'
-          AND p.low_stock_threshold IS NOT NULL
-          AND s.quantity <= p.low_stock_threshold
-    `;
-
-    const low_stock_items: LowStockItem[] = (lowStockRaw as any[]).map(r => ({
-      product_id: r.product_id,
-      product_name: r.product_name,
-      product_code: r.product_code,
-      quantity: r.quantity,
-      low_stock_threshold: r.low_stock_threshold,
-    }));
-
     const report: DailySalesReportResponse = {
       date,
-      total_sales,
-      total_orders,
-      average_order_value,
+      summary: {
+        total_sales,
+        total_orders,
+        total_shifts: shifts.length,
+        average_order_value,
+      },
       shifts,
       top_products,
-      low_stock_items,
     };
 
       // Cache result for 10 minutes
@@ -231,63 +200,113 @@ export class ReportService {
         throw new ValidationException('limit must be between 1 and 100');
       }
 
-    const whereClause: any = {
-      createdAt: {
-        gte: new Date(`${start_date}T00:00:00Z`),
-        lte: new Date(`${end_date}T23:59:59Z`),
-      },
-    };
-    if (seller_id) whereClause.sellerId = seller_id;
-    if (product_id) whereClause.orderItems = { some: { productId: product_id } };
+      const offset = (page - 1) * limit;
 
-    const totalOrders = await prisma.order.count({ where: whereClause });
+      // Aggregate per-day sales
+      // If product_id is provided, total_sales is based on order_items.subtotal for that product.
+      type SalesRow = { date: string; total_sales: any; total_orders: any; total_shifts: any };
 
-    const orders = await prisma.order.findMany({
-      where: whereClause,
-      include: {
-        orderItems: {
-          include: { product: true }
-        }
-      },
-      skip: (page - 1) * limit,
-      take: limit,
-      orderBy: { createdAt: 'desc' },
-    });
+      let sales: SalesRow[] = [];
+      let totalDays = 0;
+      let total_sales = 0;
+      let total_orders_count = 0;
 
-    const items = orders.flatMap(o =>
-      o.orderItems.map(item => ({
-        order_id: o.orderId,
-        product_id: item.productId,
-        product_name: item.productName, // Available in OrderItem
-        product_code: item.product.productCode, // Need relation
-        seller_id: o.sellerId,
-        quantity: item.quantity,
-        price: Number(item.unitPrice), // property is unitPrice
-        total_amount: Number(item.subtotal), // property is subtotal
-        created_at: o.createdAt,
-        shift_id: o.shiftId,
-      }))
-    );
+      if (product_id) {
+        sales = await prisma.$queryRaw<SalesRow[]>(Prisma.sql`
+          SELECT
+            to_char(date_trunc('day', o.created_at), 'YYYY-MM-DD') AS date,
+            COALESCE(SUM(oi.subtotal), 0) AS total_sales,
+            COUNT(DISTINCT o.order_id) AS total_orders,
+            COUNT(DISTINCT o.shift_id) AS total_shifts
+          FROM orders o
+          JOIN order_items oi ON oi.order_id = o.order_id
+          WHERE o.created_at >= ${startDate}
+            AND o.created_at <= ${endDate}
+            AND oi.product_id = ${product_id}
+            AND (${seller_id}::int IS NULL OR o.seller_id = ${seller_id})
+          GROUP BY 1
+          ORDER BY 1 DESC
+          OFFSET ${offset} LIMIT ${limit}
+        `);
 
-    // Filter items by product_id if specified (as the order level filter includes the whole order)
-    const filteredItems = product_id ? items.filter(i => i.product_id === product_id) : items;
+        const totals = await prisma.$queryRaw<{ total_days: any; total_sales: any; total_orders: any }[]>(Prisma.sql`
+          SELECT
+            COUNT(*) AS total_days,
+            COALESCE(SUM(day_sales), 0) AS total_sales,
+            COALESCE(SUM(day_orders), 0) AS total_orders
+          FROM (
+            SELECT
+              date_trunc('day', o.created_at) AS day,
+              COALESCE(SUM(oi.subtotal), 0) AS day_sales,
+              COUNT(DISTINCT o.order_id) AS day_orders
+            FROM orders o
+            JOIN order_items oi ON oi.order_id = o.order_id
+            WHERE o.created_at >= ${startDate}
+              AND o.created_at <= ${endDate}
+              AND oi.product_id = ${product_id}
+              AND (${seller_id}::int IS NULL OR o.seller_id = ${seller_id})
+            GROUP BY 1
+          ) t
+        `);
 
-    // Calculate aggregations for summary
-    const aggregations = await prisma.order.aggregate({
-      where: whereClause,
-      _sum: { totalAmount: true },
-      _count: { orderId: true }
-    });
+        totalDays = Number(totals[0]?.total_days || 0);
+        total_sales = Number(totals[0]?.total_sales || 0);
+        total_orders_count = Number(totals[0]?.total_orders || 0);
+      } else {
+        sales = await prisma.$queryRaw<SalesRow[]>(Prisma.sql`
+          SELECT
+            to_char(date_trunc('day', o.created_at), 'YYYY-MM-DD') AS date,
+            COALESCE(SUM(o.total_amount), 0) AS total_sales,
+            COUNT(DISTINCT o.order_id) AS total_orders,
+            COUNT(DISTINCT o.shift_id) AS total_shifts
+          FROM orders o
+          WHERE o.created_at >= ${startDate}
+            AND o.created_at <= ${endDate}
+            AND (${seller_id}::int IS NULL OR o.seller_id = ${seller_id})
+          GROUP BY 1
+          ORDER BY 1 DESC
+          OFFSET ${offset} LIMIT ${limit}
+        `);
 
-    const total_sales = Number(aggregations._sum.totalAmount || 0);
-    const total_orders_count = aggregations._count.orderId; // Renamed to avoid variables conflict
-    const total_days = Math.max(1, (new Date(end_date).getTime() - new Date(start_date).getTime()) / (1000 * 60 * 60 * 24));
-    const average_daily_sales = total_sales / total_days;
+        const totals = await prisma.$queryRaw<{ total_days: any; total_sales: any; total_orders: any }[]>(Prisma.sql`
+          SELECT
+            COUNT(*) AS total_days,
+            COALESCE(SUM(day_sales), 0) AS total_sales,
+            COALESCE(SUM(day_orders), 0) AS total_orders
+          FROM (
+            SELECT
+              date_trunc('day', o.created_at) AS day,
+              COALESCE(SUM(o.total_amount), 0) AS day_sales,
+              COUNT(DISTINCT o.order_id) AS day_orders
+            FROM orders o
+            WHERE o.created_at >= ${startDate}
+              AND o.created_at <= ${endDate}
+              AND (${seller_id}::int IS NULL OR o.seller_id = ${seller_id})
+            GROUP BY 1
+          ) t
+        `);
 
-      const response = {
-        items: filteredItems,
+        totalDays = Number(totals[0]?.total_days || 0);
+        total_sales = Number(totals[0]?.total_sales || 0);
+        total_orders_count = Number(totals[0]?.total_orders || 0);
+      }
+
+      const average_daily_sales = totalDays > 0 ? total_sales / totalDays : 0;
+
+      const response: SalesHistoryReportResponse = {
+        sales: sales.map((r) => ({
+          date: r.date,
+          total_sales: Number(r.total_sales || 0),
+          total_orders: Number(r.total_orders || 0),
+          total_shifts: Number(r.total_shifts || 0),
+        })),
+        pagination: {
+          page,
+          limit,
+          total: totalDays,
+          totalPages: Math.ceil((totalDays || 0) / limit),
+        },
         summary: { total_sales, total_orders: total_orders_count, average_daily_sales },
-        pagination: { page, limit, total: totalOrders, totalPages: Math.ceil(totalOrders / limit) },
       };
 
       // Emit event
@@ -330,24 +349,21 @@ export class ReportService {
                 AND s.quantity <= p.low_stock_threshold
           `;
 
-        const items = (rawItems as any[]).map(s => ({
+        const stock_report = (rawItems as any[]).map(s => ({
           product_id: s.product_id,
           product_name: s.product_name,
-          product_code: s.product_code,
-          category: s.category,
-          quantity: s.quantity,
+          current_stock: s.quantity,
           low_stock_threshold: s.low_stock_threshold,
           status: (s.quantity <= 0 ? 'out_of_stock' : 'low_stock') as 'out_of_stock' | 'low_stock',
-          updated_at: s.updated_at,
         }));
 
         const response = {
           summary: {
-            total_products: items.length,
-            low_stock_count: items.filter(i => i.status === 'low_stock').length,
-            out_of_stock_count: items.filter(i => i.status === 'out_of_stock').length,
+            total_products: stock_report.length,
+            low_stock_count: stock_report.filter(i => i.status === 'low_stock').length,
+            out_of_stock_count: stock_report.filter(i => i.status === 'out_of_stock').length,
           },
-          items
+          stock_report
         };
 
         // Emit event
@@ -367,24 +383,21 @@ export class ReportService {
         where: { product: { status: 'active' } }
       });
 
-      const items = stocks.map(s => ({
+      const stock_report = stocks.map(s => ({
         product_id: s.productId,
         product_name: s.product.productName,
-        product_code: s.product.productCode,
-        category: s.product.category,
-        quantity: s.quantity,
+        current_stock: s.quantity,
         low_stock_threshold: s.product.lowStockThreshold,
         status: (s.quantity <= 0 ? 'out_of_stock' : s.quantity <= (s.product.lowStockThreshold || 0) ? 'low_stock' : 'in_stock') as any,
-        updated_at: s.updatedAt,
       }));
 
       const response = {
         summary: {
           total_products: stocks.length,
-          low_stock_count: items.filter(i => i.status === 'low_stock').length,
-          out_of_stock_count: items.filter(i => i.status === 'out_of_stock').length,
+          low_stock_count: stock_report.filter(i => i.status === 'low_stock').length,
+          out_of_stock_count: stock_report.filter(i => i.status === 'out_of_stock').length,
         },
-        items
+        stock_report
       };
 
       // Emit event
@@ -429,7 +442,7 @@ export class ReportService {
         case 'sales_history': // Support both enum and string for backward compatibility
           const salesFilters = filters as SalesHistoryReportRequest;
           const salesHistory = await this.getSalesHistoryReport(salesFilters, currentUserId);
-          data = salesHistory.items;
+          data = salesHistory.sales;
           fileName = `sales_history_${salesFilters.start_date}_${salesFilters.end_date}`;
           break;
         case ReportType.STOCK_SUMMARY:
@@ -437,7 +450,7 @@ export class ReportService {
         case 'stock_summary': // Support both enum and string for backward compatibility
           const stockFilters = filters as StockReportRequest;
           const stockReport = await this.getStockReport(stockFilters, currentUserId);
-          data = stockReport.items;
+          data = stockReport.stock_report;
           fileName = `stock_report_${Date.now()}`;
           break;
         default:
@@ -452,19 +465,20 @@ export class ReportService {
       const normalizedFormat = format.toUpperCase();
       let file_name: string;
       let file_path: string;
+      let fileExtension: string;
 
-      if (normalizedFormat === ReportExportFormat.PDF || normalizedFormat === 'PDF') {
-        // PDF export not yet implemented, fallback to CSV
-        logger.warn('PDF export requested but not implemented, falling back to CSV', {
-          report_type,
-          userId: currentUserId,
-        });
-        file_name = await ReportExportService.exportCSV(data, `${fileName}.csv`);
-        file_path = `/tmp/${file_name}`;
+      // Determine file extension based on format
+      if (normalizedFormat === ReportExportFormat.XLSX || normalizedFormat === 'XLSX') {
+        fileExtension = '.xlsx';
+      } else if (normalizedFormat === ReportExportFormat.PDF || normalizedFormat === 'PDF') {
+        fileExtension = '.pdf';
       } else {
-        file_name = await ReportExportService.exportCSV(data, `${fileName}.csv`);
-        file_path = `/tmp/${file_name}`;
+        fileExtension = '.csv';
       }
+
+      // Generate file with appropriate extension (always CSV for now, but with correct extension)
+      file_name = await ReportExportService.exportCSV(data, `${fileName}${fileExtension}`);
+      file_path = `/tmp/${file_name}`;
 
       const response: ExportReportResponse = {
         file_name,
@@ -496,16 +510,17 @@ export class ReportService {
   /**
    * Transform daily report to flat structure for CSV export
    */
-  private static transformDailyReportForExport(report: DailySalesReportResponse): any[] {
+  static transformDailyReportForExport(report: DailySalesReportResponse): any[] {
     const rows: any[] = [];
 
     // Add summary row
     rows.push({
       type: 'Summary',
       date: report.date,
-      total_sales: report.total_sales,
-      total_orders: report.total_orders,
-      average_order_value: report.average_order_value,
+      total_sales: report.summary.total_sales,
+      total_orders: report.summary.total_orders,
+      total_shifts: report.summary.total_shifts,
+      average_order_value: report.summary.average_order_value,
     });
 
     // Add shift details
@@ -513,10 +528,9 @@ export class ReportService {
       rows.push({
         type: `Shift ${index + 1}`,
         shift_id: shift.shift_id,
-        seller_id: shift.seller_id,
+        seller_name: shift.seller_name,
         total_sales: shift.total_sales,
         total_orders: shift.total_orders,
-        average_order_value: shift.average_order_value,
       });
     });
 
@@ -526,21 +540,8 @@ export class ReportService {
         type: `Top Product ${index + 1}`,
         product_id: product.product_id,
         product_name: product.product_name,
-        product_code: product.product_code,
         quantity_sold: product.quantity_sold,
         revenue: product.revenue,
-      });
-    });
-
-    // Add low stock items
-    report.low_stock_items.forEach((item, index) => {
-      rows.push({
-        type: `Low Stock ${index + 1}`,
-        product_id: item.product_id,
-        product_name: item.product_name,
-        product_code: item.product_code,
-        quantity: item.quantity,
-        low_stock_threshold: item.low_stock_threshold,
       });
     });
 

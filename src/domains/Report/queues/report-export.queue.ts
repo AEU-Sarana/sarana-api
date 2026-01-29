@@ -1,0 +1,63 @@
+import { QueueUtil } from '@src/shared/utils/queue.util';
+import type Queue from 'bull';
+
+/**
+ * Report Export Job Data
+ */
+export interface ReportExportJobData {
+  userId: number;
+  reportType: 'daily' | 'sales' | 'stock';
+  filters: {
+    date?: string;
+    start_date?: string;
+    end_date?: string;
+    seller_id?: number;
+    product_id?: number;
+    low_stock_only?: boolean;
+    page?: number;
+    limit?: number;
+  };
+  format: 'CSV' | 'PDF';
+}
+
+/**
+ * Report Export Job Result
+ */
+export interface ReportExportJobResult {
+  fileUrl: string;
+  filePath: string;
+  fileSize: number;
+  fileName: string;
+}
+
+/**
+ * Report Export Queue
+ * 
+ * Singleton queue instance for processing report export jobs.
+ */
+let reportExportQueue: Queue<ReportExportJobData> | null = null;
+
+/**
+ * Get or create the report export queue instance
+ */
+export function getReportExportQueue(): Queue<ReportExportJobData> {
+  if (!reportExportQueue) {
+    reportExportQueue = QueueUtil.createQueue<ReportExportJobData>('report-export', {
+      limiter: {
+        max: 10, // Process max 10 jobs concurrently
+        duration: 1000, // Per second
+      },
+    });
+  }
+  return reportExportQueue;
+}
+
+/**
+ * Close the report export queue (for graceful shutdown)
+ */
+export async function closeReportExportQueue(): Promise<void> {
+  if (reportExportQueue) {
+    await QueueUtil.closeQueue(reportExportQueue);
+    reportExportQueue = null;
+  }
+}
