@@ -139,13 +139,16 @@ export class StockService {
       stockWhere.stockVersion = stockVersion;
     }
 
-    // Get all stocks with products for summary calculation (before pagination)
+    // Get all stocks with products (we'll compute a stable summary from this base set)
     const allStocks = await prisma.stock.findMany({
       where: stockWhere,
       include: {
         product: true,
       },
     });
+
+    // Base set for stable summary: active products only (not affected by filters)
+    const baseStocks = allStocks.filter((s) => !!s.product && !s.product.deactivatedDate);
 
     // Filter by product conditions (category, search, active products only)
     let filteredStocks = allStocks.filter((s) => {
@@ -169,21 +172,21 @@ export class StockService {
       return true;
     });
 
-    // Calculate stock status for each item
+    const calcStatus = (
+      quantity: number,
+      threshold: number | null | undefined
+    ): 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative' => {
+      const t = threshold || 0;
+      if (quantity < 0) return 'negative';
+      if (quantity === 0) return 'out_of_stock';
+      if (t > 0 && quantity <= t) return 'low_stock';
+      return 'in_stock';
+    };
+
+    // Calculate stock status for each item (filtered list)
     const stocksWithStatus = filteredStocks.map((s) => {
       const quantity = s.quantity;
-      const threshold = s.product?.lowStockThreshold || 0;
-      
-      let stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative';
-      if (quantity < 0) {
-        stockStatus = 'negative';
-      } else if (quantity === 0) {
-        stockStatus = 'out_of_stock';
-      } else if (threshold > 0 && quantity <= threshold) {
-        stockStatus = 'low_stock';
-      } else {
-        stockStatus = 'in_stock';
-      }
+      const stockStatus = calcStatus(quantity, s.product?.lowStockThreshold);
 
       return {
         ...s,
@@ -197,13 +200,17 @@ export class StockService {
       finalStocks = stocksWithStatus.filter((s) => s.stockStatus === status);
     }
 
-    // Calculate summary from all filtered stocks (before pagination)
+    // Stable summary: computed from baseStocks (not affected by filters/pagination)
+    const baseWithStatus = baseStocks.map((s) => ({
+      ...s,
+      stockStatus: calcStatus(s.quantity, s.product?.lowStockThreshold),
+    }));
     const summary = {
-      total_products: finalStocks.length,
-      total_stock_quantity: finalStocks.reduce((sum, s) => sum + s.quantity, 0),
-      low_stock_count: finalStocks.filter((s) => s.stockStatus === 'low_stock').length,
-      out_of_stock_count: finalStocks.filter((s) => s.stockStatus === 'out_of_stock').length,
-      negative_stock_count: finalStocks.filter((s) => s.stockStatus === 'negative').length,
+      total_products: baseWithStatus.length,
+      total_stock_quantity: baseWithStatus.reduce((sum, s) => sum + s.quantity, 0),
+      low_stock_count: baseWithStatus.filter((s) => s.stockStatus === 'low_stock').length,
+      out_of_stock_count: baseWithStatus.filter((s) => s.stockStatus === 'out_of_stock').length,
+      negative_stock_count: baseWithStatus.filter((s) => s.stockStatus === 'negative').length,
     };
 
     // Apply pagination

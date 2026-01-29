@@ -61,7 +61,6 @@ const migrationOrder = [
   'stock/20260118000007_create_stock_movements_table',
   'telegram/20260118000008_create_telegram_config_table',
   'device-binding/20260118000009_create_device_bindings_table',
-  'device-binding/20260118000010_add_pending_status',
   'setting/202601180000010_create_settings_table',
   'shared/202601180000011_create_audit_logs_table',
 ];

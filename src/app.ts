@@ -11,6 +11,7 @@ import { registerStockEventListeners } from '@src/domains/Stock/events/stock.lis
 // Register event listeners
 registerStockEventListeners();
 
+
 const app: Application = express();
 
 // Security middleware

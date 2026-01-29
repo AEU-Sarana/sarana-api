@@ -1,40 +1,4 @@
 services:
-  # App
-  app-dev:
-    build:
-      context: .
-      target: development
-    container_name: stock-pos-app-dev
-    env_file:
-      - .env
-    # Port mapping removed - access only through nginx (port 8080)
-    # ports:
-    #   - "${PORT:-3000}:3000"
-    environment:
-      NODE_ENV: development
-      PORT: ${PORT:-3000}
-      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-stock_pos}
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-    volumes:
-      - .:/app
-      - ./src/database/prisma:/app/prisma
-      - /app/node_modules
-      - /app/dist
-      
-    
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - stock-pos-network
-    command: sh -c "pnpm config set store-dir /app/.pnpm-store && pnpm install && (cd /app/node_modules/@prisma/client/runtime && ln -sf query_compiler_fast_bg.postgresql.mjs query_compiler_bg.postgresql.mjs 2>/dev/null || true) && pnpm migrate:apply && pnpm dev"
-    profiles:
-      - dev
 # Database
   db:
     image: postgres:15-alpine
@@ -107,11 +71,13 @@ services:
       - ./docker/nginx/ssl:/etc/nginx/ssl:ro
       - nginx-cache:/var/cache/nginx
       - nginx-logs:/var/log/nginx
-    depends_on:
-      - app-dev
+    # app-dev is defined in docker-compose.dev.yml as 'app'
+    # depends_on will be set in docker-compose.dev.yml
     restart: unless-stopped
     networks:
       - stock-pos-network
+    profiles:
+      - dev
 
 volumes:
   postgres-data:

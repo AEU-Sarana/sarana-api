@@ -4,9 +4,7 @@ import { logger } from '@src/shared/utils/logger';
 export interface AuditLogData {
   userId?: number;
   action: string;
-  // Alias used by services; mapped to `entityType` for persistence
   resource?: string;
-  // Extra metadata (not currently persisted to DB; safe for callers to pass)
   details?: Record<string, any>;
   entityType?: string;
   entityId?: number;
@@ -34,9 +32,40 @@ export class AuditLogService {
           userAgent: data.userAgent,
         },
       });
-    } catch (error) {
-      // Log error but don't throw (audit logging should not break main flow)
-      logger.error('Failed to create audit log:', error);
+    } catch (error: any) {
+      // Handle foreign key constraint violation (invalid userId)
+      // P2003 is the Prisma error code for foreign key constraint violation
+      const isForeignKeyError = error?.code === 'P2003';
+      const constraintName = error?.meta?.driverAdapterError?.cause?.constraint?.index || 
+                            error?.meta?.constraint ||
+                            '';
+      const isUserIdConstraint = constraintName.includes('user_id') || 
+                                 constraintName.includes('audit_logs_user_id_fkey') ||
+                                 error?.message?.includes('audit_logs_user_id_fkey');
+      
+      if (isForeignKeyError && isUserIdConstraint) {
+        logger.warn(`Invalid user ID ${data.userId} for audit log, retrying without user reference`);
+        try {
+          // Retry without userId
+          await prisma.auditLog.create({
+            data: {
+              userId: undefined,
+              action: data.action,
+              entityType: data.entityType ?? data.resource,
+              entityId: data.entityId,
+              oldValues: data.oldValues as any,
+              newValues: data.newValues as any,
+              ipAddress: data.ipAddress,
+              userAgent: data.userAgent,
+            },
+          });
+        } catch (retryError) {
+          logger.error('Failed to create audit log (retry without userId):', retryError);
+        }
+      } else {
+        // Log other errors but don't throw (audit logging should not break main flow)
+        logger.error('Failed to create audit log:', error);
+      }
     }
   }
 

@@ -4,4 +4,4 @@ export interface ShiftStartedEvent {
     opening_cash: number;
     stock_version_at_start: number;
     started_at: Date;
-  }
+}

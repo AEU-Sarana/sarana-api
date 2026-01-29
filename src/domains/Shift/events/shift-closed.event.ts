@@ -8,4 +8,4 @@ export interface ShiftClosedEvent {
     short_amount: number;
     over_amount: number;
     closed_at: Date;
-  }
+}
