@@ -1,17 +1,36 @@
 export interface StartShiftRequest {
-    opening_cash: number;
-  }
-  
-  export interface StartShiftResponse {
-    shift_id: number;
-    seller_id: number;
-    shift_date: string;
-    start_time: Date;
-    opening_cash: number;
-    status: string;
-    stock: any; // stock snapshot response
-    created_at: Date;
-  }
+  opening_cash: number;
+}
+
+export interface ShiftProductStock {
+  quantity: number;
+  stock_version: number | null;
+}
+
+export interface ShiftProduct {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  price: number | null;
+  stock: ShiftProductStock;
+}
+
+export interface ShiftStockSnapshot {
+  version: number | null;
+  last_sync_time: string | null;
+  products: ShiftProduct[];
+}
+
+export interface StartShiftResponse {
+  shift_id: number;
+  seller_id: number;
+  shift_date: string;
+  start_time: string;
+  opening_cash: number;
+  status: string;
+  stock: ShiftStockSnapshot;
+  created_at: string;
+}
   
   export interface CloseShiftRequest {
     actual_cash: number;

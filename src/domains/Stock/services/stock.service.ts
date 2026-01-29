@@ -233,6 +233,7 @@ export class StockService {
         product_code: s.product!.productCode,
         product_name: s.product!.productName,
         category: s.product!.category,
+        price: Number(s.product!.price),
         quantity: s.quantity,
         low_stock_threshold: s.product!.lowStockThreshold,
         stock_version: s.stockVersion,
