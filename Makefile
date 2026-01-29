@@ -11,7 +11,7 @@ DOCKER_COMPOSE := $(shell command -v docker-compose 2>/dev/null || echo "docker 
 # Helper function to get compose command
 ifeq ($(ENV),dev)
 	COMPOSE_CMD := $(DOCKER_COMPOSE) -f $(COMPOSE_BASE) -f docker-compose.dev.yml --profile dev
-	APP_SERVICE := app-dev
+	APP_SERVICE := app
 else ifeq ($(ENV),staging)
 	COMPOSE_CMD := $(DOCKER_COMPOSE) -f $(COMPOSE_BASE) -f docker-compose.staging.yml
 	APP_SERVICE := app
