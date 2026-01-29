@@ -33,25 +33,32 @@ export async function processReportExportJob(
     filters,
   });
 
+  let fileName = 'report';
+
   try {
     // Update job progress
     await job.progress(10);
 
     // Step 1: Generate report data
     let reportData: any[];
-    let fileName: string;
 
     switch (reportType) {
       case 'daily': {
+        if (!filters.date) {
+          throw new Error('Date is required for daily report');
+        }
         const dailyReport = await ReportService.getDailyReport(
           { date: filters.date },
           userId
         );
         reportData = ReportService.transformDailyReportForExport(dailyReport);
-        fileName = `daily_sales_${filters.date || Date.now()}`;
+        fileName = `daily_sales_${filters.date}`;
         break;
       }
       case 'sales': {
+        if (!filters.start_date || !filters.end_date) {
+          throw new Error('Start date and end date are required for sales report');
+        }
         const salesReport = await ReportService.getSalesHistoryReport(
           {
             start_date: filters.start_date,
@@ -189,7 +196,7 @@ export async function processReportExportJob(
 
     // Clean up local file if it exists
     try {
-      const tmpFile = path.join('/tmp', `${fileName || 'report'}.csv`);
+      const tmpFile = path.join('/tmp', `${fileName}.csv`);
       if (fs.existsSync(tmpFile)) {
         fs.unlinkSync(tmpFile);
       }
@@ -197,6 +204,6 @@ export async function processReportExportJob(
       // Ignore cleanup errors
     }
 
-    throw error; // Re-throw to mark job as failed
+    throw error; 
   }
 }
