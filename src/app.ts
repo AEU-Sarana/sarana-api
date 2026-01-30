@@ -9,6 +9,7 @@ import { errorMiddleware } from '@src/shared/middleware/error.middleware';
 import { registerStockEventListeners } from '@src/domains/Stock/events/stock.listeners';
 import { registerReportEventListeners } from '@src/domains/Report/events/report.listeners';
 import { registerReportExportProcessor } from '@src/domains/Report/queues/report-export.processor';
+import { registerTelegramEventListeners } from './domains/Telegram/events/telegram.listeners';
 
 // Register event listeners
 registerStockEventListeners();
@@ -16,6 +17,9 @@ registerReportEventListeners();
 
 // Register queue processors
 registerReportExportProcessor();
+
+// Register telegram event listeners
+registerTelegramEventListeners();
 
 
 const app: Application = express();

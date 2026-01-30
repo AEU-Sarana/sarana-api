@@ -100,6 +100,7 @@ export interface StartShiftResponse {
     total_sales_count: number;
     total_sales_amount: number;
     status: string;
+    report_sent_status: string;
     orders: Array<{
       order_id: number;
       receipt_number: string;

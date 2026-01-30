@@ -153,7 +153,7 @@ export class ShiftService {
         totalSalesCount,
         totalSalesAmount,
         status: 'CLOSED',
-        reportSentStatus: 'SENT', // or PENDING/FAILED
+        reportSentStatus: 'SENT',
       },
     });
 
@@ -325,6 +325,7 @@ export class ShiftService {
       total_sales_count: shift.totalSalesCount ?? 0,
       total_sales_amount: Number(shift.totalSalesAmount ?? 0),
       status: shift.status,
+      report_sent_status: shift.reportSentStatus ?? 'PENDING',
       orders: shift.orders.map((o: any) => ({
         order_id: o.orderId,
         receipt_number: o.receiptNumber,
