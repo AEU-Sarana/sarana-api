@@ -10,7 +10,6 @@ import { StockMovementCreatedEvent } from '@src/domains/Stock/events/stock-movem
 export interface EventMap {
   'stock.updated': StockUpdatedEvent;
   'stock.movement.created': StockMovementCreatedEvent;
-
   'reports.generated': ReportGeneratedEvent;
   'reports.exported': ReportExportedEvent;
 }

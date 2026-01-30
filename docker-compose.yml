@@ -84,6 +84,7 @@ volumes:
   nginx-cache:
   nginx-logs:
   minio-data:
+  redis-data:
 
 networks:
   stock-pos-network:

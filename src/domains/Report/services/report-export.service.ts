@@ -8,7 +8,7 @@ export class ReportExportService {
    * @param data Array of objects to export
    * @param fileName Optional filename (without path)
    * @returns The filename of the created file
-   */
+  */
   static async exportCSV(data: any[], fileName?: string): Promise<string> {
     if (!data || data.length === 0) {
       throw new Error('No data provided for CSV export');
@@ -89,7 +89,7 @@ export class ReportExportService {
 
   /**
    * Export data to PDF format (not yet implemented)
-   */
+  */
   static async exportPDF(data: any[], fileName?: string): Promise<string> {
     throw new Error('PDF export not implemented yet');
   }

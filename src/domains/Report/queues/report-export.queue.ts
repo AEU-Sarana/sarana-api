@@ -1,5 +1,5 @@
 import { QueueUtil } from '@src/shared/utils/queue.util';
-import type Queue from 'bull';
+import { Queue } from 'bull';
 
 /**
  * Report Export Job Data

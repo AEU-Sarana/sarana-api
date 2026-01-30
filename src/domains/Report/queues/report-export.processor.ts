@@ -1,5 +1,7 @@
+import { Job } from 'bull';
 import { getReportExportQueue } from './report-export.queue';
 import { processReportExportJob } from '../jobs/process-report-export.job';
+import type { ReportExportJobData } from './report-export.queue';
 import { logger } from '@src/shared/utils/logger';
 
 /**
@@ -12,7 +14,7 @@ export function registerReportExportProcessor(): void {
   const queue = getReportExportQueue();
 
   // Process jobs
-  queue.process('export-report', async (job) => {
+  queue.process('export-report', async (job: Job<ReportExportJobData>) => {
     return await processReportExportJob(job);
   });
 

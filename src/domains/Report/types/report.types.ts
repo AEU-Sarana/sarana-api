@@ -1,11 +1,6 @@
-import { UserPayload } from '@src/shared/middleware/auth.middleware';
-
-/**
- * Daily Sales Report
- */
 export interface DailySalesReportRequest {
-  date: string; // YYYY-MM-DD
-  seller_id?: number; // Admin only
+  date: string; 
+  seller_id?: number; 
 }
 
 export interface TopProduct {
@@ -44,7 +39,7 @@ export interface DailySalesReportResponse {
 
 /**
  * Sales History Report
- */
+*/
 export interface SalesHistoryReportRequest {
   start_date: string;
   end_date: string;

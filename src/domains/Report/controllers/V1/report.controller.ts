@@ -6,6 +6,7 @@ import { ReportExportService } from '@src/domains/Report/services/report-export.
 import { FileStorageService } from '@src/shared/services/file-storage.service';
 import fs from 'fs';
 import path from 'path';
+import { DailySalesReportRequest } from '../../types/report.types';
 
 // Helper function (same as StockController)
 function getStringValue(value: any): string | undefined {
@@ -36,7 +37,7 @@ export class ReportController {
         path: req.path,
       });
 
-      const request = {
+      const request : DailySalesReportRequest = {
         date: dateStr,
         seller_id: sellerIdStr ? parseInt(sellerIdStr, 10) : undefined,
       };

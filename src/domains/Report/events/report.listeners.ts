@@ -10,7 +10,6 @@ export function registerReportEventListeners(): void {
       generated_by: payload.generated_by,
       generated_at: payload.generated_at,
     });
-    // Example: Invalidate cache, update analytics, etc.
   });
 
   eventBus.on('reports.exported', (payload: ReportExportedEvent) => {
@@ -20,6 +19,5 @@ export function registerReportEventListeners(): void {
       exported_by: payload.exported_by,
       exported_at: payload.exported_at,
     });
-    // Example: Track export usage, send notifications, etc.
   });
 }

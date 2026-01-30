@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type IRouter } from 'express';
 import { authenticateToken } from '@src/shared/middleware/auth.middleware';
 import { requireAdmin } from '@src/shared/middleware/authorization.middleware';
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
@@ -11,7 +11,7 @@ import {
 
 import { ReportController } from '../../controllers/V1/report.controller';
 
-const router = Router();
+const router: IRouter = Router();
 
 /**
  * GET /api/v1/reports/daily
@@ -56,7 +56,5 @@ router.post(
   ...validateRequest(exportReportValidator),
   ReportController.exportReport
 );
-
-// Export status and download endpoints removed since we now process synchronously
 
 export default router;
