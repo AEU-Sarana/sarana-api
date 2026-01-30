@@ -1,0 +1,29 @@
+---
+# meta file for jenkins role
+
+galaxy_info:
+  author: Nan Developers
+  description: Ansible role to install and configure Jenkins with Java 21
+  company: Techey Solutions
+  license: MIT
+  min_ansible_version: "2.9"
+  
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+
+  galaxy_tags:
+    - jenkins
+    - ci
+    - cd
+    - automation
+    - java
+
+dependencies: []

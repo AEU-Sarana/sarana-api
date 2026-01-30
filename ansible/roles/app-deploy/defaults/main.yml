@@ -1,0 +1,30 @@
+---
+# Application defaults
+app_name: stock-pos
+app_directory: /opt/stock-pos
+app_user: "{{ ansible_user }}"
+app_repo: ""
+app_branch: main
+
+# Docker image settings
+docker_image_name: "{{ app_name }}-app"
+docker_image_tag: latest
+docker_registry: ""
+dockerfile_path: "{{ app_directory }}/Dockerfile"
+
+# Docker network
+docker_network_name: "{{ app_name }}-network"
+
+# Deployment strategy
+force_recreate: false
+pull_images: true
+build_image: true
+
+# Template generation flags
+# Set to true only if your repo doesn't have these files
+create_dockerfile: false  # Set true if repo has no Dockerfile
+create_nginx_config: false  # Set true if repo has no nginx configs
+
+# Backup settings
+backup_enabled: true
+backup_directory: "/opt/backups/{{ app_name }}"

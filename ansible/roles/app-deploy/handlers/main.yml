@@ -1,0 +1,18 @@
+---
+- name: application updated
+  debug:
+    msg: "Application code has been updated"
+
+- name: environment updated
+  debug:
+    msg: "Environment variables have been updated"
+
+- name: compose file updated
+  debug:
+    msg: "Docker Compose configuration has been updated"
+
+- name: restart application
+  docker_compose:
+    project_src: "{{ app_directory }}"
+    restarted: yes
+  listen: "restart app"

@@ -1,58 +1,112 @@
 ---
-# Rollback playbook for emergency recovery
-- name: Rollback Stock POS Server Deployment
-  hosts: "{{ inventory_hostname.split('-')[0] }}"
-  become: yes
+# Rollback Playbook
+# This playbook rolls back to a previous backup
 
-  vars:
-    docker_container_name: stock-pos-app
-    rollback_version: "{{ rollback_to_version | default('latest') }}"
+- name: Rollback Stock POS Application
+  hosts: app_servers
+  become: yes
+  gather_facts: yes
+
+  vars_prompt:
+    - name: backup_timestamp
+      prompt: "Enter backup timestamp to restore (format: YYYYMMDD_HHMMSS) or 'latest'"
+      private: no
+      default: "latest"
+
+    - name: confirm_rollback
+      prompt: "Are you sure you want to rollback? This will stop current containers. (yes/no)"
+      private: no
+      default: "no"
 
   tasks:
-    - name: Set rollback image
+    - name: Verify rollback confirmation
+      fail:
+        msg: "Rollback cancelled by user"
+      when: confirm_rollback != "yes"
+
+    - name: List available backups
+      find:
+        paths: "{{ backup_directory }}"
+        patterns: "backup_*.tar.gz"
+      register: available_backups
+
+    - name: Display available backups
+      debug:
+        msg: "{{ available_backups.files | map(attribute='path') | list }}"
+
+    - name: Fail if no backups available
+      fail:
+        msg: "No backups found in {{ backup_directory }}"
+      when: available_backups.matched == 0
+
+    - name: Determine backup file to restore
       set_fact:
-        docker_image: '{{ docker_registry }}/stock-pos-server:{{ rollback_version }}'
+        restore_file: "{{ available_backups.files | sort(attribute='mtime', reverse=true) | first | json_query('path') }}"
+      when: backup_timestamp == "latest"
 
-    - name: Stop current container
-      docker_container:
-        name: '{{ docker_container_name }}'
-        state: stopped
-      register: stop_result
+    - name: Use specified backup
+      set_fact:
+        restore_file: "{{ backup_directory }}/backup_{{ backup_timestamp }}.tar.gz"
+      when: backup_timestamp != "latest"
 
-    - name: Backup current container
-      command: 'docker rename {{ docker_container_name }} {{ docker_container_name }}-backup-{{ ansible_date_time.iso8601_basic_short }}'
-      ignore_errors: yes
+    - name: Verify backup file exists
+      stat:
+        path: "{{ restore_file }}"
+      register: backup_stat
 
-    - name: Pull rollback image
-      docker_image:
-        name: '{{ docker_image }}'
-        source: pull
+    - name: Fail if backup doesn't exist
+      fail:
+        msg: "Backup file {{ restore_file }} does not exist"
+      when: not backup_stat.stat.exists
 
-    - name: Start container with rollback image
-      docker_container:
-        name: '{{ docker_container_name }}'
-        image: '{{ docker_image }}'
-        state: started
-        restart_policy: unless-stopped
-        ports:
-          - '{{ app_port }}:3000'
-        networks:
-          - name: '{{ docker_network }}'
-        env:
-          NODE_ENV: '{{ app_env }}'
-          DATABASE_URL: 'postgresql://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_host }}:{{ postgres_port }}/{{ postgres_db }}'
-          REDIS_URL: 'redis://{{ redis_host }}:{{ redis_port }}'
+    - name: Stop current containers
+      docker_compose:
+        project_src: "{{ app_directory }}"
+        state: absent
 
-    - name: Wait for service to recover
-      uri:
-        url: 'http://localhost:{{ app_port }}/health'
-        method: GET
-        status_code: 200
-      register: health_check
+    - name: Create pre-rollback backup
+      shell: |
+        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+        tar -czf {{ backup_directory }}/pre_rollback_${TIMESTAMP}.tar.gz -C {{ app_directory }} .
+      changed_when: false
+
+    - name: Clear current deployment
+      file:
+        path: "{{ app_directory }}"
+        state: absent
+
+    - name: Recreate application directory
+      file:
+        path: "{{ app_directory }}"
+        state: directory
+        owner: "{{ app_user }}"
+        mode: '0755'
+
+    - name: Restore backup
+      unarchive:
+        src: "{{ restore_file }}"
+        dest: "{{ app_directory }}"
+        remote_src: yes
+        owner: "{{ app_user }}"
+
+    - name: Start containers from restored backup
+      docker_compose:
+        project_src: "{{ app_directory }}"
+        state: present
+
+    - name: Wait for services to be ready
+      command: docker compose -f {{ app_directory }}/docker-compose.yml ps
+      register: compose_ps
+      until: compose_ps.stdout.find("Up") != -1
       retries: 10
       delay: 5
-      until: health_check.status == 200
+      changed_when: false
 
-    - name: Rollback successful notification
+    - name: Display rollback summary
       debug:
-        msg: '✅ Rollback to version {{ rollback_version }} completed successfully'
+        msg:
+          - "======================================"
+          - "Rollback completed successfully!"
+          - "Restored from: {{ restore_file }}"
+          - "Application: {{ app_name }}"
+          - "======================================"

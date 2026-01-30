@@ -1,28 +1,43 @@
+version: '3.8'
+
 services:
   app:
     build:
       context: .
-      target: production
-    container_name: stock-pos-app
-    ports:
-      - "${PORT:-3000}:3000"
+      dockerfile: Dockerfile
+      target: development
+      args:
+        NODE_VERSION: 20-alpine
+    image: stock-pos:dev-${BUILD_NUMBER:-latest}
+    container_name: stock-pos-app-dev
+    env_file:
+      - .env
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: ${PORT:-3000}
-      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-stock_pos}
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+    volumes:
+      - ./src/database/prisma:/app/prisma
+      - app-logs:/app/logs
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: sh -c "pnpm db:migrate:deploy && pnpm start"
     restart: unless-stopped
     networks:
       - stock-pos-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    profiles:
+      - dev
 
-  nginx:
-    depends_on:
-      - app
+volumes:
+  app-logs:

@@ -1,0 +1,50 @@
+---
+- name: Stop existing containers (if force recreate)
+  docker_compose:
+    project_src: "{{ app_directory }}"
+    state: absent
+  when: force_recreate | bool
+  ignore_errors: yes
+
+- name: Pull Docker images from registry
+  docker_compose:
+    project_src: "{{ app_directory }}"
+    pull: yes
+  when: 
+    - pull_images | bool
+    - not (build_image | bool)
+
+- name: Deploy application with Docker Compose
+  docker_compose:
+    project_src: "{{ app_directory }}"
+    files:
+      - docker-compose.yml
+      - docker-compose.prod.yml
+    state: present
+    pull: "{{ pull_images | bool }}"
+    build: "{{ build_image | bool }}"
+    recreate: "{{ 'always' if force_recreate else 'smart' }}"
+  register: compose_output
+
+- name: Display Docker Compose output
+  debug:
+    var: compose_output
+  when: compose_output is changed
+
+- name: Wait for services to be healthy
+  command: docker compose -f {{ app_directory }}/docker-compose.yml -f {{ app_directory }}/docker-compose.prod.yml ps
+  register: compose_ps
+  until: compose_ps.stdout.find("(healthy)") != -1 or compose_ps.stdout.find("Up") != -1
+  retries: 10
+  delay: 5
+  changed_when: false
+  ignore_errors: yes
+
+- name: Get running containers
+  command: docker ps --filter "name={{ app_name }}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+  register: running_containers
+  changed_when: false
+
+- name: Display running containers
+  debug:
+    msg: "{{ running_containers.stdout_lines }}"

@@ -1,0 +1,89 @@
+---
+- name: Clone or update application repository
+  git:
+    repo: "{{ app_repo }}"
+    dest: "{{ app_directory }}"
+    version: "{{ app_branch }}"
+    force: yes
+  when: app_repo != ""
+  notify: application updated
+
+- name: Create docker directory structure
+  file:
+    path: "{{ app_directory }}/docker/{{ item }}"
+    state: directory
+    owner: "{{ app_user }}"
+    mode: '0755'
+  loop:
+    - nginx
+    - nginx/conf.d
+    - nginx/ssl
+
+- name: Template .env file
+  template:
+    src: env.j2
+    dest: "{{ app_directory }}/.env"
+    owner: "{{ app_user }}"
+    mode: '0600'
+  notify: environment updated
+
+- name: Template docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ app_directory }}/docker-compose.yml"
+    owner: "{{ app_user }}"
+    mode: '0644'
+  notify: compose file updated
+
+- name: Template docker-compose.prod.yml (override)
+  template:
+    src: docker-compose.prod.yml.j2
+    dest: "{{ app_directory }}/docker-compose.prod.yml"
+    owner: "{{ app_user }}"
+    mode: '0644'
+
+- name: Template Dockerfile (if not exists in repo)
+  template:
+    src: Dockerfile.j2
+    dest: "{{ app_directory }}/Dockerfile"
+    owner: "{{ app_user }}"
+    mode: '0644'
+    force: no
+  when: 
+    - build_image | bool
+    - create_dockerfile | default(false)
+
+- name: Template nginx.conf (if not exists in repo)
+  template:
+    src: nginx.conf.j2
+    dest: "{{ app_directory }}/docker/nginx/nginx.conf"
+    owner: "{{ app_user }}"
+    mode: '0644'
+    force: no
+  when: create_nginx_config | default(false)
+
+- name: Template nginx default.conf (if not exists in repo)
+  template:
+    src: nginx-default.conf.j2
+    dest: "{{ app_directory }}/docker/nginx/conf.d/default.conf"
+    owner: "{{ app_user }}"
+    mode: '0644'
+    force: no
+  when: create_nginx_config | default(false)
+
+- name: Create .dockerignore file
+  copy:
+    content: |
+      node_modules
+      npm-debug.log
+      .env
+      .git
+      .gitignore
+      README.md
+      .dockerignore
+      dist
+      coverage
+      .DS_Store
+    dest: "{{ app_directory }}/.dockerignore"
+    owner: "{{ app_user }}"
+    mode: '0644'

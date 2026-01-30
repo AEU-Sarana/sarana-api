@@ -1,25 +1,62 @@
 ---
-# Main deployment playbook
-- name: Deploy Stock POS Server
-  hosts: "{{ inventory_hostname.split('-')[0] }}" # dev, staging, prod
+# Main Deployment Playbook for {{ app_name }}
+# This playbook deploys the Stock POS application with Docker
+
+- name: Deploy Stock POS Application
+  hosts: app_servers
   become: yes
-  vars:
-    docker_container_name: stock-pos-app
-    docker_network: stock-pos-network
-    healthcheck_url: 'http://localhost:{{ app_port }}/health'
+  gather_facts: yes
 
-  roles:
-    - docker-setup
-    - app-deploy
-    - database-migrate
-    - health-check
+  vars_prompt:
+    - name: confirm_deploy
+      prompt: "Are you sure you want to deploy to {{ inventory_hostname }}? (yes/no)"
+      private: no
+      default: "no"
 
-  post_tasks:
-    - name: Display deployment summary
+  pre_tasks:
+    - name: Verify deployment confirmation
+      fail:
+        msg: "Deployment cancelled by user"
+      when: confirm_deploy != "yes"
+
+    - name: Display target server information
       debug:
         msg:
-          - 'Deployment completed successfully!'
-          - 'Environment: {{ environment }}'
-          - 'Version: {{ app_version }}'
-          - 'Image: {{ docker_image }}'
-          - 'Host: {{ inventory_hostname }}'
+          - "Target Server: {{ inventory_hostname }}"
+          - "IP Address: {{ ansible_host }}"
+          - "Application: {{ app_name }}"
+          - "Environment: {{ node_env }}"
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+  roles:
+    - role: docker
+      tags: ['docker', 'setup']
+
+    - role: app-deploy
+      tags: ['app', 'deploy']
+
+  post_tasks:
+    - name: Final deployment status
+      debug:
+        msg:
+          - "======================================"
+          - "Deployment completed successfully!"
+          - "Application: {{ app_name }}"
+          - "Server: {{ inventory_hostname }}"
+          - "Access URL: http://{{ ansible_host }}:{{ nginx_http_port }}"
+          - "======================================"
+
+    - name: Verify all services are running
+      command: docker ps --filter "name={{ app_name }}" --format "table {{.Names}}\t{{.Status}}"
+      register: final_services
+      changed_when: false
+
+    - name: Display running services
+      debug:
+        msg: "{{ final_services.stdout_lines }}"
+
+
