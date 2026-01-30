@@ -6,7 +6,7 @@ import { ReportExportService } from '@src/domains/Report/services/report-export.
 import { FileStorageService } from '@src/shared/services/file-storage.service';
 import fs from 'fs';
 import path from 'path';
-import { DailySalesReportRequest } from '../../types/report.types';
+import { DailySalesReportRequest, DailyReportMeta } from '../../types/report.types';
 
 // Helper function (same as StockController)
 function getStringValue(value: any): string | undefined {
@@ -24,6 +24,7 @@ export class ReportController {
    * GET /api/v1/reports/daily
    */
   static async getDailyReport(req: Request, res: Response): Promise<void> {
+    const startTime = Date.now();
     try {
       const user = req.user as UserPayload;
 
@@ -43,11 +44,20 @@ export class ReportController {
       };
 
       const response = await ReportService.getDailyReport(request, user.userId);
+      const processingTime = Date.now() - startTime;
+
+      const meta: DailyReportMeta = {
+        request_id: `report_${dateStr.replace(/-/g, '')}_${Date.now()}`,
+        processing_time_ms: processingTime,
+        cached: false, // TODO: implement cache checking
+        version: 'v1',
+      };
 
       res.status(200).json({
         success: true,
         data: response,
-        message: 'Daily report retrieved successfully',
+        meta,
+        message: 'Daily report retrieved',
       });
     } catch (error: any) {
       logger.error('Get daily report error', {

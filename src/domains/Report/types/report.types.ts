@@ -6,35 +6,67 @@ export interface DailySalesReportRequest {
 export interface TopProduct {
   product_id: number;
   product_name: string;
+  product_code: string;
   quantity_sold: number;
   revenue: number;
+  average_price: number;
 }
 
-export interface ShiftSummary {
-  shift_id: number;
+export interface ShiftBreakdown {
+  seller_id: number;
   seller_name: string;
+  shift_count: number;
   total_sales: number;
   total_orders: number;
+  start_time: string;
+  end_time: string;
 }
 
 export interface LowStockItem {
   product_id: number;
   product_name: string;
   product_code: string;
-  quantity: number;
+  current_stock: number;
   low_stock_threshold: number;
+  status: 'low_stock' | 'out_of_stock';
+  last_updated: string;
+}
+
+export interface DailyReportSummary {
+  total_products_sold: number;
+  unique_products_sold: number;
+  average_items_per_order: number;
+  peak_sales_hour: string;
+  cash_collected: number;
+  short_over_amount: number;
+}
+
+export interface DailyReportMetadata {
+  generated_at: string;
+  data_freshness: string;
+  includes_all_shifts: boolean;
+  report_period: string;
+}
+
+export interface DailyReportMeta {
+  request_id: string;
+  processing_time_ms: number;
+  cached: boolean;
+  version: string;
 }
 
 export interface DailySalesReportResponse {
   date: string;
-  summary: {
-    total_sales: number;
-    total_orders: number;
-    total_shifts: number;
-    average_order_value: number;
-  };
-  shifts: ShiftSummary[];
+  total_sales: number;
+  total_orders: number;
+  total_shifts: number;
+  average_order_value: number;
+  currency: string;
+  shifts_breakdown: ShiftBreakdown[];
   top_products: TopProduct[];
+  low_stock_items: LowStockItem[];
+  summary: DailyReportSummary;
+  metadata: DailyReportMetadata;
 }
 
 /**
