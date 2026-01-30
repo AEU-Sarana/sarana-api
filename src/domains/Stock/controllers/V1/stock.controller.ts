@@ -3,7 +3,7 @@ import { StockService } from '@src/domains/Stock/services/stock.service';
 import { StockMovementService } from '@src/domains/Stock/services/stock-movement.service';
 import { logger } from '@src/shared/utils/logger';
 import { UserPayload } from '@src/shared/middleware/auth.middleware';
-import { GetStockRequest } from '../../types/stock.types';
+import { GetStockMovementsRequest, GetStockRequest } from '../../types/stock.types';
 
 // Helper function to safely extract string from query/param
 function getStringValue(value: string | string[] | undefined): string | undefined {
@@ -145,11 +145,13 @@ export class StockController {
       const pageStr = getStringValue(req.query.page as string | string[] | undefined);
       const limitStr = getStringValue(req.query.limit as string | string[] | undefined);
 
-      const request = {
+      const request: GetStockMovementsRequest = {
         product_id: productIdStr ? parseInt(productIdStr, 10) : undefined,
         movement_type: getStringValue(req.query.movement_type as string | string[] | undefined),
         date_from: getStringValue(req.query.date_from as string | string[] | undefined),
         date_to: getStringValue(req.query.date_to as string | string[] | undefined),
+        product_name: getStringValue(req.query.product_name as string | string[] | undefined),
+        barcode: getStringValue(req.query.barcode as string | string[] | undefined),
         page: pageStr ? parseInt(pageStr, 10) : 1,
         limit: limitStr ? parseInt(limitStr, 10) : 50,
       };
@@ -159,7 +161,7 @@ export class StockController {
       res.status(200).json({
         success: true,
         data: response,
-        message: 'Stock movements retrieved successfully',
+        message: 'Stock movements retrieved',
       });
     } catch (error: any) {
       logger.error('Get stock movements error', { error: error.message });

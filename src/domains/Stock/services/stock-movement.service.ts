@@ -3,6 +3,7 @@ import { StockMovementType } from '@src/domains/Stock/enums/stock-movement-type.
 import {
   GetStockMovementsRequest,
   GetStockMovementsResponse,
+  StockMovementResponse,
 } from '@src/domains/Stock/types/stock.types';
 import { auditLogService } from '@src/shared/services/audit-log.service';
 
@@ -19,6 +20,8 @@ export class StockMovementService {
       movement_type,
       date_from,
       date_to,
+      barcode,
+      product_name,
       page = 1,
       limit = 50,
     } = request;
@@ -34,6 +37,16 @@ export class StockMovementService {
       if (date_to) where.createdAt.lte = new Date(date_to);
     }
 
+    if (barcode || product_name) {
+      where.product = {};
+      if (barcode) {
+        where.product.barcode = { contains: barcode, mode: 'insensitive' };
+      }
+      if (product_name) {
+        where.product.productName = { contains: product_name, mode: 'insensitive' };
+      }
+    }
+
     const total = await prisma.stockMovement.count({ where });
     const skip = (page - 1) * limit;
 
@@ -47,6 +60,8 @@ export class StockMovementService {
             productId: true,
             productName: true,
             productCode: true,
+            barcode: true,
+            imagePath: true,
           },
         },
         creator: {
@@ -64,33 +79,22 @@ export class StockMovementService {
       userId: currentUserId,
       action: 'VIEW_STOCK_MOVEMENTS',
       resource: 'StockMovement',
-      details: { filters: { product_id, movement_type, date_from, date_to } },
+      details: { filters: { product_id, movement_type, date_from, date_to, barcode, product_name } },
     });
 
     return {
       movements: movements.map((m) => ({
         movement_id: m.movementId,
         product_id: m.productId,
+        product_name: m.product.productName,
+        barcode: m.product.barcode,
         movement_type: m.movementType as StockMovementType,
         quantity: m.quantity,
         cost: m.cost ? Number(m.cost) : null,
-        price: m.price ? Number(m.price) : null,
         supplier: m.supplier,
-        reason: m.reason,
-        order_id: m.orderId,
-        shift_id: m.shiftId,
+        image_path: m.product.imagePath,
         created_by: m.createdBy,
         created_at: m.createdAt,
-        product: {
-          product_id: m.product.productId,
-          product_name: m.product.productName,
-          product_code: m.product.productCode,
-        },
-        created_by_user: {
-          user_id: m.creator.userId,
-          username: m.creator.username,
-          full_name: m.creator.fullName,
-        },
       })),
       pagination: {
         page,
@@ -101,4 +105,3 @@ export class StockMovementService {
     };
   }
 }
-

@@ -150,6 +150,8 @@ export interface GetStockMovementsRequest {
   movement_type?: StockMovementType | string;
   date_from?: string;
   date_to?: string;
+  product_name?: string;
+  barcode?: string;
   page?: number;
   limit?: number;
 }
@@ -160,23 +162,10 @@ export interface StockMovementResponse {
   movement_type: StockMovementType;
   quantity: number;
   cost?: number | null;
-  price?: number | null;
   supplier?: string | null;
-  reason?: string | null;
-  order_id?: number | null;
-  shift_id?: number | null;
+  image_path?: string | null;
   created_by: number;
   created_at: Date;
-  product: {
-    product_id: number;
-    product_name: string;
-    product_code: string;
-  };
-  created_by_user: {
-    user_id: number;
-    username: string;
-    full_name: string;
-  };
 }
 
 export interface GetStockMovementsResponse {
