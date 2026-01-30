@@ -285,9 +285,9 @@ export class TelegramService {
                     👤 Seller: ${shift.seller_name ?? '-'}
 
                     💰 *Sales Summary*
-                    • Total Orders: ${report.summary.total_orders}
-                    • Total Amount: $${report.summary.total_sales.toFixed(2)}
-                    • Average Order: $${report.summary.average_order_value.toFixed(2)}
+                    • Total Orders: ${report.total_orders}
+                    • Total Amount: $${report.total_sales.toFixed(2)}
+                    • Average Order: $${report.average_order_value.toFixed(2)}
 
                     💵 *Cash Summary*
                     • Opening Cash: $${shift.opening_cash.toFixed(2)}
