@@ -196,7 +196,7 @@ async function main() {
     console.log('✨ Done');
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('❌ Failed:', err.message);
+    console.error('Failed:', err.message);
     process.exit(1);
   } finally {
     client.release();

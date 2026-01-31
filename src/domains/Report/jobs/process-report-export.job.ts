@@ -1,6 +1,8 @@
 import { Job } from 'bull';
 import { logger } from '@src/shared/utils/logger';
 import { ReportService } from '@src/domains/Report/services/report.service';
+import prisma from '@src/database/client';
+import { Role } from '@src/shared/config/permissions';
 import { ReportExportService } from '@src/domains/Report/services/report-export.service';
 import { FileStorageService } from '@src/shared/services/file-storage.service';
 import type {
@@ -127,13 +129,22 @@ async function generateReportData(
 ): Promise<{ reportData: any[]; fileName: string }> {
   let reportData: any[];
   let fileName: string;
+  const user = await prisma.user.findUnique({
+    where: { userId },
+    select: { role: true },
+  });
+  if (!user) {
+    throw new Error('User not found');
+  }
+  const userRole = user.role || Role.SELLER;
 
   switch (reportType) {
     case 'daily': {
       validateDailyReportFilters(filters);
       const dailyReport = await ReportService.getDailyReport(
         { date: filters.date },
-        userId
+        userId,
+        userRole
       );
       reportData = ReportService.transformDailyReportForExport(dailyReport);
       fileName = `daily_sales_${filters.date}`;
@@ -150,7 +161,8 @@ async function generateReportData(
           page: filters.page || 1,
           limit: filters.limit || 100, // Use max limit for export (validator allows 1-100)
         },
-        userId
+        userId,
+        userRole
       );
       reportData = salesReport.sales;
       fileName = `sales_history_${filters.start_date}_${filters.end_date}`;

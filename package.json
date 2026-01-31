@@ -22,6 +22,7 @@
     "migrate:apply": "node apply-domain-migrations.js apply",
     "migrate:single": "node apply-single-migration.js",
     "migrate:rollback": "node rollback-domain-migrations.js",
+    "migrate:reset:all": "node rollback-domain-migrations.js all && node apply-domain-migrations.js apply",
     "migrate:check": "node check-migrations.js",
     "seed:check": "tsx check-seeded-data.js",
     "db:migrate:resolve": "prisma migrate resolve",

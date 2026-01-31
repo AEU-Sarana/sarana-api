@@ -3,6 +3,7 @@ import { DailySalesReportRequest, DailySalesReportResponse, SalesHistoryReportRe
 import { ReportType } from '../enums/report-type.enum';
 import { ReportExportFormat } from '../enums/export-format.enum';
 import { ValidationException } from '@src/shared/exceptions';
+import { Role } from '@src/shared/config/permissions';
 import { logger } from '@src/shared/utils/logger';
 import { ReportCacheService } from './report-cache.service';
 import { ReportExportService } from './report-export.service';
@@ -16,7 +17,11 @@ export class ReportService {
   /**
    * Daily Sales Report
    */
-  static async getDailyReport(request: DailySalesReportRequest, currentUserId: number): Promise<DailySalesReportResponse> {
+  static async getDailyReport(
+    request: DailySalesReportRequest,
+    currentUserId: number,
+    currentUserRole: string
+  ): Promise<DailySalesReportResponse> {
     try {
       const { date, seller_id } = request;
 
@@ -25,8 +30,10 @@ export class ReportService {
         throw new ValidationException('Invalid date format. Expected YYYY-MM-DD');
       }
 
+      const effectiveSellerId = currentUserRole === Role.ADMIN ? seller_id : currentUserId;
+
       // Cache check
-      const cacheKey = `daily_report:${date}:${seller_id || 'all'}`;
+      const cacheKey = `daily_report:${date}:${effectiveSellerId || 'all'}`;
       const cached = await ReportCacheService.getCached(cacheKey);
       if (cached) return cached;
 
@@ -39,272 +46,274 @@ export class ReportService {
         throw new ValidationException('Invalid date provided');
       }
 
-    const whereClause: any = {
-      createdAt: {
-        gte: startOfDay,
-        lte: endOfDay,
-      },
-    };
-    if (seller_id) {
-      whereClause.sellerId = seller_id;
-    }
-
-    const aggregations = await prisma.order.aggregate({
-      where: whereClause,
-      _sum: {
-        totalAmount: true,
-      },
-      _count: {
-        orderId: true,
-      },
-    });
-
-    const total_sales = Number(aggregations._sum.totalAmount || 0);
-    const total_orders = aggregations._count.orderId;
-    const average_order_value = total_orders > 0 ? total_sales / total_orders : 0;
-
-    // Shifts breakdown
-    const shiftsData = await prisma.shift.findMany({
-      where: {
-        shiftDate: {
+      const whereClause: any = {
+        orderDate: {
           gte: startOfDay,
-          lte: endOfDay
+          lte: endOfDay,
         },
-        ...(seller_id ? { sellerId: seller_id } : {}),
-      },
-      include: {
-        seller: { select: { userId: true, fullName: true } },
-        orders: {
-          where: {
-            createdAt: {
+      };
+      if (effectiveSellerId) {
+        whereClause.sellerId = effectiveSellerId;
+      }
+
+      const aggregations = await prisma.order.aggregate({
+        where: whereClause,
+        _sum: {
+          totalAmount: true,
+        },
+        _count: {
+          orderId: true,
+        },
+      });
+
+      const total_sales = Number(aggregations._sum.totalAmount || 0);
+      const total_orders = aggregations._count.orderId;
+      const average_order_value = total_orders > 0 ? total_sales / total_orders : 0;
+
+      // Shifts breakdown
+      const shiftsData = await prisma.shift.findMany({
+        where: {
+          shiftDate: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+          ...(effectiveSellerId ? { sellerId: effectiveSellerId } : {}),
+        },
+        include: {
+          seller: { select: { userId: true, fullName: true } },
+          orders: {
+            where: {
+              orderDate: {
+                gte: startOfDay,
+                lte: endOfDay,
+              },
+            },
+            select: { totalAmount: true },
+          },
+        },
+      });
+
+      // Group shifts by seller and calculate totals
+      const shiftsBySeller = new Map<number, {
+        seller_id: number;
+        seller_name: string;
+        shifts: typeof shiftsData;
+      }>();
+
+      shiftsData.forEach(shift => {
+        const sellerId = shift.sellerId;
+        const sellerName = shift.seller?.fullName || 'Unknown';
+
+        if (!shiftsBySeller.has(sellerId)) {
+          shiftsBySeller.set(sellerId, {
+            seller_id: sellerId,
+            seller_name: sellerName,
+            shifts: [],
+          });
+        }
+        shiftsBySeller.get(sellerId)!.shifts.push(shift);
+      });
+
+      const shifts_breakdown: ShiftBreakdown[] = Array.from(shiftsBySeller.values()).map(sellerData => {
+        const totalSales = sellerData.shifts.reduce((sum, shift) =>
+          sum + shift.orders.reduce((orderSum, order) => orderSum + Number(order.totalAmount), 0), 0);
+        const totalOrders = sellerData.shifts.reduce((sum, shift) => sum + shift.orders.length, 0);
+
+        // Get the earliest start time and latest end time for this seller's shifts
+        const startTimes = sellerData.shifts.map(s => s.startTime).filter(t => t !== null);
+        const endTimes = sellerData.shifts.map(s => s.endTime).filter(t => t !== null);
+
+        const start_time = startTimes.length > 0
+          ? new Date(Math.min(...startTimes.map(t => new Date(t!).getTime()))).toISOString()
+          : new Date().toISOString();
+        const end_time = endTimes.length > 0
+          ? new Date(Math.max(...endTimes.map(t => new Date(t!).getTime()))).toISOString()
+          : new Date().toISOString();
+
+        return {
+          seller_id: sellerData.seller_id,
+          seller_name: sellerData.seller_name,
+          shift_count: sellerData.shifts.length,
+          total_sales: totalSales,
+          total_orders: totalOrders,
+          start_time,
+          end_time,
+        };
+      });
+
+      // Top products with product codes and average prices
+      const topProductsRaw = await prisma.orderItem.groupBy({
+        by: ['productId'],
+        where: {
+          order: {
+            orderDate: {
               gte: startOfDay,
               lte: endOfDay,
-            }
+            },
+            ...(effectiveSellerId ? { sellerId: effectiveSellerId } : {}),
           },
-          select: { totalAmount: true }
-        }
-      }
-    });
-
-    // Group shifts by seller and calculate totals
-    const shiftsBySeller = new Map<number, {
-      seller_id: number;
-      seller_name: string;
-      shifts: typeof shiftsData;
-    }>();
-
-    shiftsData.forEach(shift => {
-      const sellerId = shift.sellerId;
-      const sellerName = shift.seller?.fullName || 'Unknown';
-
-      if (!shiftsBySeller.has(sellerId)) {
-        shiftsBySeller.set(sellerId, {
-          seller_id: sellerId,
-          seller_name: sellerName,
-          shifts: []
-        });
-      }
-      shiftsBySeller.get(sellerId)!.shifts.push(shift);
-    });
-
-    const shifts_breakdown: ShiftBreakdown[] = Array.from(shiftsBySeller.values()).map(sellerData => {
-      const totalSales = sellerData.shifts.reduce((sum, shift) =>
-        sum + shift.orders.reduce((orderSum, order) => orderSum + Number(order.totalAmount), 0), 0);
-      const totalOrders = sellerData.shifts.reduce((sum, shift) => sum + shift.orders.length, 0);
-
-      // Get the earliest start time and latest end time for this seller's shifts
-      const startTimes = sellerData.shifts.map(s => s.startTime).filter(t => t !== null);
-      const endTimes = sellerData.shifts.map(s => s.endTime).filter(t => t !== null);
-
-      const start_time = startTimes.length > 0 ? new Date(Math.min(...startTimes.map(t => new Date(t!).getTime()))).toISOString() : new Date().toISOString();
-      const end_time = endTimes.length > 0 ? new Date(Math.max(...endTimes.map(t => new Date(t!).getTime()))).toISOString() : new Date().toISOString();
-
-      return {
-        seller_id: sellerData.seller_id,
-        seller_name: sellerData.seller_name,
-        shift_count: sellerData.shifts.length,
-        total_sales: totalSales,
-        total_orders: totalOrders,
-        start_time,
-        end_time
-      };
-    });
-
-
-    // Top products with product codes and average prices
-    const topProductsRaw = await prisma.orderItem.groupBy({
-      by: ['productId'],
-      where: {
-        order: {
-          createdAt: {
-            gte: startOfDay,
-            lte: endOfDay,
-          },
-          ...(seller_id ? { sellerId: seller_id } : {}),
         },
-      },
-      _sum: {
-        quantity: true,
-        subtotal: true,
-      },
-      _count: {
-        orderItemId: true,
-      },
-      orderBy: {
         _sum: {
-          subtotal: 'desc',
+          quantity: true,
+          subtotal: true,
         },
-      },
-      take: 5,
-    });
+        _count: {
+          orderItemId: true,
+        },
+        orderBy: {
+          _sum: {
+            subtotal: 'desc',
+          },
+        },
+        take: 5,
+      });
 
-    // Get product details for top products
-    const productIds = topProductsRaw.map(p => p.productId);
-    const products = await prisma.product.findMany({
-      where: {
-        productId: { in: productIds }
-      },
-      select: {
-        productId: true,
-        productName: true,
-        productCode: true,
-        price: true,
-      }
-    });
+      // Get product details for top products
+      const productIds = topProductsRaw.map(p => p.productId);
+      const products = await prisma.product.findMany({
+        where: {
+          productId: { in: productIds },
+        },
+        select: {
+          productId: true,
+          productName: true,
+          productCode: true,
+          price: true,
+        },
+      });
 
-    const productMap = new Map(products.map(p => [p.productId, p]));
+      const productMap = new Map(products.map(p => [p.productId, p]));
 
-    const top_products: TopProduct[] = topProductsRaw.map(p => {
-      const product = productMap.get(p.productId);
-      const quantitySold = p._sum.quantity || 0;
-      const revenue = Number(p._sum.subtotal || 0);
-      const averagePrice = quantitySold > 0 ? revenue / quantitySold : Number(product?.price || 0);
+      const top_products: TopProduct[] = topProductsRaw.map(p => {
+        const product = productMap.get(p.productId);
+        const quantitySold = p._sum.quantity || 0;
+        const revenue = Number(p._sum.subtotal || 0);
+        const averagePrice = quantitySold > 0 ? revenue / quantitySold : Number(product?.price || 0);
 
-      return {
-        product_id: p.productId,
-        product_name: product?.productName || 'Unknown Product',
-        product_code: product?.productCode || 'N/A',
-        quantity_sold: quantitySold,
-        revenue,
-        average_price: Number(averagePrice.toFixed(2)),
+        return {
+          product_id: p.productId,
+          product_name: product?.productName || 'Unknown Product',
+          product_code: product?.productCode || 'N/A',
+          quantity_sold: quantitySold,
+          revenue,
+          average_price: Number(averagePrice.toFixed(2)),
+        };
+      });
+
+      // Low stock items - get products with their stock information
+      const lowStockItems = await prisma.stock.findMany({
+        where: {
+          product: {
+            status: 'active',
+          },
+        },
+        include: {
+          product: {
+            select: {
+              productName: true,
+              productCode: true,
+              lowStockThreshold: true,
+            },
+          },
+        },
+        orderBy: {
+          quantity: 'asc',
+        },
+        take: 10,
+      });
+
+      // Filter for low stock items (include negative stock)
+      const filteredLowStockItems = lowStockItems.filter(stock => {
+        if (stock.quantity < 0) return true;
+        if (stock.product?.lowStockThreshold == null) return false;
+        return stock.quantity <= stock.product.lowStockThreshold;
+      });
+
+      const low_stock_items: LowStockItem[] = filteredLowStockItems.map(stock => ({
+        product_id: stock.productId,
+        product_name: stock.product?.productName || 'Unknown Product',
+        product_code: stock.product?.productCode || 'N/A',
+        current_stock: stock.quantity,
+        low_stock_threshold: stock.product?.lowStockThreshold || 0,
+        status: stock.quantity <= 0 ? 'out_of_stock' : 'low_stock',
+        last_updated: stock.updatedAt.toISOString(),
+      }));
+
+      // Calculate summary statistics
+      const totalProductsSold = await prisma.orderItem.aggregate({
+        where: {
+          order: {
+            orderDate: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+            ...(effectiveSellerId ? { sellerId: effectiveSellerId } : {}),
+          },
+        },
+        _sum: {
+          quantity: true,
+        },
+        _count: {
+          _all: true,
+        },
+      });
+
+      const uniqueProductsSold = await prisma.orderItem.findMany({
+        where: {
+          order: {
+            orderDate: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+            ...(effectiveSellerId ? { sellerId: effectiveSellerId } : {}),
+          },
+        },
+        select: {
+          productId: true,
+        },
+        distinct: ['productId'],
+      });
+
+      const averageItemsPerOrder = total_orders > 0 ? (totalProductsSold._sum.quantity || 0) / total_orders : 0;
+
+      // Find peak sales hour (simplified - just use a default for now)
+      const peakSalesHour = '18:00-19:00';
+
+      // Calculate cash collected (simplified - assume all sales are cash for now)
+      const cashCollected = total_sales;
+
+      // Calculate short/over amount (simplified - assume no discrepancies for now)
+      const shortOverAmount = 0;
+
+      const summary: DailyReportSummary = {
+        total_products_sold: totalProductsSold._sum.quantity || 0,
+        unique_products_sold: uniqueProductsSold.length,
+        average_items_per_order: Number(averageItemsPerOrder.toFixed(2)),
+        peak_sales_hour: peakSalesHour,
+        cash_collected: cashCollected,
+        short_over_amount: shortOverAmount,
       };
-    });
 
-    // Low stock items - get products with their stock information
-    const lowStockItems = await prisma.stock.findMany({
-      where: {
-        quantity: {
-          gte: 0
-        },
-        product: {
-          status: 'active'
-        }
-      },
-      include: {
-        product: {
-          select: {
-            productName: true,
-            productCode: true,
-            lowStockThreshold: true,
-          }
-        }
-      },
-      orderBy: {
-        quantity: 'asc'
-      },
-      take: 10,
-    });
+      const metadata: DailyReportMetadata = {
+        generated_at: new Date().toISOString(),
+        data_freshness: 'real-time',
+        includes_all_shifts: !effectiveSellerId,
+        report_period: `${startOfDay.toISOString()} to ${endOfDay.toISOString()}`,
+      };
 
-    // Filter for low stock items
-    const filteredLowStockItems = lowStockItems.filter(stock =>
-      stock.product?.lowStockThreshold && stock.quantity <= stock.product.lowStockThreshold
-    );
-
-    const low_stock_items: LowStockItem[] = filteredLowStockItems.map(stock => ({
-      product_id: stock.productId,
-      product_name: stock.product?.productName || 'Unknown Product',
-      product_code: stock.product?.productCode || 'N/A',
-      current_stock: stock.quantity,
-      low_stock_threshold: stock.product?.lowStockThreshold || 0,
-      status: stock.quantity === 0 ? 'out_of_stock' : 'low_stock',
-      last_updated: stock.updatedAt.toISOString(),
-    }));
-
-    // Calculate summary statistics
-    const totalProductsSold = await prisma.orderItem.aggregate({
-      where: {
-        order: {
-          createdAt: {
-            gte: startOfDay,
-            lte: endOfDay,
-          },
-          ...(seller_id ? { sellerId: seller_id } : {}),
-        },
-      },
-      _sum: {
-        quantity: true,
-      },
-      _count: {
-        _all: true,
-      },
-    });
-
-    const uniqueProductsSold = await prisma.orderItem.findMany({
-      where: {
-        order: {
-          createdAt: {
-            gte: startOfDay,
-            lte: endOfDay,
-          },
-          ...(seller_id ? { sellerId: seller_id } : {}),
-        },
-      },
-      select: {
-        productId: true,
-      },
-      distinct: ['productId'],
-    });
-
-    const averageItemsPerOrder = total_orders > 0 ? (totalProductsSold._sum.quantity || 0) / total_orders : 0;
-
-    // Find peak sales hour (simplified - just use a default for now)
-    const peakSalesHour = '18:00-19:00';
-
-    // Calculate cash collected (simplified - assume all sales are cash for now)
-    const cashCollected = total_sales;
-
-    // Calculate short/over amount (simplified - assume no discrepancies for now)
-    const shortOverAmount = 0;
-
-    const summary: DailyReportSummary = {
-      total_products_sold: totalProductsSold._sum.quantity || 0,
-      unique_products_sold: uniqueProductsSold.length,
-      average_items_per_order: Number(averageItemsPerOrder.toFixed(2)),
-      peak_sales_hour: peakSalesHour,
-      cash_collected: cashCollected,
-      short_over_amount: shortOverAmount,
-    };
-
-    const metadata: DailyReportMetadata = {
-      generated_at: new Date().toISOString(),
-      data_freshness: 'real-time',
-      includes_all_shifts: !seller_id,
-      report_period: `${startOfDay.toISOString()} to ${endOfDay.toISOString()}`,
-    };
-
-    const report: DailySalesReportResponse = {
-      date,
-      total_sales,
-      total_orders,
-      total_shifts: shifts_breakdown.reduce((sum, shift) => sum + shift.shift_count, 0),
-      average_order_value: Number(average_order_value.toFixed(2)),
-      currency: 'USD',
-      shifts_breakdown,
-      top_products,
-      low_stock_items,
-      summary,
-      metadata,
-    };
+      const report: DailySalesReportResponse = {
+        date,
+        total_sales,
+        total_orders,
+        total_shifts: shifts_breakdown.reduce((sum, shift) => sum + shift.shift_count, 0),
+        average_order_value: Number(average_order_value.toFixed(2)),
+        currency: 'USD',
+        shifts_breakdown,
+        top_products,
+        low_stock_items,
+        summary,
+        metadata,
+      };
 
       // Cache result for 10 minutes
       await ReportCacheService.setCached(cacheKey, report, 600);
@@ -312,7 +321,7 @@ export class ReportService {
       // Emit event
       eventBus.emit('reports.generated', {
         report_type: ReportType.DAILY_SALES,
-        filters: { date, seller_id },
+        filters: { date, seller_id: effectiveSellerId },
         generated_by: currentUserId,
         generated_at: new Date(),
       } satisfies ReportGeneratedEvent);
@@ -333,9 +342,14 @@ export class ReportService {
   /**
    * Sales History Report
    */
-  static async getSalesHistoryReport(request: SalesHistoryReportRequest, currentUserId: number): Promise<SalesHistoryReportResponse> {
+  static async getSalesHistoryReport(
+    request: SalesHistoryReportRequest,
+    currentUserId: number,
+    currentUserRole: string
+  ): Promise<SalesHistoryReportResponse> {
     try {
       const { start_date, end_date, seller_id, product_id, page = 1, limit = 50 } = request;
+      const effectiveSellerId = currentUserRole === Role.ADMIN ? seller_id : currentUserId;
 
       // Validate date formats
       if (!start_date || !/^\d{4}-\d{2}-\d{2}$/.test(start_date)) {
@@ -377,16 +391,16 @@ export class ReportService {
       if (product_id) {
         sales = await prisma.$queryRaw<SalesRow[]>(Prisma.sql`
           SELECT
-            to_char(date_trunc('day', o.created_at), 'YYYY-MM-DD') AS date,
+            to_char(date_trunc('day', o.order_date), 'YYYY-MM-DD') AS date,
             COALESCE(SUM(oi.subtotal), 0) AS total_sales,
             COUNT(DISTINCT o.order_id) AS total_orders,
             COUNT(DISTINCT o.shift_id) AS total_shifts
           FROM orders o
           JOIN order_items oi ON oi.order_id = o.order_id
-          WHERE o.created_at >= ${startDate}
-            AND o.created_at <= ${endDate}
+          WHERE o.order_date >= ${startDate}
+            AND o.order_date <= ${endDate}
             AND oi.product_id = ${product_id}
-            AND (${seller_id}::int IS NULL OR o.seller_id = ${seller_id})
+            AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
           GROUP BY 1
           ORDER BY 1 DESC
           OFFSET ${offset} LIMIT ${limit}
@@ -399,15 +413,15 @@ export class ReportService {
             COALESCE(SUM(day_orders), 0) AS total_orders
           FROM (
             SELECT
-              date_trunc('day', o.created_at) AS day,
+              date_trunc('day', o.order_date) AS day,
               COALESCE(SUM(oi.subtotal), 0) AS day_sales,
               COUNT(DISTINCT o.order_id) AS day_orders
             FROM orders o
             JOIN order_items oi ON oi.order_id = o.order_id
-            WHERE o.created_at >= ${startDate}
-              AND o.created_at <= ${endDate}
+            WHERE o.order_date >= ${startDate}
+              AND o.order_date <= ${endDate}
               AND oi.product_id = ${product_id}
-              AND (${seller_id}::int IS NULL OR o.seller_id = ${seller_id})
+              AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
             GROUP BY 1
           ) t
         `);
@@ -418,14 +432,14 @@ export class ReportService {
       } else {
         sales = await prisma.$queryRaw<SalesRow[]>(Prisma.sql`
           SELECT
-            to_char(date_trunc('day', o.created_at), 'YYYY-MM-DD') AS date,
+            to_char(date_trunc('day', o.order_date), 'YYYY-MM-DD') AS date,
             COALESCE(SUM(o.total_amount), 0) AS total_sales,
             COUNT(DISTINCT o.order_id) AS total_orders,
             COUNT(DISTINCT o.shift_id) AS total_shifts
           FROM orders o
-          WHERE o.created_at >= ${startDate}
-            AND o.created_at <= ${endDate}
-            AND (${seller_id}::int IS NULL OR o.seller_id = ${seller_id})
+          WHERE o.order_date >= ${startDate}
+            AND o.order_date <= ${endDate}
+            AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
           GROUP BY 1
           ORDER BY 1 DESC
           OFFSET ${offset} LIMIT ${limit}
@@ -438,13 +452,13 @@ export class ReportService {
             COALESCE(SUM(day_orders), 0) AS total_orders
           FROM (
             SELECT
-              date_trunc('day', o.created_at) AS day,
+              date_trunc('day', o.order_date) AS day,
               COALESCE(SUM(o.total_amount), 0) AS day_sales,
               COUNT(DISTINCT o.order_id) AS day_orders
             FROM orders o
-            WHERE o.created_at >= ${startDate}
-              AND o.created_at <= ${endDate}
-              AND (${seller_id}::int IS NULL OR o.seller_id = ${seller_id})
+            WHERE o.order_date >= ${startDate}
+              AND o.order_date <= ${endDate}
+              AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
             GROUP BY 1
           ) t
         `);
@@ -466,6 +480,7 @@ export class ReportService {
         pagination: {
           page,
           limit,
+          // total is the count of distinct days with data (not total days in the requested range)
           total: totalDays,
           totalPages: Math.ceil((totalDays || 0) / limit),
         },
@@ -475,7 +490,7 @@ export class ReportService {
       // Emit event
       eventBus.emit('reports.generated', {
         report_type: ReportType.SALES_HISTORY,
-        filters: { start_date, end_date, seller_id, product_id, page, limit },
+        filters: { start_date, end_date, seller_id: effectiveSellerId, product_id, page, limit },
         generated_by: currentUserId,
         generated_at: new Date(),
       } satisfies ReportGeneratedEvent);
@@ -508,23 +523,38 @@ export class ReportService {
               FROM stocks s
               JOIN products p ON s.product_id = p.product_id
               WHERE p.status = 'active'
-                AND p.low_stock_threshold IS NOT NULL
-                AND s.quantity <= p.low_stock_threshold
+                AND (
+                  s.quantity < 0
+                  OR (p.low_stock_threshold IS NOT NULL AND s.quantity <= p.low_stock_threshold)
+                )
           `;
 
         const stock_report = (rawItems as any[]).map(s => ({
           product_id: s.product_id,
           product_name: s.product_name,
+          product_code: s.product_code,
+          category: s.category,
           current_stock: s.quantity,
           low_stock_threshold: s.low_stock_threshold,
-          status: (s.quantity <= 0 ? 'out_of_stock' : 'low_stock') as 'out_of_stock' | 'low_stock',
+          status: (s.quantity < 0
+            ? 'negative'
+            : s.quantity === 0
+              ? 'out_of_stock'
+              : 'low_stock') as 'negative' | 'out_of_stock' | 'low_stock',
         }));
+
+        const [{ total_active_products }] = await prisma.$queryRaw<{ total_active_products: number }[]>`
+              SELECT COUNT(*)::int AS total_active_products
+              FROM products p
+              WHERE p.status = 'active'
+          `;
 
         const response = {
           summary: {
-            total_products: stock_report.length,
+            total_products: total_active_products || 0,
             low_stock_count: stock_report.filter(i => i.status === 'low_stock').length,
             out_of_stock_count: stock_report.filter(i => i.status === 'out_of_stock').length,
+            negative_stock_count: stock_report.filter(i => i.status === 'negative').length,
           },
           stock_report
         };
@@ -549,19 +579,28 @@ export class ReportService {
       const stock_report = stocks.map(s => ({
         product_id: s.productId,
         product_name: s.product.productName,
+        product_code: s.product.productCode,
+        category: s.product.category,
         current_stock: s.quantity,
         low_stock_threshold: s.product.lowStockThreshold,
-        status: (s.quantity <= 0 ? 'out_of_stock' : s.quantity <= (s.product.lowStockThreshold || 0) ? 'low_stock' : 'in_stock') as any,
+        status: (s.quantity < 0
+          ? 'negative'
+          : s.quantity === 0
+            ? 'out_of_stock'
+            : s.quantity <= (s.product.lowStockThreshold || 0)
+              ? 'low_stock'
+              : 'in_stock') as 'negative' | 'out_of_stock' | 'low_stock' | 'in_stock',
       }));
 
       const response = {
         summary: {
           total_products: stocks.length,
           low_stock_count: stock_report.filter(i => i.status === 'low_stock').length,
-          out_of_stock_count: stock_report.filter(i => i.status === 'out_of_stock').length,
-        },
-        stock_report
-      };
+        out_of_stock_count: stock_report.filter(i => i.status === 'out_of_stock').length,
+        negative_stock_count: stock_report.filter(i => i.status === 'negative').length,
+      },
+      stock_report
+    };
 
       // Emit event
       eventBus.emit('reports.generated', {
@@ -586,7 +625,11 @@ export class ReportService {
   /**
    * Export Report (CSV/PDF)
    */
-  static async exportReport(request: ExportReportRequest, currentUserId: number): Promise<ExportReportResponse> {
+  static async exportReport(
+    request: ExportReportRequest,
+    currentUserId: number,
+    currentUserRole: string
+  ): Promise<ExportReportResponse> {
     const { report_type, filters, format } = request;
     let data: any[];
     let fileName: string;
@@ -596,7 +639,11 @@ export class ReportService {
         case ReportType.DAILY_SALES:
         case 'daily_sales': // Support both enum and string for backward compatibility
           const dailyFilters = filters as DailySalesReportRequest;
-          const dailyReport = await this.getDailyReport(dailyFilters, currentUserId);
+          const dailyReport = await this.getDailyReport(
+            dailyFilters,
+            currentUserId,
+            currentUserRole
+          );
           // Transform daily report to flat structure for CSV
           data = this.transformDailyReportForExport(dailyReport);
           fileName = `daily_sales_${dailyFilters.date || Date.now()}`;
@@ -604,7 +651,11 @@ export class ReportService {
         case ReportType.SALES_HISTORY:
         case 'sales_history': // Support both enum and string for backward compatibility
           const salesFilters = filters as SalesHistoryReportRequest;
-          const salesHistory = await this.getSalesHistoryReport(salesFilters, currentUserId);
+          const salesHistory = await this.getSalesHistoryReport(
+            salesFilters,
+            currentUserId,
+            currentUserRole
+          );
           data = salesHistory.sales;
           fileName = `sales_history_${salesFilters.start_date}_${salesFilters.end_date}`;
           break;

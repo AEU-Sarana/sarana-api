@@ -42,19 +42,20 @@ export function errorMiddleware(
   }
 
   if (err instanceof BusinessLogicException) {
-    res.status(422).json({
+    res.status(err.statusCode || 422).json({
       success: false,
       message: err.message,
-      code: 'BUSINESS_LOGIC_ERROR',
+      code: err.code || 'BUSINESS_LOGIC_ERROR',
+      ...(err.details && { details: err.details }),
     });
     return;
   }
 
   if (err instanceof DomainException) {
-    res.status(400).json({
+    res.status(err.statusCode || 400).json({
       success: false,
       message: err.message,
-      code: 'DOMAIN_ERROR',
+      code: err.code || 'DOMAIN_ERROR',
     });
     return;
   }

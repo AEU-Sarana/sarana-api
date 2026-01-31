@@ -5,21 +5,36 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 async function checkMigrations() {
   try {
-    // Check Prisma migrations table
-    const migrationsResult = await pool.query(`
-      SELECT migration_name, finished_at, applied_steps_count 
-      FROM _prisma_migrations 
-      ORDER BY finished_at DESC
-    `);
-    
+    // Check Prisma migrations table if it exists
+    const migrationsTable = await pool.query(
+      `
+      SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name = '_prisma_migrations'
+      ) AS exists
+      `
+    );
+
     console.log('\n📋 Prisma Migrations Applied:');
     console.log('================================');
-    if (migrationsResult.rows.length === 0) {
-      console.log('No Prisma migrations found in database.');
+    if (!migrationsTable.rows[0].exists) {
+      console.log('Prisma migrations table not found (using domain migrations only).');
     } else {
-      migrationsResult.rows.forEach((m) => {
-        console.log(`- ${m.migration_name} (${m.finished_at || 'Pending'})`);
-      });
+      const migrationsResult = await pool.query(`
+        SELECT migration_name, finished_at, applied_steps_count 
+        FROM _prisma_migrations 
+        ORDER BY finished_at DESC
+      `);
+
+      if (migrationsResult.rows.length === 0) {
+        console.log('No Prisma migrations found in database.');
+      } else {
+        migrationsResult.rows.forEach((m) => {
+          console.log(`- ${m.migration_name} (${m.finished_at || 'Pending'})`);
+        });
+      }
     }
 
     // Check existing tables
@@ -85,4 +100,3 @@ async function checkMigrations() {
 }
 
 checkMigrations();
-

@@ -112,6 +112,7 @@ export interface SalesHistoryReportResponse {
   pagination: {
     page: number;
     limit: number;
+    // total is the count of distinct days with data (not total days in the requested range)
     total: number;
     totalPages: number;
   };
@@ -128,6 +129,8 @@ export interface StockReportRequest {
 export interface StockReportItem {
   product_id: number;
   product_name: string;
+  product_code?: string;
+  category?: string | null;
   current_stock: number;
   low_stock_threshold: number | null;
   status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative';
@@ -137,6 +140,7 @@ export interface StockReportSummary {
   total_products: number;
   low_stock_count: number;
   out_of_stock_count: number;
+  negative_stock_count: number;
 }
 
 export interface StockReportResponse {

@@ -34,6 +34,10 @@ export interface StartShiftResponse {
   
   export interface CloseShiftRequest {
     actual_cash: number;
+    pending_orders_count: number;
+    last_order_sync_at?: string;
+    force_close?: boolean;
+    force_close_reason?: string;
   }
   
   export interface CloseShiftResponse {
@@ -89,6 +93,7 @@ export interface StartShiftResponse {
     shift_id: number;
     seller_id: number;
     seller_name: string | null;
+    stock_version: number | null;
     shift_date: string;
     start_time: Date;
     end_time: Date | null;
@@ -123,6 +128,27 @@ export interface StartShiftResponse {
         product_name: string | null;
         quantity_sold: number;
         stock_deduction: number;
+      }>;
+      stockConflicts: Array<{
+        product_id: number;
+        product_name: string | null;
+        expected_quantity: number;
+        actual_quantity: number;
+        difference: number;
+      }>;
+      negativeStockWarnings: Array<{
+        product_id: number;
+        product_name: string | null;
+        expected_quantity: number;
+        actual_quantity: number;
+        reason: 'EXPECTED_NEGATIVE' | 'ACTUAL_NEGATIVE' | 'BOTH_NEGATIVE';
+      }>;
+      priceMismatches: Array<{
+        product_id: number;
+        product_name: string | null;
+        order_item_id: number;
+        expected_price: number;
+        actual_price: number;
       }>;
     };
   }

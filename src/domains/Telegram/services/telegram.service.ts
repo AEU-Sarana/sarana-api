@@ -215,7 +215,8 @@ export class TelegramService {
     // 3. Generate daily report
     const report = await ReportService.getDailyReport(
       { date: shift.shift_date, seller_id: shift.seller_id },
-      currentUserId
+      currentUserId,
+      currentUserRole
     );
     
     // 4. Format report for Telegram

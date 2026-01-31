@@ -7,6 +7,8 @@ import { FileStorageService } from '@src/shared/services/file-storage.service';
 import fs from 'fs';
 import path from 'path';
 import { DailySalesReportRequest, DailyReportMeta } from '../../types/report.types';
+import { Role } from '@src/shared/config/permissions';
+import { ValidationException } from '@src/shared/exceptions';
 
 // Helper function (same as StockController)
 function getStringValue(value: any): string | undefined {
@@ -30,6 +32,13 @@ export class ReportController {
 
       const dateStr = getStringValue(req.query.date) || ReportController.getTodayUTC();
       const sellerIdStr = getStringValue(req.query.seller_id);
+      let sellerId = sellerIdStr ? parseInt(sellerIdStr, 10) : undefined;
+      if (sellerIdStr && Number.isNaN(sellerId)) {
+        throw new ValidationException('Invalid seller_id');
+      }
+      if (user.role === Role.SELLER) {
+        sellerId = user.userId;
+      }
 
       logger.info('Get daily report request', {
         userId: user.userId,
@@ -38,12 +47,12 @@ export class ReportController {
         path: req.path,
       });
 
-      const request : DailySalesReportRequest = {
+      const request: DailySalesReportRequest = {
         date: dateStr,
-        seller_id: sellerIdStr ? parseInt(sellerIdStr, 10) : undefined,
+        seller_id: sellerId,
       };
 
-      const response = await ReportService.getDailyReport(request, user.userId);
+      const response = await ReportService.getDailyReport(request, user.userId, user.role);
       const processingTime = Date.now() - startTime;
 
       const meta: DailyReportMeta = {
@@ -78,16 +87,25 @@ export class ReportController {
       const today = ReportController.getTodayUTC();
       const startDateStr = getStringValue(req.query.start_date) || today;
       const endDateStr = getStringValue(req.query.end_date) || startDateStr;
+      const sellerIdStr = getStringValue(req.query.seller_id);
+      const productIdStr = getStringValue(req.query.product_id);
+      let sellerId = sellerIdStr ? parseInt(sellerIdStr, 10) : undefined;
+      let productId = productIdStr ? parseInt(productIdStr, 10) : undefined;
+      if (sellerIdStr && Number.isNaN(sellerId)) {
+        throw new ValidationException('Invalid seller_id');
+      }
+      if (productIdStr && Number.isNaN(productId)) {
+        throw new ValidationException('Invalid product_id');
+      }
+      if (user.role === Role.SELLER) {
+        sellerId = user.userId;
+      }
 
       const request = {
         start_date: startDateStr,
         end_date: endDateStr,
-        seller_id: getStringValue(req.query.seller_id)
-          ? parseInt(getStringValue(req.query.seller_id)!, 10)
-          : undefined,
-        product_id: getStringValue(req.query.product_id)
-          ? parseInt(getStringValue(req.query.product_id)!, 10)
-          : undefined,
+        seller_id: sellerId,
+        product_id: productId,
         page: getStringValue(req.query.page)
           ? parseInt(getStringValue(req.query.page)!, 10)
           : 1,
@@ -102,7 +120,7 @@ export class ReportController {
         path: req.path,
       });
 
-      const response = await ReportService.getSalesHistoryReport(request, user.userId);
+      const response = await ReportService.getSalesHistoryReport(request, user.userId, user.role);
 
       res.status(200).json({
         success: true,
@@ -221,6 +239,7 @@ export class ReportController {
       // Process synchronously instead of using queue
       const result = await ReportController.processExportReport({
         userId: user.userId,
+        userRole: user.role,
         reportType: report_type,
         filters,
         format: format || 'XLSX',
@@ -265,11 +284,12 @@ export class ReportController {
    */
   private static async processExportReport(data: {
     userId: number;
+    userRole: string;
     reportType: string;
     filters: any;
     format: string;
   }): Promise<{ fileUrl: string; fileName: string }> {
-    const { userId, reportType, filters, format } = data;
+    const { userId, userRole, reportType, filters, format } = data;
 
     // Generate report data
     let reportData: any[];
@@ -279,7 +299,8 @@ export class ReportController {
       case 'daily_sales': {
         const dailyReport = await ReportService.getDailyReport(
           { date: filters.date },
-          userId
+          userId,
+          userRole
         );
         reportData = ReportService.transformDailyReportForExport(dailyReport);
         fileName = `daily_sales_${filters.date || Date.now()}`;
@@ -295,7 +316,8 @@ export class ReportController {
             page: filters.page || 1,
             limit: filters.limit || 100, // Use max limit for export
           },
-          userId
+          userId,
+          userRole
         );
         reportData = salesReport.sales;
         fileName = `sales_history_${filters.start_date}_${filters.end_date}`;

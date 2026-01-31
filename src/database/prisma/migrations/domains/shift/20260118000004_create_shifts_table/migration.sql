@@ -15,6 +15,8 @@ CREATE TABLE shifts (
     last_sync_time TIMESTAMP,
     report_sent_status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK(report_sent_status IN ('PENDING', 'SENT', 'FAILED')),
     status VARCHAR(20) NOT NULL DEFAULT 'CLOSED' CHECK(status IN ('ACTIVE', 'CLOSED')),
+    close_mode VARCHAR(20) NOT NULL DEFAULT 'NORMAL' CHECK (close_mode IN ('NORMAL', 'FORCED')),
+    force_close_reason TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

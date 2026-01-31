@@ -94,7 +94,11 @@ export class ShiftController {
       if (isNaN(shiftId)) {
         throw new ValidationException('Invalid shift ID');
       }
-      const response = await ShiftReconciliationService.getReconciliation(shiftId, user.userId);
+      const response = await ShiftReconciliationService.getReconciliation(
+        shiftId,
+        user.userId,
+        user.role
+      );
       res.status(200).json({ success: true, data: response, message: 'Reconciliation retrieved' });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';

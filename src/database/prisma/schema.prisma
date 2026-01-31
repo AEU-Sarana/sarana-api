@@ -7,292 +7,257 @@ datasource db {
   provider = "postgresql"
 }
 
-
-// Auth Domain
 model User {
-  userId         Int       @id @default(autoincrement()) @map("user_id")
-  username       String    @unique @db.VarChar(100)
-  email          String?   @db.VarChar(255)
-  passwordHash   String    @map("password_hash") @db.VarChar(255)
-  pinHash        String?   @map("pin_hash") @db.VarChar(255)
-  fullName       String    @map("full_name") @db.VarChar(200)
-  role           String    @db.VarChar(20) // 'ADMIN' | 'SELLER'
-  phone          String?   @db.VarChar(20)
-  status         String    @default("active") @db.VarChar(20) // 'active' | 'inactive'
-  deviceId       String?   @map("device_id") @db.VarChar(255)
-  isDeviceBound  Boolean   @default(false) @map("is_device_bound")
-  createdBy      Int?      @map("created_by")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedBy      Int?      @map("updated_by")
-  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
-  deactivatedDate DateTime? @map("deactivated_date")
+  userId                 Int              @id @default(autoincrement()) @map("user_id")
+  username               String           @unique @db.VarChar(100)
+  email                  String?          @db.VarChar(255)
+  passwordHash           String           @map("password_hash") @db.VarChar(255)
+  pinHash                String?          @map("pin_hash") @db.VarChar(255)
+  fullName               String           @map("full_name") @db.VarChar(200)
+  role                   String           @db.VarChar(20)
+  phone                  String?          @db.VarChar(20)
+  status                 String           @default("active") @db.VarChar(20)
+  deviceId               String?          @map("device_id") @db.VarChar(255)
+  isDeviceBound          Boolean          @default(false) @map("is_device_bound")
+  createdBy              Int?             @map("created_by")
+  createdAt              DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedBy              Int?             @map("updated_by")
+  updatedAt              DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  deactivatedDate        DateTime?        @map("deactivated_date") @db.Timestamp(6)
+  settingsUpdated        AppSetting[]
+  auditLogs              AuditLog[]
+  deviceBindingsApproved DeviceBinding[]  @relation("DeviceBindingApprovedBy")
+  deviceBindings         DeviceBinding[]
+  orders                 Order[]
+  productsCreated        Product[]        @relation("ProductCreatedBy")
+  productsUpdated        Product[]        @relation("ProductUpdatedBy")
+  shifts                 Shift[]
+  stockMovements         StockMovement[]
+  telegramConfigCreated  TelegramConfig[] @relation("TelegramConfigCreatedBy")
+  telegramConfigUpdated  TelegramConfig[] @relation("TelegramConfigUpdatedBy")
+  creator                User?            @relation("UserCreatedBy", fields: [createdBy], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  createdUsers           User[]           @relation("UserCreatedBy")
+  updater                User?            @relation("UserUpdatedBy", fields: [updatedBy], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  updatedUsers           User[]           @relation("UserUpdatedBy")
 
-  // Self-referential relationships
-  creator        User?     @relation("UserCreatedBy", fields: [createdBy], references: [userId])
-  updater        User?     @relation("UserUpdatedBy", fields: [updatedBy], references: [userId])
-  createdUsers   User[]    @relation("UserCreatedBy")
-  updatedUsers   User[]    @relation("UserUpdatedBy")
-
-  // Relationships
-  shifts         Shift[]
-  orders         Order[]
-  deviceBindings DeviceBinding[]
-  productsCreated Product[] @relation("ProductCreatedBy")
-  productsUpdated Product[] @relation("ProductUpdatedBy")
-  stockMovements StockMovement[]
-  settingsUpdated AppSetting[]
-  telegramConfigCreated TelegramConfig[] @relation("TelegramConfigCreatedBy")
-  telegramConfigUpdated TelegramConfig[] @relation("TelegramConfigUpdatedBy")
-  deviceBindingsApproved DeviceBinding[] @relation("DeviceBindingApprovedBy")
-  auditLogs     AuditLog[]
-
+  @@index([email], map: "idx_users_email")
+  @@index([role], map: "idx_users_role")
+  @@index([status], map: "idx_users_status")
+  @@index([username], map: "idx_users_username")
   @@map("users")
-  @@index([username])
-  @@index([role])
-  @@index([status])
-  @@index([email])
 }
 
-// Product Domain
 model Product {
-  productId         Int       @id @default(autoincrement()) @map("product_id")
-  productCode       String    @unique @map("product_code") @db.VarChar(50)
-  productName       String    @map("product_name") @db.VarChar(200)
-  barcode           String    @unique @map("barcode") @db.VarChar(255)
-  price             Decimal   @db.Decimal(10, 2)
-  category          String?   @db.VarChar(100)
-  description       String?   @db.Text
-  imagePath         String?   @map("image_path") @db.VarChar(500)
-  lowStockThreshold Int?      @map("low_stock_threshold")
-  status            String    @default("active") @db.VarChar(20) // 'active' | 'inactive'
-  createdBy         Int       @map("created_by")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedBy         Int       @map("updated_by")
-  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
-  deactivatedDate   DateTime? @map("deactivated_date")
-
-  // Relationships
-  creator           User      @relation("ProductCreatedBy", fields: [createdBy], references: [userId])
-  updater           User      @relation("ProductUpdatedBy", fields: [updatedBy], references: [userId])
-  stock             Stock?
-  stockMovements    StockMovement[]
+  productId         Int             @id @default(autoincrement()) @map("product_id")
+  productCode       String          @unique @map("product_code") @db.VarChar(50)
+  productName       String          @map("product_name") @db.VarChar(200)
+  barcode           String          @unique @map("barcode") @db.VarChar(255)
+  price             Decimal         @db.Decimal(10, 2)
+  category          String?         @db.VarChar(100)
+  description       String?
+  imagePath         String?         @map("image_path") @db.VarChar(500)
+  lowStockThreshold Int?            @map("low_stock_threshold")
+  status            String          @default("active") @db.VarChar(20)
+  createdBy         Int             @map("created_by")
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedBy         Int             @map("updated_by")
+  updatedAt         DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  deactivatedDate   DateTime?       @map("deactivated_date") @db.Timestamp(6)
   orderItems        OrderItem[]
+  creator           User            @relation("ProductCreatedBy", fields: [createdBy], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  updater           User            @relation("ProductUpdatedBy", fields: [updatedBy], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  stockMovements    StockMovement[]
+  stock             Stock?
 
+  @@index([barcode], map: "idx_products_barcode")
+  @@index([category], map: "idx_products_category")
+  @@index([productCode], map: "idx_products_product_code")
+  @@index([status], map: "idx_products_status")
   @@map("products")
-  @@index([productCode])
-  @@index([barcode], name: "idx_products_barcode")
-  @@index([status])
-  @@index([category])
 }
 
-// Stock Domain
 model Stock {
-  stockId        Int       @id @default(autoincrement()) @map("stock_id")
-  productId      Int       @unique @map("product_id")
-  quantity       Int       @default(0)
-  stockVersion   Int       @default(1) @map("stock_version")
-  lastSyncTime   DateTime? @map("last_sync_time")
-  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+  stockId      Int       @id @default(autoincrement()) @map("stock_id")
+  productId    Int       @unique(map: "idx_stocks_product_id") @map("product_id")
+  quantity     Int       @default(0)
+  stockVersion Int       @default(1) @map("stock_version")
+  lastSyncTime DateTime? @map("last_sync_time") @db.Timestamp(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  product      Product   @relation(fields: [productId], references: [productId], onDelete: NoAction, onUpdate: NoAction)
 
-  // Relationships
-  product        Product   @relation(fields: [productId], references: [productId])
-
+  @@index([stockVersion], map: "idx_stocks_version")
   @@map("stocks")
-  @@index([stockVersion])
 }
 
 model StockMovement {
-  movementId   Int       @id @default(autoincrement()) @map("movement_id")
-  productId    Int       @map("product_id")
-  movementType String    @map("movement_type") @db.VarChar(20) // 'STOCK_IN' | 'STOCK_OUT' | 'ADJUSTMENT' | 'RETURN'
+  movementId   Int      @id @default(autoincrement()) @map("movement_id")
+  productId    Int      @map("product_id")
+  movementType String   @map("movement_type") @db.VarChar(20)
   quantity     Int
-  cost         Decimal?  @db.Decimal(10, 2)
-  price        Decimal?  @db.Decimal(10, 2)
-  supplier     String?   @db.VarChar(200)
-  reason       String?   @db.Text
-  orderId      Int?      @map("order_id")
-  shiftId      Int?      @map("shift_id")
-  createdBy    Int       @map("created_by")
-  createdAt    DateTime  @default(now()) @map("created_at")
+  cost         Decimal? @db.Decimal(10, 2)
+  price        Decimal? @db.Decimal(10, 2)
+  supplier     String?  @db.VarChar(200)
+  reason       String?
+  orderId      Int?     @map("order_id")
+  shiftId      Int?     @map("shift_id")
+  createdBy    Int      @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  creator      User     @relation(fields: [createdBy], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  order        Order?   @relation(fields: [orderId], references: [orderId], onDelete: NoAction, onUpdate: NoAction)
+  product      Product  @relation(fields: [productId], references: [productId], onDelete: NoAction, onUpdate: NoAction)
+  shift        Shift?   @relation(fields: [shiftId], references: [shiftId], onDelete: NoAction, onUpdate: NoAction)
 
-  // Relationships
-  product      Product   @relation(fields: [productId], references: [productId])
-  order        Order?    @relation(fields: [orderId], references: [orderId])
-  shift        Shift?    @relation(fields: [shiftId], references: [shiftId])
-  creator      User      @relation(fields: [createdBy], references: [userId])
-
+  @@index([createdAt], map: "idx_stock_movements_created_at")
+  @@index([orderId], map: "idx_stock_movements_order_id")
+  @@index([productId], map: "idx_stock_movements_product_id")
+  @@index([shiftId], map: "idx_stock_movements_shift_id")
+  @@index([movementType], map: "idx_stock_movements_type")
   @@map("stock_movements")
-  @@index([productId])
-  @@index([movementType])
-  @@index([createdAt])
-  @@index([orderId])
-  @@index([shiftId])
 }
 
-// Order Domain
 model Order {
-  orderId        Int       @id @default(autoincrement()) @map("order_id")
-  orderUuid      String    @unique @map("order_uuid") @db.Uuid
-  receiptNumber  String    @unique @map("receipt_number") @db.VarChar(50)
-  shiftId        Int       @map("shift_id")
-  sellerId       Int       @map("seller_id")
-  orderDate      DateTime  @default(now()) @map("order_date")
-  totalAmount    Decimal   @map("total_amount") @db.Decimal(10, 2)
-  discountAmount Decimal   @default(0) @map("discount_amount") @db.Decimal(10, 2)
-  taxAmount      Decimal   @default(0) @map("tax_amount") @db.Decimal(10, 2)
-  serviceFee     Decimal   @default(0) @map("service_fee") @db.Decimal(10, 2)
-  paymentMethod  String    @default("CASH") @map("payment_method") @db.VarChar(20) // 'CASH'
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
-
-  // Relationships
-  shift          Shift     @relation(fields: [shiftId], references: [shiftId])
-  seller         User      @relation(fields: [sellerId], references: [userId])
+  orderId        Int             @id @default(autoincrement()) @map("order_id")
+  orderUuid      String          @unique(map: "idx_orders_order_uuid") @map("order_uuid") @db.Uuid
+  receiptNumber  String          @unique(map: "idx_orders_receipt_number") @map("receipt_number") @db.VarChar(50)
+  shiftId        Int             @map("shift_id")
+  sellerId       Int             @map("seller_id")
+  orderDate      DateTime        @default(now()) @map("order_date") @db.Timestamp(6)
+  totalAmount    Decimal         @map("total_amount") @db.Decimal(10, 2)
+  discountAmount Decimal         @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  taxAmount      Decimal         @default(0) @map("tax_amount") @db.Decimal(10, 2)
+  serviceFee     Decimal         @default(0) @map("service_fee") @db.Decimal(10, 2)
+  paymentMethod  String          @default("CASH") @map("payment_method") @db.VarChar(20)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
   orderItems     OrderItem[]
+  seller         User            @relation(fields: [sellerId], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  shift          Shift           @relation(fields: [shiftId], references: [shiftId], onDelete: NoAction, onUpdate: NoAction)
   stockMovements StockMovement[]
 
+  @@index([createdAt], map: "idx_orders_created_at")
+  @@index([orderDate], map: "idx_orders_order_date")
+  @@index([sellerId], map: "idx_orders_seller_id")
+  @@index([shiftId], map: "idx_orders_shift_id")
   @@map("orders")
-  @@index([orderUuid])
-  @@index([receiptNumber])
-  @@index([shiftId])
-  @@index([sellerId])
-  @@index([orderDate])
-  @@index([createdAt])
 }
 
 model OrderItem {
-  orderItemId    Int       @id @default(autoincrement()) @map("order_item_id")
-  orderId        Int       @map("order_id")
-  productId      Int       @map("product_id")
-  productName    String    @map("product_name") @db.VarChar(200)
+  orderItemId    Int      @id @default(autoincrement()) @map("order_item_id")
+  orderId        Int      @map("order_id")
+  productId      Int      @map("product_id")
+  productName    String   @map("product_name") @db.VarChar(200)
   quantity       Int
-  unitPrice      Decimal   @map("unit_price") @db.Decimal(10, 2)
-  discountAmount Decimal   @default(0) @map("discount_amount") @db.Decimal(10, 2)
-  subtotal       Decimal   @db.Decimal(10, 2)
-  createdAt      DateTime  @default(now()) @map("created_at")
+  unitPrice      Decimal  @map("unit_price") @db.Decimal(10, 2)
+  discountAmount Decimal  @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  subtotal       Decimal  @db.Decimal(10, 2)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  order          Order    @relation(fields: [orderId], references: [orderId], onDelete: Cascade, onUpdate: NoAction)
+  product        Product  @relation(fields: [productId], references: [productId], onDelete: NoAction, onUpdate: NoAction)
 
-  // Relationships
-  order          Order     @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
-  product        Product   @relation(fields: [productId], references: [productId])
-
+  @@index([orderId], map: "idx_order_items_order_id")
+  @@index([productId], map: "idx_order_items_product_id")
   @@map("order_items")
-  @@index([orderId])
-  @@index([productId])
 }
 
-// Shift Domain
 model Shift {
-  shiftId           Int       @id @default(autoincrement()) @map("shift_id")
-  sellerId          Int       @map("seller_id")
-  shiftDate         DateTime  @map("shift_date") @db.Date
-  startTime         DateTime  @map("start_time")
-  endTime           DateTime? @map("end_time")
-  openingCash       Decimal   @map("opening_cash") @db.Decimal(10, 2)
-  expectedCash      Decimal?  @map("expected_cash") @db.Decimal(10, 2)
-  actualCash        Decimal?  @map("actual_cash") @db.Decimal(10, 2)
-  shortAmount       Decimal?  @map("short_amount") @db.Decimal(10, 2)
-  overAmount        Decimal?  @map("over_amount") @db.Decimal(10, 2)
-  totalSalesCount   Int       @default(0) @map("total_sales_count")
-  totalSalesAmount  Decimal   @default(0) @map("total_sales_amount") @db.Decimal(10, 2)
-  stockVersion      Int?      @map("stock_version")
-  lastSyncTime      DateTime? @map("last_sync_time")
-  reportSentStatus  String    @default("PENDING") @map("report_sent_status") @db.VarChar(20) // 'PENDING' | 'SENT' | 'FAILED'
-  status            String    @default("CLOSED") @db.VarChar(20) // 'ACTIVE' | 'CLOSED'
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
+  shiftId          Int             @id @default(autoincrement()) @map("shift_id")
+  sellerId         Int             @map("seller_id")
+  shiftDate        DateTime        @map("shift_date") @db.Date
+  startTime        DateTime        @map("start_time") @db.Timestamp(6)
+  endTime          DateTime?       @map("end_time") @db.Timestamp(6)
+  openingCash      Decimal         @map("opening_cash") @db.Decimal(10, 2)
+  expectedCash     Decimal?        @map("expected_cash") @db.Decimal(10, 2)
+  actualCash       Decimal?        @map("actual_cash") @db.Decimal(10, 2)
+  shortAmount      Decimal?        @map("short_amount") @db.Decimal(10, 2)
+  overAmount       Decimal?        @map("over_amount") @db.Decimal(10, 2)
+  totalSalesCount  Int             @default(0) @map("total_sales_count")
+  totalSalesAmount Decimal         @default(0) @map("total_sales_amount") @db.Decimal(10, 2)
+  stockVersion     Int?            @map("stock_version")
+  lastSyncTime     DateTime?       @map("last_sync_time") @db.Timestamp(6)
+  reportSentStatus String          @default("PENDING") @map("report_sent_status") @db.VarChar(20)
+  status           String          @default("CLOSED") @db.VarChar(20)
+  closeMode        String          @default("NORMAL") @map("close_mode") @db.VarChar(20)
+  forceCloseReason String?         @map("force_close_reason")
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  orders           Order[]
+  seller           User            @relation(fields: [sellerId], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  stockMovements   StockMovement[]
 
-  // Relationships
-  seller            User      @relation(fields: [sellerId], references: [userId])
-  orders            Order[]
-  stockMovements    StockMovement[]
-
+  @@index([reportSentStatus], map: "idx_shifts_report_sent_status")
+  @@index([sellerId], map: "idx_shifts_seller_id")
+  @@index([shiftDate], map: "idx_shifts_shift_date")
+  @@index([status], map: "idx_shifts_status")
   @@map("shifts")
-  @@index([sellerId])
-  @@index([status])
-  @@index([shiftDate])
-  @@index([reportSentStatus])
 }
 
-// Device Binding Domain
 model DeviceBinding {
-  bindingId   Int       @id @default(autoincrement()) @map("binding_id")
-  userId      Int       @map("user_id")
-  deviceId    String    @map("device_id") @db.VarChar(255)
-  deviceName  String?   @map("device_name") @db.VarChar(200)
-  status      String    @db.VarChar(20) // 'APPROVED' | 'REVOKED'
-  approvedBy  Int?      @map("approved_by")
-  approvedAt  DateTime? @map("approved_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+  bindingId  Int       @id @default(autoincrement()) @map("binding_id")
+  userId     Int       @map("user_id")
+  deviceId   String    @map("device_id") @db.VarChar(255)
+  deviceName String?   @map("device_name") @db.VarChar(200)
+  status     String    @db.VarChar(20)
+  approvedBy Int?      @map("approved_by")
+  approvedAt DateTime? @map("approved_at") @db.Timestamp(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  approver   User?     @relation("DeviceBindingApprovedBy", fields: [approvedBy], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  user       User      @relation(fields: [userId], references: [userId], onDelete: NoAction, onUpdate: NoAction)
 
-  // Relationships
-  user        User      @relation(fields: [userId], references: [userId])
-  approver    User?     @relation("DeviceBindingApprovedBy", fields: [approvedBy], references: [userId])
-
+  @@index([deviceId], map: "idx_device_bindings_device_id")
+  @@index([status], map: "idx_device_bindings_status")
+  @@index([userId], map: "idx_device_bindings_user_id")
   @@map("device_bindings")
-  @@index([userId])
-  @@index([deviceId])
-  @@index([status])
 }
 
-// Setting Domain
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model AppSetting {
-  settingId           Int       @id @default(autoincrement()) @map("setting_id")
-  autoBackup          Boolean   @default(true) @map("auto_backup")
-  backupFrequency     String    @default("daily") @map("backup_frequency") @db.VarChar(20) // 'daily' | 'weekly' | 'monthly'
+  settingId            Int      @id @default(autoincrement()) @map("setting_id")
+  autoBackup           Boolean  @default(true) @map("auto_backup")
+  backupFrequency      String   @default("daily") @map("backup_frequency") @db.VarChar(20)
   deviceBindingEnabled Boolean  @default(false) @map("device_binding_enabled")
-  stockSyncPolicy     String    @default("allow_with_cached") @map("stock_sync_policy") @db.VarChar(50) // 'allow_with_cached' | 'block_until_sync'
-  updatedBy           Int       @map("updated_by")
-  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
-  createdAt           DateTime  @default(now()) @map("created_at")
-
-  // Relationships
-  updater             User      @relation(fields: [updatedBy], references: [userId])
+  stockSyncPolicy      String   @default("allow_with_cached") @map("stock_sync_policy") @db.VarChar(50)
+  updatedBy            Int      @map("updated_by")
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updater              User     @relation(fields: [updatedBy], references: [userId], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("app_settings")
-  @@unique([autoBackup])
 }
 
-// Telegram Domain
 model TelegramConfig {
-  configId        Int       @id @default(autoincrement()) @map("config_id")
-  botToken        String    @map("bot_token") @db.Text
-  groupChatId     String    @map("group_chat_id") @db.VarChar(255)
-  isActive        Boolean   @default(true) @map("is_active")
-  lastTestTime    DateTime? @map("last_test_time")
-  lastTestStatus  String?   @map("last_test_status") @db.VarChar(20) // 'SUCCESS' | 'FAILED'
-  createdBy       Int       @map("created_by")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedBy       Int       @map("updated_by")
-  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
-
-  // Relationships
-  creator         User      @relation("TelegramConfigCreatedBy", fields: [createdBy], references: [userId])
-  updater         User      @relation("TelegramConfigUpdatedBy", fields: [updatedBy], references: [userId])
+  configId       Int       @id @default(autoincrement()) @map("config_id")
+  botToken       String    @map("bot_token")
+  groupChatId    String    @map("group_chat_id") @db.VarChar(255)
+  isActive       Boolean   @default(true) @map("is_active")
+  lastTestTime   DateTime? @map("last_test_time") @db.Timestamp(6)
+  lastTestStatus String?   @map("last_test_status") @db.VarChar(20)
+  createdBy      Int       @map("created_by")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedBy      Int       @map("updated_by")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  creator        User      @relation("TelegramConfigCreatedBy", fields: [createdBy], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  updater        User      @relation("TelegramConfigUpdatedBy", fields: [updatedBy], references: [userId], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("telegram_config")
-  @@unique([isActive])
 }
 
-// Shared Domain
 model AuditLog {
-  logId      Int       @id @default(autoincrement()) @map("log_id")
-  userId     Int?      @map("user_id")
-  action     String    @db.VarChar(100)
-  entityType String?   @map("entity_type") @db.VarChar(50)
-  entityId   Int?      @map("entity_id")
-  oldValues  Json?     @map("old_values")
-  newValues  Json?     @map("new_values")
-  ipAddress  String?   @map("ip_address") @db.VarChar(45)
-  userAgent  String?   @map("user_agent") @db.Text
-  createdAt  DateTime  @default(now()) @map("created_at")
+  logId      Int      @id @default(autoincrement()) @map("log_id")
+  userId     Int?     @map("user_id")
+  action     String   @db.VarChar(100)
+  entityType String?  @map("entity_type") @db.VarChar(50)
+  entityId   Int?     @map("entity_id")
+  oldValues  Json?    @map("old_values")
+  newValues  Json?    @map("new_values")
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  user       User?    @relation(fields: [userId], references: [userId], onDelete: NoAction, onUpdate: NoAction)
 
-  // Relationships
-  user       User?     @relation(fields: [userId], references: [userId])
-
+  @@index([action], map: "idx_audit_logs_action")
+  @@index([createdAt], map: "idx_audit_logs_created_at")
+  @@index([entityType, entityId], map: "idx_audit_logs_entity")
+  @@index([userId], map: "idx_audit_logs_user_id")
   @@map("audit_logs")
-  @@index([userId])
-  @@index([action])
-  @@index([createdAt])
-  @@index([entityType, entityId])
 }

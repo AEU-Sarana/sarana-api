@@ -109,7 +109,7 @@ export class ShiftService {
    * - Only ACTIVE shift can be closed
    * - Compute expected_cash, short_amount, over_amount
    * - Totals based on orders within shift (server-side)
-   */
+  */
   static async closeShift(
     shiftId: number,
     request: CloseShiftRequest,
@@ -119,6 +119,10 @@ export class ShiftService {
     const shift = await prisma.shift.findUnique({ where: { shiftId } });
     if (!shift) throw new ValidationException('Shift not found');
 
+    const pendingOrdersCount = request.pending_orders_count;
+    const forceClose = request.force_close === true;
+    const forceCloseReason = request.force_close_reason?.toString().trim() || '';
+
     // Seller can only close own shift
     if (currentUserRole === 'SELLER' && shift.sellerId !== currentUserId) {
       throw new ValidationException('You can only close your own shift');
@@ -126,6 +130,24 @@ export class ShiftService {
 
     if (shift.status !== 'ACTIVE') {
       throw new BusinessLogicException('Shift is already closed');
+    }
+
+    if (pendingOrdersCount > 0 && !forceClose) {
+      throw new BusinessLogicException(
+        'You have pending orders. Sync orders before closing the shift.',
+        'SHIFT_CLOSE_BLOCKED_PENDING_ORDERS',
+        409,
+        { pending_orders_count: pendingOrdersCount }
+      );
+    }
+
+    if (forceClose) {
+      if (currentUserRole !== 'ADMIN') {
+        throw new BusinessLogicException('Only admin can force close the shift', 'FORBIDDEN', 403);
+      }
+      if (!forceCloseReason) {
+        throw new ValidationException('force_close_reason is required when force_close is true');
+      }
     }
 
     // Compute totals from orders linked to shift
@@ -156,6 +178,8 @@ export class ShiftService {
         totalSalesAmount,
         status: 'CLOSED',
         reportSentStatus: 'PENDING',
+        closeMode: forceClose ? 'FORCED' : 'NORMAL',
+        forceCloseReason: forceClose ? forceCloseReason : null,
       },
     });
 
@@ -303,8 +327,13 @@ export class ShiftService {
     currentUserId: number,
     currentUserRole: string
   ): Promise<GetShiftResponse> {
-    const shift = await prisma.shift.findUnique({
-      where: { shiftId },
+    const where =
+      currentUserRole === 'SELLER'
+        ? { shiftId, sellerId: currentUserId }
+        : { shiftId };
+
+    const shift = await prisma.shift.findFirst({
+      where,
       include: {
         seller: { select: { userId: true, fullName: true } },
         orders: {
@@ -314,10 +343,6 @@ export class ShiftService {
       },
     });
     if (!shift) throw new ValidationException('Shift not found');
-
-    if (currentUserRole === 'SELLER' && shift.sellerId !== currentUserId) {
-      throw new ValidationException('You can only access your own shifts');
-    }
 
     await auditLogService.createAuditLog({
       userId: currentUserId,
@@ -330,6 +355,7 @@ export class ShiftService {
       shift_id: shift.shiftId,
       seller_id: shift.sellerId,
       seller_name: shift.seller?.fullName ?? null,
+      stock_version: shift.stockVersion ?? null,
       shift_date: shift.shiftDate.toISOString().slice(0, 10),
       start_time: shift.startTime,
       end_time: shift.endTime,
