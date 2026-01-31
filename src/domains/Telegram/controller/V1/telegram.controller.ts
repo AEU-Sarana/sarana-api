@@ -16,6 +16,17 @@ export class TelegramController {
         { bot_token, group_chat_id, is_active },
         userId
       );
+
+      try {
+        await TelegramService.sendCustomMessage(
+          'Telegram configured successfully',
+          'Markdown'
+        );
+      } catch (sendError: any) {
+        logger.warn('Telegram config saved but test message failed', {
+          error: sendError.message,
+        });
+      }
       
       res.json({
         success: true,
@@ -56,6 +67,31 @@ export class TelegramController {
         error: {
           code: 'TELEGRAM_TEST_FAILED',
           message: 'Failed to test Telegram connection',
+          details: error.message
+        }
+      });
+    }
+  }
+ 
+  // POST /api/v1/telegram/send-test-message
+  static async sendTestMessage(req: Request, res: Response): Promise<void> {
+    try {
+      const { message, parse_mode } = req.body;
+      const text = message?.trim() || '✅ Telegram test message';
+
+      await TelegramService.sendCustomMessage(text, parse_mode);
+
+      res.json({
+        success: true,
+        message: 'Test message sent to Telegram'
+      });
+    } catch (error: any) {
+      logger.error('Send Telegram test message error', { error: error.message });
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'TELEGRAM_SEND_TEST_FAILED',
+          message: 'Failed to send test message',
           details: error.message
         }
       });
