@@ -18,6 +18,7 @@ import { DailySalesReportResponse } from '@src/domains/Report/types/report.types
 import { GetShiftResponse } from '@src/domains/Shift/types/shift.types';
 import { GetProductResponse } from '@src/domains/Product/types/product.types';
 import { GetStockByProductResponse } from '@src/domains/Stock/types/stock.types';
+import { buildDailyReportMessage } from '@src/domains/Telegram/templates/daily-report.template';
 
 export class TelegramService {
 
@@ -157,7 +158,7 @@ export class TelegramService {
       const result = await TelegramBotService.sendMessage(
         config.bot_token,
         config.group_chat_id,
-        '✅ Telegram integration test successful!'
+        'Telegram integration test successful!'
       );
       
       // Update last test time and status
@@ -259,49 +260,7 @@ export class TelegramService {
     report: DailySalesReportResponse,
     shift: GetShiftResponse
   ): Promise<string> {
-    const formatTime = (date: Date | null) => {
-      if (!date) return '-';
-      return new Date(date).toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
-    };
-    
-    const calculateDuration = (start: Date, end: Date | null) => {
-      if (!end) return 0;
-      const diff = end.getTime() - start.getTime();
-      return Math.round(diff / (1000 * 60 * 60)); // hours
-    };
-    
-    const shortOver = (shift.actual_cash ?? 0) - (shift.expected_cash ?? 0);
-    const shortOverText = shortOver >= 0
-      ? `+$${shortOver.toFixed(2)}`
-      : `-$${Math.abs(shortOver).toFixed(2)}`;
-    
-    let message = `📊 *Daily Sales Report*
-                    ━━━━━━━━━━━━━━━━━━━━
-                    📅 Date: ${report.date}
-                    👤 Seller: ${shift.seller_name ?? '-'}
-
-                    💰 *Sales Summary*
-                    • Total Orders: ${report.total_orders}
-                    • Total Amount: $${report.total_sales.toFixed(2)}
-                    • Average Order: $${report.average_order_value.toFixed(2)}
-
-                    💵 *Cash Summary*
-                    • Opening Cash: $${shift.opening_cash.toFixed(2)}
-                    • Expected Cash: $${(shift.expected_cash ?? 0).toFixed(2)}
-                    • Actual Cash: $${(shift.actual_cash ?? 0).toFixed(2)}
-                    • Short/Over: ${shortOverText}
-
-                    ⏰ *Shift Details*
-                    • Start: ${formatTime(shift.start_time)}
-                    • End: ${formatTime(shift.end_time)}
-                    • Duration: ${calculateDuration(shift.start_time, shift.end_time)} hours
-                `;
-    
-    return message;
+    return buildDailyReportMessage(report, shift);
   }
   
   /**
@@ -324,6 +283,21 @@ export class TelegramService {
     
     // Resend report
     return await this.sendDailyReport(shiftId, currentUserId, currentUserRole);
+  }
+
+  /**
+   * Send an arbitrary message to the configured Telegram chat
+   */
+  static async sendCustomMessage(
+    message: string,
+    parseMode: 'Markdown' | 'HTML' = 'Markdown'
+  ): Promise<void> {
+    const config = await this.getTelegramConfig();
+    if (!config || !config.is_active) {
+      throw new Error('Telegram not configured or disabled');
+    }
+ 
+    await TelegramBotService.sendMessage(config.bot_token, config.group_chat_id, message, parseMode);
   }
 
   /**

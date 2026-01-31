@@ -12,6 +12,8 @@ import {
 } from '@src/domains/Shift/types/shift.types';
 import { ValidationException, BusinessLogicException } from '@src/shared/exceptions';
 import { auditLogService } from '@src/shared/services/audit-log.service';
+import { eventBus } from '@src/shared/events/event-bus';
+import { ShiftClosedEvent } from '../events/shift-closed.event';
 
 export class ShiftService {
   /**
@@ -153,7 +155,7 @@ export class ShiftService {
         totalSalesCount,
         totalSalesAmount,
         status: 'CLOSED',
-        reportSentStatus: 'SENT',
+        reportSentStatus: 'PENDING',
       },
     });
 
@@ -164,6 +166,20 @@ export class ShiftService {
       entityId: shiftId,
       details: { actual_cash: actualCash, expected_cash: expectedCash, shortAmount, overAmount },
     });
+
+    eventBus.emit('shift.closed', {
+      shift_id: updated.shiftId,
+      seller_id: updated.sellerId,
+      total_sales_count: updated.totalSalesCount ?? 0,
+      total_sales_amount: Number(updated.totalSalesAmount ?? 0),
+      expected_cash: Number(updated.expectedCash ?? 0),
+      actual_cash: Number(updated.actualCash ?? 0),
+      short_amount: Number(updated.shortAmount ?? 0),
+      over_amount: Number(updated.overAmount ?? 0),
+      closed_at: updated.endTime!,
+      performed_by: currentUserId,
+      performed_by_role: currentUserRole,
+    } satisfies ShiftClosedEvent);
 
     return {
       shift_id: updated.shiftId,

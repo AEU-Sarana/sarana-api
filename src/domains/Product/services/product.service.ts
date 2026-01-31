@@ -394,7 +394,7 @@ export class ProductService {
     }
 
     // Handle image upload/replacement
-    let finalImagePath = request.image__path ?? existing.imagePath;
+    let finalImagePath = request.image_path ?? existing.imagePath;
     let oldImageKey: string | null = null;
 
     if (imageFile) {

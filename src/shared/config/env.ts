@@ -70,6 +70,8 @@ export const env = {
   // Nginx
   NGINX_HTTP_PORT: parseInt(process.env.NGINX_HTTP_PORT || '8080', 10),
   NGINX_HTTPS_PORT: parseInt(process.env.NGINX_HTTPS_PORT || '8443', 10),
+
+  
 } as const;
 
 // Validate required environment variables
