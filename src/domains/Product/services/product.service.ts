@@ -21,13 +21,13 @@ export class ProductService {
   /**
    * Normalize image URL - convert old MinIO URLs to new nginx proxy format
   */
-  private static normalizeImageUrl(imagePath: string | null): string | null {
+  static normalizeImageUrl(imagePath: string | null): string | null {
     if (!imagePath) return null;
 
     
     if (imagePath.startsWith('/storage/')) {
     
-      let baseUrl = env.API_BASE_URL || env.APP_URL || env.FRONTEND_URL;
+      let baseUrl = env.API_BASE_URL || env.APP_URL;
       if (!baseUrl) {
         const protocol = env.STORAGE_USE_SSL ? 'https' : 'http';
         const networkIP = getLocalNetworkIP();

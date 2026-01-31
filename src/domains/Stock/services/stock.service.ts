@@ -2,6 +2,7 @@ import  prisma  from '@src/database/client';
 import type { Prisma } from '@src/database/generated/client';
 import { StockMovementType } from '@src/domains/Stock/enums/stock-movement-type.enum';
 import { ProductStatus } from '@src/domains/Product/enums/product-status.enum';
+import { ProductService } from '@src/domains/Product/services/product.service';
 import {
   GetStockRequest,
   GetStockResponse,
@@ -82,7 +83,7 @@ export class StockService {
           product_id: newStock.productId,
           product_code: newStock.product.productCode,
           product_name: newStock.product.productName,
-          product_image: newStock.product.imagePath,
+          image_path: ProductService.normalizeImageUrl(newStock.product.imagePath),
           barcode: newStock.product.barcode,
           category: newStock.product.category,
           quantity: newStock.quantity,
@@ -122,7 +123,7 @@ export class StockService {
         product_id: stock.productId,
         product_code: stock.product.productCode,
         product_name: stock.product.productName,
-        product_image: stock.product.imagePath,
+          image_path: ProductService.normalizeImageUrl(stock.product.imagePath),
         barcode: stock.product.barcode,
         category: stock.product.category,
         quantity: stock.quantity,
@@ -248,7 +249,7 @@ export class StockService {
         product_id: s.productId,
         product_code: s.product!.productCode,
         product_name: s.product!.productName,
-        product_image: s.product!.imagePath,
+        image_path: ProductService.normalizeImageUrl(s.product!.imagePath),
         barcode: s.product!.barcode,
         category: s.product!.category,
         price: Number(s.product!.price),
