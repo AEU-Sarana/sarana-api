@@ -126,7 +126,7 @@ export class ProductService {
       take: limit,
       orderBy: { createdAt: 'desc' },
       include: {
-        stock: true, // Include stock relation to get quantity
+        stock: true, 
       },
     });
 
