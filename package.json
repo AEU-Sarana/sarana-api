@@ -72,12 +72,13 @@
     "@types/module-alias": "^2.0.4",
     "@types/morgan": "^1.9.10",
     "@types/multer": "^2.0.0",
-    "@types/node": "^25.0.10",
+    "@types/node": "^25.1.0",
     "@types/nodemailer": "^7.0.5",
     "@types/pg": "^8.16.0",
     "@typescript-eslint/eslint-plugin": "^8.53.1",
     "@typescript-eslint/parser": "^8.53.1",
     "eslint": "^9.39.2",
+    "nodemon": "^3.1.11",
     "prettier": "^3.8.1",
     "prisma": "^7.3.0",
     "ts-node": "^10.9.2",
@@ -86,7 +87,7 @@
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
-  "_moduleAliases": {
-    "@src": "src"
+  "directories": {
+    "doc": "doc"
   }
 }
