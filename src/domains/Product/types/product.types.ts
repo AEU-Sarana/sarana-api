@@ -58,7 +58,7 @@ export interface UpdateProductRequest {
     price?: number;
     category?: string;
     description?: string;
-    image__path?: string;
+    image_path?: string;
     low_stock_threshold?: number;
     status?: ProductStatus;
 }
