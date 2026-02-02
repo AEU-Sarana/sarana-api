@@ -6,7 +6,6 @@ pipeline {
         REGISTRY = 'ghcr.io'
         GITHUB_USERNAME = credentials('github-username')
         GITHUB_TOKEN = credentials('github-token')
-        SLACK_WEBHOOK = credentials('slack-webhook-url')
         APP_NAME = 'stock-pos-server'
         VERSION = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
         DOCKER_IMAGE = "${REGISTRY}/${GITHUB_USERNAME}/${APP_NAME}"
@@ -192,33 +191,6 @@ pipeline {
                 }
             }
         }
-
-        stage('Notify Success') {
-            when {
-                branch 'nan'
-            }
-            steps {
-                script {
-                    echo "=== Sending success notifications ==="
-                    // Slack notification
-                    sh '''
-                        curl -X POST $SLACK_WEBHOOK \
-                            -H "Content-type: application/json" \
-                            -d '{
-                                "text": "✅ Build Successful",
-                                "attachments": [{
-                                    "color": "good",
-                                    "fields": [
-                                        {"title": "Build", "value": "'${BUILD_NUMBER}'"},
-                                        {"title": "Version", "value": "'${VERSION}'"},
-                                        {"title": "Branch", "value": "'${GIT_BRANCH}'"}
-                                    ]
-                                }]
-                            }' || true
-                    '''
-                }
-            }
-        }
     }
 
     post {
@@ -231,20 +203,8 @@ pipeline {
         failure {
             script {
                 echo "❌ Build failed!"
-                sh '''
-                    curl -X POST $SLACK_WEBHOOK \
-                        -H "Content-type: application/json" \
-                        -d '{
-                            "text": "❌ Build Failed",
-                            "attachments": [{
-                                "color": "danger",
-                                "fields": [
-                                    {"title": "Build", "value": "'${BUILD_NUMBER}'"},
-                                    {"title": "Branch", "value": "'${GIT_BRANCH}'"}
-                                ]
-                            }]
-                        }' || true
-                '''
+                echo "Build: ${BUILD_NUMBER}"
+                echo "Branch: ${GIT_BRANCH}"
             }
         }
     }
