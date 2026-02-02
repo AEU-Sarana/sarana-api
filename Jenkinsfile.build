@@ -138,16 +138,30 @@ pipeline {
                 script {
                     echo "=== Pushing Docker image to GitHub Container Registry ==="
                     sh '''
-                        echo "Logging into GHCR..."
-                        echo ${GITHUB_TOKEN} | docker login ${REGISTRY} -u ${GITHUB_USERNAME} --password-stdin
+                        set -e
                         
-                        echo "Pushing versioned image..."
+                        echo "Registry: ${REGISTRY}"
+                        echo "Username: ${GITHUB_USERNAME}"
+                        echo "Image: ${DOCKER_IMAGE}"
+                        echo "Version: ${VERSION}"
+                        
+                        echo "Logging into GHCR..."
+                        echo "${GITHUB_TOKEN}" | docker login ${REGISTRY} -u ${GITHUB_USERNAME} --password-stdin
+                        
+                        if [ $? -eq 0 ]; then
+                            echo "✓ Login successful"
+                        else
+                            echo "✗ Login failed"
+                            exit 1
+                        fi
+                        
+                        echo "Pushing versioned image ${DOCKER_IMAGE}:${VERSION}..."
                         docker push ${DOCKER_IMAGE}:${VERSION}
                         
                         echo "Pushing latest tag..."
                         docker push ${DOCKER_IMAGE}:latest
                         
-                        echo "Successfully pushed to ${DOCKER_IMAGE}"
+                        echo "✓ Successfully pushed to ${DOCKER_IMAGE}"
                         docker logout ${REGISTRY}
                     '''
                 }
