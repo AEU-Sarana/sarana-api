@@ -160,7 +160,7 @@ pipeline {
             }
             steps {
                 script {
-                    echo "=== Deploying to production server with Ansible ==="
+                    echo "=== Deploying to app server with Ansible ==="
                     
                     withCredentials([
                         string(credentialsId: 'ansible-vault-password', variable: 'VAULT_PASS')
@@ -170,11 +170,15 @@ pipeline {
                             echo "${VAULT_PASS}" > /tmp/vault_pass_${BUILD_NUMBER}.txt
                             chmod 600 /tmp/vault_pass_${BUILD_NUMBER}.txt
                             
-                            # Run Ansible deployment
+                            # Run Ansible deployment to app servers
                             ansible-playbook ansible/playbooks/deploy.yml \
                                 -i ansible/inventories/production/hosts.ini \
+                                -l app_servers \
                                 --vault-password-file /tmp/vault_pass_${BUILD_NUMBER}.txt \
+                                -e "pull_images=true" \
+                                -e "build_image=false" \
                                 -e "docker_image_tag=${VERSION}" \
+                                -e "confirm_deploy=yes" \
                                 -v
                             
                             # Cleanup vault password file
