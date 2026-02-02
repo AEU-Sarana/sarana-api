@@ -4,7 +4,7 @@
 services:
   # Application Service (Express)
   app:
-    image: {{ docker_registry }}{{ docker_image_name }}:{{ docker_image_tag }}
+    image: {{ (docker_registry ~ '/') if docker_registry else '' }}{{ docker_image_name }}:{{ docker_image_tag }}
     container_name: {{ app_name }}-app
     build:
       context: .

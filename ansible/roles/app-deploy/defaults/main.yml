@@ -2,7 +2,7 @@
 # Application defaults
 app_name: stock-pos
 app_directory: /opt/stock-pos
-app_user: "{{ ansible_user }}"
+app_user: "{{ deployer_user | default(ansible_user) }}"
 app_repo: ""
 app_branch: main
 

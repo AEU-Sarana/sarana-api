@@ -1,0 +1,43 @@
+---
+# defaults/main.yml
+# Default variables for the setup-structure role
+# These can be overridden in playbooks or inventory
+
+# Deploy user and group configuration (uses deployer_user from group_vars)
+deploy_user: "{{ deployer_user | default('deployer') }}"
+deploy_group: "{{ deployer_user | default('deployer') }}"
+deploy_user_shell: /bin/bash
+deploy_user_home: "{{ deployer_home | default('/home/deployer') }}"
+deploy_user_create_home: yes
+
+# Application configuration
+app_name: "{{ app_name | default('stock-pos') }}"
+app_root: "{{ app_directory | default('/opt/stock-pos') }}"
+
+# Release timestamp format (YYYYMMDDHHMMSS)
+# Uses Ansible's date_time fact for consistency
+release_timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+
+# Directory structure paths
+releases_path: "{{ app_root }}/releases"
+shared_path: "{{ app_root }}/shared"
+current_path: "{{ app_root }}/current"
+
+# Shared subdirectories (can be extended as needed)
+shared_subdirs:
+  - logs
+  - tmp
+  - uploads
+  - pids
+  - sockets
+
+# File and directory permissions
+directory_mode: "0755"
+file_mode: "0644"
+
+# Whether to create the initial release directory
+create_initial_release: yes
+initial_release_path: "{{ releases_path }}/{{ release_timestamp }}"
+
+# Cleanup configuration (optional - for future enhancement)
+keep_releases: 5

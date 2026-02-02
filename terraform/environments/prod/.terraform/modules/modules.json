@@ -1,0 +1,1 @@
+{"Modules":[{"Key":"","Source":"","Dir":"."},{"Key":"firewall","Source":"../../modules/firewall","Dir":"../../modules/firewall"},{"Key":"server","Source":"../../modules/server/hetzner_cloud","Dir":"../../modules/server/hetzner_cloud"}]}

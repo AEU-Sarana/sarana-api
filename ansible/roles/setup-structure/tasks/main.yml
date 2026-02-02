@@ -1,0 +1,25 @@
+---
+# Setup application directory structure for deployments
+
+- name: Ensure deployer user exists
+  user:
+    name: "{{ deployer_user }}"
+    shell: /bin/bash
+    create_home: yes
+    state: present
+  become: yes
+
+- name: Create application directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ deployer_user }}"
+    group: "{{ deployer_user }}"
+    mode: '0755'
+  loop:
+    - "{{ app_directory }}"
+    - "{{ app_directory }}/releases"
+    - "{{ app_directory }}/shared"
+    - "{{ app_directory }}/current"
+    - "{{ app_directory }}/shared/logs"
+    - "{{ app_directory }}/shared/tmp"

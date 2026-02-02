@@ -1,0 +1,72 @@
+terraform {
+  required_version = ">= 1.0"
+
+  required_providers {
+    hcloud = {
+      source  = "hetznercloud/hcloud"
+      version = "~> 1.45.0"
+    }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 4.0"
+    }
+  }
+}
+
+
+locals {
+  environment = "production"
+  common_labels = {
+    environment = local.environment
+    managed_by  = "terraform"
+    project     = var.project_name
+  }
+}
+
+
+# Server 1
+module "server" {
+  source = "../../modules/server/hetzner_cloud/"
+
+  server_name   = "pos-server-01"
+  server_type   = "cx23"
+  image         = "ubuntu-22.04"
+  location      = "hel1"
+  ssh_key_ids   = var.ssh_key_ids
+
+  # ssh_key_ids   = [hcloud_ssh_key.default.id]  # TODO: Define SSH key resource
+#   firewall_name = "firewall-server-01"
+
+  
+  enable_ipv4     = true
+#   allow_ssh       = true
+#   allow_http      = true
+#   allow_https     = true
+#   ssh_source_ips  = ["0.0.0.0/0", "::/0"]
+
+  labels = {
+    environment = "production"
+    server_num  = "1"
+  }
+
+#   user_data = file("${path.module}/cloud-init.yml") no need for now 
+}
+
+# Firewall Module
+module "firewall" {
+  source = "../../modules/firewall/"
+
+  firewall_name  = "firewall-${local.environment}"
+  allow_ssh      = true
+  allow_http     = true
+  allow_https    = true
+  ssh_source_ips = var.ssh_source_ips
+
+  labels = local.common_labels
+}
+
+# Firewall Attachment
+resource "hcloud_firewall_attachment" "backend" {
+  firewall_id = module.firewall.firewall_id
+  server_ids  = [module.server.server_id]
+}
