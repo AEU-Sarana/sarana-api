@@ -178,8 +178,9 @@ pipeline {
                                 -e "pull_images=true" \
                                 -e "build_image=false" \
                                 -e "docker_image_tag=${VERSION}" \
+                                -e "docker_image_name=stock-pos-app" \
                                 -e "confirm_deploy=yes" \
-                                -v
+                                -vvv
                             
                             # Cleanup vault password file
                             rm -f /tmp/vault_pass_${BUILD_NUMBER}.txt
