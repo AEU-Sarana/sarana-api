@@ -32,13 +32,14 @@ export interface StartShiftResponse {
   created_at: string;
 }
   
-  export interface CloseShiftRequest {
-    actual_cash: number;
-    pending_orders_count: number;
-    last_order_sync_at?: string;
-    force_close?: boolean;
-    force_close_reason?: string;
-  }
+export interface CloseShiftRequest {
+  actual_cash: number;
+  pending_orders_count: number;
+  last_order_sync_at?: string;
+  close_mode?: 'NORMAL' | 'FORCED';
+  force_close?: boolean;
+  force_close_reason?: string;
+}
   
   export interface CloseShiftResponse {
     shift_id: number;

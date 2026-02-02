@@ -12,6 +12,10 @@ export const closeShiftValidator = [
     .optional()
     .isISO8601()
     .withMessage('last_order_sync_at must be a valid ISO8601 timestamp'),
+  body('close_mode')
+    .optional()
+    .isIn(['NORMAL', 'FORCED'])
+    .withMessage('close_mode must be NORMAL or FORCED'),
   body('force_close')
     .optional()
     .isBoolean()
@@ -20,9 +24,11 @@ export const closeShiftValidator = [
   body('force_close_reason')
     .optional()
     .custom((value, { req }) => {
+      const closeMode = req.body.close_mode;
       const forceClose = req.body.force_close === true || req.body.force_close === 'true';
-      if (forceClose && (!value || String(value).trim().length === 0)) {
-        throw new Error('force_close_reason is required when force_close is true');
+      const isForced = closeMode === 'FORCED' || (closeMode == null && forceClose);
+      if (isForced && (!value || String(value).trim().length === 0)) {
+        throw new Error('force_close_reason is required when close_mode is FORCED');
       }
       return true;
     }),

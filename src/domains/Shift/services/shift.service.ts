@@ -120,7 +120,8 @@ export class ShiftService {
     if (!shift) throw new ValidationException('Shift not found');
 
     const pendingOrdersCount = request.pending_orders_count;
-    const forceClose = request.force_close === true;
+    const closeMode = request.close_mode ?? (request.force_close ? 'FORCED' : 'NORMAL');
+    const forceClose = closeMode === 'FORCED';
     const forceCloseReason = request.force_close_reason?.toString().trim() || '';
 
     // Seller can only close own shift
@@ -146,7 +147,7 @@ export class ShiftService {
         throw new BusinessLogicException('Only admin can force close the shift', 'FORBIDDEN', 403);
       }
       if (!forceCloseReason) {
-        throw new ValidationException('force_close_reason is required when force_close is true');
+        throw new ValidationException('force_close_reason is required when close_mode is FORCED');
       }
     }
 
@@ -178,7 +179,7 @@ export class ShiftService {
         totalSalesAmount,
         status: 'CLOSED',
         reportSentStatus: 'PENDING',
-        closeMode: forceClose ? 'FORCED' : 'NORMAL',
+        closeMode,
         forceCloseReason: forceClose ? forceCloseReason : null,
       },
     });
