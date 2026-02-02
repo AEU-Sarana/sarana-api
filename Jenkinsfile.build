@@ -43,15 +43,15 @@ pipeline {
             }
         }
 
-        stage('Environme# Install docker-compose if needed
-                        apk add --no-cache docker-compose git
-                        
-                        # Verify installations
-                        nt Setup') {
+        stage('Environment Setup') {
             steps {
                 script {
                     echo "=== Setting up environment ==="
                     sh '''
+                        # Install docker-compose if needed
+                        apk add --no-cache docker-compose git
+                        
+                        # Verify installations
                         node --version
                         npm --version
                         pnpm --version || npm install -g pnpm
