@@ -126,15 +126,19 @@ pipeline {
                 branch 'nan'
             }
             steps {
-                script {DOCKER_IMAGE}:${VERSION} || true
-                        echo "Image: ${DOCKER_IMAGker image ==="
+                script {
+                    echo "=== Running security scan on Docker image ==="
                     sh '''
                         # Example: Using trivy for image scanning
-                        # trivy image --severity HIGH,CRITICAL ${REGISTRY}/${APP_NAME}:${VERSION} || true
-                        echo "Image: ${REGISTRY}/${APP_NAME}:${VERSION}"
+                        # trivy image --severity HIGH,CRITICAL ${DOCKER_IMAGE}:${VERSION} || true
+                        echo "Image: ${DOCKER_IMAGE}:${VERSION}"
                         echo "Security scan completed"
                     '''
-                }GHCR') {
+                }
+            }
+        }
+
+        stage('Push to GHCR') {
             when {
                 branch 'nan'
             }
