@@ -2,13 +2,13 @@ pipeline {
     agent any
 
     environment {
-        // GitHub Container Registryyy
+        // GitHub Container Registry
         REGISTRY = 'ghcr.io'
         GITHUB_USERNAME = credentials('github-username')
         GITHUB_TOKEN = credentials('github-token')
         APP_NAME = 'stock-pos-server'
         VERSION = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
-        DOCKER_IMAGE = "${REGISTRY}/${GITHUB_USERNAME}/${APP_NAME}"
+        DOCKER_IMAGE = "${REGISTRY}/${GITHUB_USERNAME.toLowerCase()}/${APP_NAME}"
     }
 
     triggers {
