@@ -45,7 +45,9 @@ COPY --from=build /app/dist ./dist
 
 # Copy prisma schema for runtime
 COPY --from=build /app/src/database/prisma ./src/database/prisma
-COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+
+# Generate Prisma Client
+RUN pnpm db:generate
 
 # Expose port
 EXPOSE 3000
