@@ -27,6 +27,17 @@ jan / 31 / 2026
     - 
 
 feb / 2 / 2026
-    - 
+
+    - prepare jenkins dashbaord credenatail 
+
+    ***(when whe use scm in job pipeline not work make sure you have 
+        - set ssh private key on jenkins dashbaord 
+        - set ssh public key on github SSH and GPG key 
+    )
+
+    - create job pepiline
+    - setup webhook 
+
+    
 
 
