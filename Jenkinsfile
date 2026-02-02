@@ -4,7 +4,7 @@ pipeline {
     stages {
         stage('Example') {
             steps {
-                echo 'Hello, Jenkins!'
+                echo 'Hello, Jenkins! KINIKININININI'
             }
         }
     }
