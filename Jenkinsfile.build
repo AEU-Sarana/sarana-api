@@ -115,7 +115,10 @@ pipeline {
 
         stage('Security Scan') {
             when {
-                branch 'nan'
+                anyOf {
+                    branch 'nan'
+                    branch 'origin/nan'
+                }
             }
             steps {
                 script {
@@ -132,7 +135,10 @@ pipeline {
 
         stage('Push to GHCR') {
             when {
-                branch 'nan'
+                anyOf {
+                    branch 'nan'
+                    branch 'origin/nan'
+                }
             }
             steps {
                 script {
@@ -192,7 +198,10 @@ pipeline {
 
         stage('Deploy with Ansible') {
             when {
-                branch 'nan'
+                anyOf {
+                    branch 'nan'
+                    branch 'origin/nan'
+                }
             }
             steps {
                 script {
