@@ -8,13 +8,21 @@
   gather_facts: yes
 
   vars_prompt:
-    - name: confirm_deploy
-      prompt: "Are you sure you want to deploy to %{ansible_host}? (yes/no)"
+    - name: confirm_deploy_prompt
+      prompt: "Are you sure you want to deploy? (yes/no)"
       private: no
       default: "no"
-      when: confirm_deploy is not defined
 
   pre_tasks:
+    - name: Set confirm_deploy if not provided
+      set_fact:
+        confirm_deploy: "{{ confirm_deploy | default('no') }}"
+    
+    - name: Use prompted value if available
+      set_fact:
+        confirm_deploy: "{{ confirm_deploy_prompt }}"
+      when: confirm_deploy == "no" and confirm_deploy_prompt != "no"
+
     - name: Verify deployment confirmation
       fail:
         msg: "Deployment cancelled by user"
