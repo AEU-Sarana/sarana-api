@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'node:20-alpine'
-            args '-v /var/run/docker.sock:/var/run/docker.sock --user root'
-        }
-    }
+    agent any
 
     environment {
         // GitHub Container Registry
@@ -48,17 +43,10 @@ pipeline {
                 script {
                     echo "=== Setting up environment ==="
                     sh '''
-                        # Install required tools
-                        apk add --no-cache docker docker-cli docker-compose git
-                        
-                        # Install pnpm globally
-                        npm install -g pnpm
-                        
-                        # Verify installations
                         node --version
-                        pnpm --version
+                        npm --version
+                        pnpm --version || npm install -g pnpm
                         docker --version
-                        docker-compose --version || docker compose version
                     '''
                 }
             }

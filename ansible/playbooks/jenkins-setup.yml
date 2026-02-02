@@ -17,7 +17,7 @@
       when: ansible_os_family == "Debian"
   
   roles:
-    - jenkins-role
+    - jenkins
   
   post_tasks:
     - name: Display Jenkins access information
