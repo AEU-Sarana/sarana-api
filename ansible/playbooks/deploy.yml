@@ -9,9 +9,10 @@
 
   vars_prompt:
     - name: confirm_deploy
-      prompt: "Are you sure you want to deploy to {{ inventory_hostname }}? (yes/no)"
+      prompt: "Are you sure you want to deploy to %{ansible_host}? (yes/no)"
       private: no
       default: "no"
+      when: confirm_deploy is not defined
 
   pre_tasks:
     - name: Verify deployment confirmation
