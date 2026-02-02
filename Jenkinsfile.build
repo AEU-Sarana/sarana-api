@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'node:20-alpine'
+            args '-v /var/run/docker.sock:/var/run/docker.sock --user root'
+        }
+    }
 
     environment {
         // GitHub Container Registry
@@ -38,7 +43,11 @@ pipeline {
             }
         }
 
-        stage('Environment Setup') {
+        stage('Environme# Install docker-compose if needed
+                        apk add --no-cache docker-compose git
+                        
+                        # Verify installations
+                        nt Setup') {
             steps {
                 script {
                     echo "=== Setting up environment ==="
