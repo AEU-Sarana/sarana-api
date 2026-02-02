@@ -1,4 +1,14 @@
 ---
+- name: Login to Docker registry
+  shell: |
+    echo "{{ docker_registry_password }}" | docker login -u "{{ docker_registry_username }}" --password-stdin "{{ docker_registry }}"
+  when: 
+    - docker_registry is defined
+    - docker_registry_username is defined
+    - docker_registry_password is defined
+  changed_when: false
+  no_log: yes
+
 - name: Stop existing containers (if force recreate)
   docker_compose:
     project_src: "{{ app_directory }}"
