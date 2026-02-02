@@ -26,13 +26,19 @@ app_repo: "https://github.com/yourusername/stock-pos.git"
 app_branch: main
 app_directory: /opt/stock-pos
 app_port: 3000
+app_host: 0.0.0.0
 
 # ===== DOCKER CONFIGURATION (Production) =====
 docker_image_name: stock-pos-app
 docker_image_tag: latest
 docker_container_name: stock-pos-app
 docker_network_name: stock-pos-network
-docker_registry: ""
+docker_registry: "{{ vault_docker_registry_url }}"
+docker_registry_username: "{{ vault_docker_registry_username }}"
+docker_registry_password: "{{ vault_docker_registry_password }}"
+
+# Full image path for GHCR
+docker_image_full: "{{ docker_registry }}/{{ vault_docker_registry_username }}/{{ docker_image_name }}"
 
 # Docker resource limits (production)
 docker_cpu_limit: "2"
@@ -49,10 +55,11 @@ docker_log_options:
 
 # ===== DATABASE CONFIGURATION =====
 postgres_user: "{{ vault_prod_postgres_user }}"
-postgres_host: db-prod.example.com
+postgres_host: db
 postgres_port: 5432
-postgres_db: stock_pos_prod
+postgres_db: "{{ vault_prod_postgres_db }}"
 postgres_password: "{{ vault_prod_postgres_password }}"
+postgres_external_port: 5433
 
 # Variables used by app-deploy env template
 db_user: "{{ postgres_user }}"
@@ -62,15 +69,19 @@ db_host: "{{ postgres_host }}"
 db_port: "{{ postgres_port }}"
 
 # ===== REDIS CONFIGURATION =====
-redis_host: redis-prod.example.com
+redis_host: redis
 redis_port: 6379
 redis_password: "{{ vault_prod_redis_password }}"
+redis_external_port: 6380
 
 # ===== MINIO/S3 CONFIGURATION =====
+minio_endpoint: minio
 minio_root_user: "{{ vault_prod_minio_root_user }}"
 minio_api_port: 9000
 minio_console_port: 9001
 minio_root_password: "{{ vault_prod_minio_password }}"
+minio_use_ssl: false
+minio_bucket_name: "{{ app_name }}-storage"
 
 # ===== NGINX CONFIGURATION =====
 nginx_http_port: 80
@@ -95,6 +106,7 @@ smtp_from: noreply@stockpos.com
 # ===== JWT CONFIGURATION (from vault) =====
 jwt_secret: "{{ vault_prod_jwt_secret }}"
 jwt_refresh_secret: "{{ vault_prod_jwt_refresh_secret }}"
+jwt_expiration: "{{ vault_prod_jwt_expiration }}"
 
 # ===== DEPLOYMENT OPTIONS =====
 deploy_path: /opt/stock-pos-server

@@ -2,11 +2,14 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = credentials('docker-registry-url')
-        REGISTRY_CREDENTIALS = credentials('docker-registry-credentials')
+        // GitHub Container Registry
+        REGISTRY = 'ghcr.io'
+        GITHUB_USERNAME = credentials('github-username')
+        GITHUB_TOKEN = credentials('github-token')
         SLACK_WEBHOOK = credentials('slack-webhook-url')
         APP_NAME = 'stock-pos-server'
         VERSION = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
+        DOCKER_IMAGE = "${REGISTRY}/${GITHUB_USERNAME}/${APP_NAME}"
     }
 
     triggers {
@@ -99,16 +102,20 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    echo "=== Building Docker image ==="
+                    echo "=== Building Docker image for GHCR ==="
                     sh '''
                         docker build \
                             --target production \
-                            -t ${REGISTRY}/${APP_NAME}:${VERSION} \
-                            -t ${REGISTRY}/${APP_NAME}:latest \
+                            -t ${DOCKER_IMAGE}:${VERSION} \
+                            -t ${DOCKER_IMAGE}:latest \
+                            --label "org.opencontainers.image.source=https://github.com/${GITHUB_USERNAME}/stock-pos-server" \
+                            --label "org.opencontainers.image.description=Stock POS Server Application" \
+                            --label "org.opencontainers.image.version=${VERSION}" \
                             -f Dockerfile \
                             .
                         
-                        docker image inspect ${REGISTRY}/${APP_NAME}:${VERSION}
+                        echo "Built image: ${DOCKER_IMAGE}:${VERSION}"
+                        docker image inspect ${DOCKER_IMAGE}:${VERSION}
                     '''
                 }
             }
@@ -116,59 +123,75 @@ pipeline {
 
         stage('Security Scan') {
             when {
-                branch 'main'
+                branch 'nan'
             }
             steps {
-                script {
-                    echo "=== Running security scan on Docker image ==="
+                script {DOCKER_IMAGE}:${VERSION} || true
+                        echo "Image: ${DOCKER_IMAGker image ==="
                     sh '''
                         # Example: Using trivy for image scanning
                         # trivy image --severity HIGH,CRITICAL ${REGISTRY}/${APP_NAME}:${VERSION} || true
                         echo "Image: ${REGISTRY}/${APP_NAME}:${VERSION}"
                         echo "Security scan completed"
                     '''
-                }
-            }
-        }
-
-        stage('Push to Registry') {
+                }GHCR') {
             when {
-                branch 'main'
+                branch 'nan'
             }
             steps {
                 script {
-                    echo "=== Pushing Docker image to registry ==="
+                    echo "=== Pushing Docker image to GitHub Container Registry ==="
                     sh '''
-                        docker login -u $REGISTRY_CREDENTIALS_USR -p $REGISTRY_CREDENTIALS_PSW
-                        docker push ${REGISTRY}/${APP_NAME}:${VERSION}
-                        docker push ${REGISTRY}/${APP_NAME}:latest
-                        docker logout
+                        echo "Logging into GHCR..."
+                        echo ${GITHUB_TOKEN} | docker login ${REGISTRY} -u ${GITHUB_USERNAME} --password-stdin
+                        
+                        echo "Pushing versioned image..."
+                        docker push ${DOCKER_IMAGE}:${VERSION}
+                        
+                        echo "Pushing latest tag..."
+                        docker push ${DOCKER_IMAGE}:latest
+                        
+                        echo "Successfully pushed to ${DOCKER_IMAGE}"
+                        docker logout ${REGISTRY}
                     '''
                 }
             }
         }
 
-        stage('Trigger Deployment') {
+        stage('Deploy with Ansible') {
             when {
-                branch 'main'
+                branch 'nan'
             }
             steps {
                 script {
-                    echo "=== Triggering deployment pipeline ==="
-                    build job: 'stock-pos-server-deploy', 
-                          parameters: [
-                              string(name: 'ENVIRONMENT', value: 'dev'),
-                              string(name: 'IMAGE_VERSION', value: VERSION),
-                              booleanParam(name: 'RUN_TESTS', value: true)
-                          ],
-                          wait: false
+                    echo "=== Deploying to production server with Ansible ==="
+                    
+                    withCredentials([
+                        string(credentialsId: 'ansible-vault-password', variable: 'VAULT_PASS')
+                    ]) {
+                        sh '''
+                            # Create temporary vault password file
+                            echo "${VAULT_PASS}" > /tmp/vault_pass_${BUILD_NUMBER}.txt
+                            chmod 600 /tmp/vault_pass_${BUILD_NUMBER}.txt
+                            
+                            # Run Ansible deployment
+                            ansible-playbook ansible/playbooks/deploy.yml \
+                                -i ansible/inventories/production/hosts.ini \
+                                --vault-password-file /tmp/vault_pass_${BUILD_NUMBER}.txt \
+                                -e "docker_image_tag=${VERSION}" \
+                                -v
+                            
+                            # Cleanup vault password file
+                            rm -f /tmp/vault_pass_${BUILD_NUMBER}.txt
+                        '''
+                    }
                 }
             }
         }
 
         stage('Notify Success') {
             when {
-                branch 'main'
+                branch 'nan'
             }
             steps {
                 script {
