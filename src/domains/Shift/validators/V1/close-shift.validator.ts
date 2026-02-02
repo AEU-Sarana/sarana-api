@@ -4,7 +4,7 @@ export const closeShiftValidator = [
   param('id').isInt().withMessage('Invalid shift ID'),
   body('actual_cash').notEmpty().isFloat({ min: 0 }).withMessage('Actual cash must be a non-negative number'),
   body('pending_orders_count')
-    .notEmpty()
+    .customSanitizer((value) => (value === null || value === undefined || value === '' ? 0 : value))
     .isInt({ min: 0 })
     .withMessage('pending_orders_count must be a non-negative integer')
     .toInt(),

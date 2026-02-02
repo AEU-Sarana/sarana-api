@@ -119,7 +119,7 @@ export class ShiftService {
     const shift = await prisma.shift.findUnique({ where: { shiftId } });
     if (!shift) throw new ValidationException('Shift not found');
 
-    const pendingOrdersCount = request.pending_orders_count;
+    const pendingOrdersCount = request.pending_orders_count ?? 0;
     const forceClose = request.force_close === true;
     const forceCloseReason = request.force_close_reason?.toString().trim() || '';
 
