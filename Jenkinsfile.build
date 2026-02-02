@@ -28,14 +28,7 @@ pipeline {
             steps {
                 script {
                     echo "=== Checking out code from repository ==="
-                    checkout([
-                        $class: 'GitSCM',
-                        branches: [[name: '${GIT_BRANCH}']],
-                        userRemoteConfigs: [[
-                            url: '${GIT_URL}',
-                            credentialsId: 'github-credentials'
-                        ]]
-                    ])
+                    checkout scm
                     sh '''
                         echo "Branch: ${GIT_BRANCH}"
                         echo "Commit: ${GIT_COMMIT}"
