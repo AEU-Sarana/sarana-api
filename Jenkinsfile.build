@@ -41,15 +41,11 @@ pipeline {
         stage('Environment Setup') {
             steps {
                 script {
-                    echo "=== Setting up environment ==="
+                    echo "=== Verifying environment ==="
                     sh '''
-                        # Install dependencies if needed
-                        command -v docker-compose > /dev/null || apt-get update && apt-get install -y docker-compose git
-                        
-                        # Verify installations
                         node --version
                         npm --version
-                        pnpm --version || npm install -g pnpm
+                        pnpm --version
                         docker --version
                     '''
                 }
