@@ -1,0 +1,147 @@
+---
+# ============================================================================
+# GLOBAL VARIABLES - ALL ENVIRONMENTS
+# These values are inherited by all inventory groups (dev, staging, prod)
+# 
+# USAGE:
+# - Keep only common/shared defaults here
+# - Override values in specific environment group_vars (inventories/*/group_vars/)
+# - Never hardcode secrets here - use vault.yml instead
+# ============================================================================
+
+# ===== ANSIBLE CONFIGURATION =====
+# Core Ansible settings applied to all hosts
+ansible_python_interpreter: /usr/bin/python3
+ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+# ===== DEPLOYMENT USER =====
+# User account for deployments - override in group_vars if using different user
+deployer_user: root
+deployer_home: /root
+
+# ===== APPLICATION CORE SETTINGS =====
+# Basic app configuration - override environment-specific values in group_vars
+app_name: stock-pos
+app_port: 3000
+app_repo: ""  # Override in group_vars with actual repo URL
+app_branch: main
+app_directory: /opt/stock-pos
+app_user: "{{ deployer_user }}"
+
+# ===== DOCKER SETTINGS =====
+# Docker installation and service configuration
+docker_edition: 'ce'
+docker_packages:
+  - docker-{{ docker_edition }}
+  - docker-{{ docker_edition }}-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+
+docker_apt_release_channel: stable
+docker_apt_arch: amd64
+docker_apt_repository: "deb [arch={{ docker_apt_arch }}] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} {{ docker_apt_release_channel }}"
+docker_apt_gpg_key: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+
+docker_service_state: started
+docker_service_enabled: true
+docker_restart_handler_state: restarted
+
+# Docker image settings (defaults)
+docker_image_name: "{{ app_name }}-app"
+docker_image_tag: latest
+docker_registry: ""  # Override in group_vars for production
+docker_container_name: "{{ app_name }}-app"
+docker_network_name: "{{ app_name }}-network"
+docker_compose_version: "v2.24.5"
+
+# Docker deployment strategy
+force_recreate: false
+pull_images: true
+build_image: true
+
+# Docker template generation flags
+create_dockerfile: false
+create_nginx_config: false
+
+# ===== DOCKER RESOURCE LIMITS =====
+# Default values - override per environment (e.g., production needs more resources)
+docker_cpu_limit: "2"
+docker_memory_limit: "2G"
+docker_cpu_reservation: "1"
+docker_memory_reservation: "1G"
+
+# Docker restart and logging
+docker_restart_policy: "always"
+docker_log_driver: "json-file"
+docker_log_options:
+  max_size: "10m"
+  max_file: "3"
+
+# ===== LOGGING & MONITORING =====
+log_level: info
+
+# ===== HEALTH CHECK =====
+health_check_interval: 30
+health_check_timeout: 10
+health_check_retries: 3
+health_check_start_period: 40
+
+# ===== DEPLOYMENT SETTINGS =====
+deploy_path: /opt/stock-pos-server
+run_migrations: false  # Set to true only in dev, false for production
+build_image: true
+
+# ===== BACKUP SETTINGS =====
+backup_enabled: true
+backup_directory: "/opt/backups/{{ app_name }}"
+
+# ===== DOCKER USERS =====
+# Users to add to docker group
+docker_users:
+  - "{{ deployer_user }}"
+  - jenkins
+
+# ===== NGINX CONFIGURATION =====
+# Standard HTTP/HTTPS ports
+nginx_http_port: 80
+nginx_https_port: 443
+# Custom ports (override per environment)
+nginx_http_port_custom: 8081
+nginx_https_port_custom: 8443
+
+# ===== DATABASE DEFAULTS =====
+# Override in environment-specific group_vars with actual hosts
+db_user: postgres
+db_name: stock_pos
+db_port: 5432
+db_host: localhost
+postgres_port: 5432
+
+# ===== REDIS DEFAULTS =====
+# Override in environment-specific group_vars with actual hosts
+redis_host: localhost
+redis_port: 6379
+
+# ===== MINIO/S3 CONFIGURATION =====
+# Credentials in vault.yml (minio_root_user, minio_root_password)
+minio_api_port: 9000
+minio_console_port: 9001
+
+# ===== CORS & SECURITY =====
+cors_origin: "*"  # Override with specific origin in production
+
+# ===== SMTP SETTINGS =====
+# Credentials in vault.yml
+smtp_host: smtp.example.com
+smtp_port: 587
+smtp_from: noreply@stockpos.com
+
+# ===== JENKINS INTEGRATION =====
+jenkins_build_version: "latest"
+
+# ===== ENVIRONMENT IDENTIFICATION =====
+# Set per environment in group_vars (dev, staging, production)
+app_env: development
+environment: development
+node_env: development

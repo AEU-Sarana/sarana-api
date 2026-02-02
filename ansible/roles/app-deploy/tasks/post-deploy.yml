@@ -1,0 +1,50 @@
+---
+- name: Wait for application to be ready
+  uri:
+    url: "http://localhost:{{ nginx_http_port }}/health"
+    status_code: 200
+  register: health_check
+  until: health_check.status == 200
+  retries: 30
+  delay: 5
+  ignore_errors: yes
+  when: nginx_http_port is defined
+
+- name: Get application logs
+  command: docker compose -f {{ app_directory }}/docker-compose.yml logs --tail=50
+  register: app_logs
+  changed_when: false
+  ignore_errors: yes
+
+- name: Display last 20 lines of logs
+  debug:
+    msg: "{{ app_logs.stdout_lines[-20:] }}"
+  when: app_logs.stdout_lines is defined
+
+- name: Check disk usage
+  command: df -h {{ app_directory }}
+  register: disk_usage
+  changed_when: false
+
+- name: Display disk usage
+  debug:
+    msg: "{{ disk_usage.stdout_lines }}"
+
+- name: Create deployment summary
+  set_fact:
+    deployment_summary:
+      - "=== Deployment Summary ==="
+      - "Application: {{ app_name }}"
+      - "Directory: {{ app_directory }}"
+      - "Branch/Tag: {{ app_branch }}"
+      - "Image: {{ docker_image_name }}:{{ docker_image_tag }}"
+      - "Deployment time: {{ ansible_date_time.iso8601 }}"
+      - "=========================="
+
+- name: Display deployment summary
+  debug:
+    msg: "{{ deployment_summary }}"
+
+- name: Send deployment notification (optional)
+  debug:
+    msg: "Deployment completed successfully! You can add notification tasks here (Slack, email, etc.)"

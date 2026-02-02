@@ -1,0 +1,122 @@
+---
+# ============================================================================
+# PRODUCTION ENVIRONMENT GROUP VARIABLES
+# Located: ansible/inventories/production/group_vars/app_servers.yml
+# This file contains production-specific configuration
+# Sensitive data is stored in app_servers-vault.yml (encrypted)
+# ============================================================================
+
+# ===== SSH & ANSIBLE CONFIGURATION =====
+ansible_user: root
+ansible_port: 22
+ansible_ssh_private_key_file: ~/.ssh/id_rsa
+ansible_python_interpreter: /usr/bin/python3
+ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+# ===== DEPLOYMENT USER =====
+deployer_user: deployer
+deployer_home: /home/deployer
+
+# ===== APPLICATION CONFIGURATION =====
+app_env: production
+environment: production
+node_env: production
+app_name: stock-pos
+app_repo: "https://github.com/yourusername/stock-pos.git"
+app_branch: main
+app_directory: /opt/stock-pos
+app_port: 3000
+
+# ===== DOCKER CONFIGURATION (Production) =====
+docker_image_name: stock-pos-app
+docker_image_tag: latest
+docker_container_name: stock-pos-app
+docker_network_name: stock-pos-network
+docker_registry: ""
+
+# Docker resource limits (production)
+docker_cpu_limit: "2"
+docker_memory_limit: "2G"
+docker_cpu_reservation: "1"
+docker_memory_reservation: "1G"
+
+# Docker restart and logging
+docker_restart_policy: "always"
+docker_log_driver: "json-file"
+docker_log_options:
+  max_size: "10m"
+  max_file: "3"
+
+# ===== DATABASE CONFIGURATION =====
+postgres_user: "{{ vault_prod_postgres_user }}"
+postgres_host: db-prod.example.com
+postgres_port: 5432
+postgres_db: stock_pos_prod
+postgres_password: "{{ vault_prod_postgres_password }}"
+
+# Variables used by app-deploy env template
+db_user: "{{ postgres_user }}"
+db_password: "{{ postgres_password }}"
+db_name: "{{ postgres_db }}"
+db_host: "{{ postgres_host }}"
+db_port: "{{ postgres_port }}"
+
+# ===== REDIS CONFIGURATION =====
+redis_host: redis-prod.example.com
+redis_port: 6379
+redis_password: "{{ vault_prod_redis_password }}"
+
+# ===== MINIO/S3 CONFIGURATION =====
+minio_root_user: "{{ vault_prod_minio_root_user }}"
+minio_api_port: 9000
+minio_console_port: 9001
+minio_root_password: "{{ vault_prod_minio_password }}"
+
+# ===== NGINX CONFIGURATION =====
+nginx_http_port: 80
+nginx_https_port: 443
+nginx_http_port_custom: 8081
+nginx_https_port_custom: 8443
+
+# ===== CORS & SECURITY =====
+allowed_origins: "https://app.example.com"
+cors_origin: "https://app.example.com"
+
+# ===== LOGGING =====
+log_level: info
+
+# ===== SMTP CONFIGURATION =====
+smtp_host: "{{ vault_smtp_host }}"
+smtp_port: 587
+smtp_user: "{{ vault_smtp_user }}"
+smtp_pass: "{{ vault_smtp_password }}"
+smtp_from: noreply@stockpos.com
+
+# ===== JWT CONFIGURATION (from vault) =====
+jwt_secret: "{{ vault_prod_jwt_secret }}"
+jwt_refresh_secret: "{{ vault_prod_jwt_refresh_secret }}"
+
+# ===== DEPLOYMENT OPTIONS =====
+deploy_path: /opt/stock-pos-server
+run_migrations: false
+build_image: true
+force_recreate: false
+pull_images: true
+
+# ===== HEALTH CHECK =====
+health_check_interval: 30
+health_check_timeout: 10
+health_check_retries: 3
+health_check_start_period: 40
+
+# ===== BACKUP =====
+backup_enabled: true
+backup_directory: "/opt/backups/stock-pos"
+
+# ===== DOCKER USERS =====
+docker_users:
+  - "{{ deployer_user }}"
+  - jenkins
+
+# ===== JENKINS INTEGRATION =====
+jenkins_build_version: "latest"

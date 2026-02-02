@@ -1,0 +1,97 @@
+---
+# tasks file for jenkins role
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+
+- name: Install required dependencies
+  apt:
+    name:
+      - wget
+      - gnupg2
+      - software-properties-common
+      - apt-transport-https
+      - ca-certificates
+      - curl
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Install Java 21
+  apt:
+    name: openjdk-21-jdk
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Verify Java installation
+  command: java -version
+  register: java_version
+  changed_when: false
+
+- name: Display Java version
+  debug:
+    var: java_version.stderr_lines
+
+- name: Add Jenkins GPG key
+  apt_key:
+    url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Add Jenkins repository
+  apt_repository:
+    repo: "deb https://pkg.jenkins.io/debian-stable binary/"
+    state: present
+    filename: jenkins
+  when: ansible_os_family == "Debian"
+
+- name: Update apt cache after adding Jenkins repo
+  apt:
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
+- name: Install Jenkins
+  apt:
+    name: jenkins
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Ensure Jenkins service is started and enabled
+  systemd:
+    name: jenkins
+    state: started
+    enabled: yes
+
+- name: Wait for Jenkins to start
+  wait_for:
+    port: "{{ jenkins_port }}"
+    delay: 10
+    timeout: 300
+
+- name: Get Jenkins initial admin password
+  slurp:
+    src: /var/lib/jenkins/secrets/initialAdminPassword
+  register: jenkins_initial_password
+  ignore_errors: yes
+
+- name: Display Jenkins initial admin password
+  debug:
+    msg: "Jenkins initial admin password: {{ jenkins_initial_password.content | b64decode }}"
+  when: jenkins_initial_password is succeeded
+
+- name: Configure Jenkins to use Java 21
+  lineinfile:
+    path: /etc/default/jenkins
+    regexp: '^JAVA_HOME='
+    line: 'JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64'
+    create: yes
+  notify: restart jenkins
+
+- name: Set Jenkins URL in configuration
+  lineinfile:
+    path: /etc/default/jenkins
+    regexp: '^JENKINS_ARGS='
+    line: 'JENKINS_ARGS="--httpPort={{ jenkins_port }}"'
+  notify: restart jenkins

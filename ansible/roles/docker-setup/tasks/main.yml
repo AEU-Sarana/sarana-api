@@ -1,43 +1,61 @@
 ---
-# Docker setup tasks
-- name: Install Docker dependencies
+- name: Install required system packages
   apt:
     name:
-      - docker.io
-      - docker-compose
-      - python3-docker
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - python3-pip
     state: present
     update_cache: yes
-  when: ansible_os_family == "Debian"
+
+- name: Add Docker GPG apt Key
+  apt_key:
+    url: "{{ docker_apt_gpg_key }}"
+    state: present
+
+- name: Add Docker Repository
+  apt_repository:
+    repo: "{{ docker_apt_repository }}"
+    state: present
+    filename: docker
+
+- name: Update apt and install docker packages
+  apt:
+    name: "{{ docker_packages }}"
+    state: present
+    update_cache: yes
+
+- name: Install Docker Python module
+  pip:
+    name:
+      - docker
+      - docker-compose
+    state: present
+    executable: pip3
 
 - name: Ensure Docker service is running
   service:
     name: docker
-    state: started
-    enabled: yes
+    state: "{{ docker_service_state }}"
+    enabled: "{{ docker_service_enabled }}"
 
-- name: Create docker network
-  docker_network:
-    name: '{{ docker_network }}'
-    state: present
-    driver: bridge
+- name: Add users to docker group
+  user:
+    name: "{{ item }}"
+    groups: docker
+    append: yes
+  loop: "{{ docker_users }}"
+  when: docker_users | length > 0
+  notify: restart docker
 
-- name: Login to Docker Registry
-  docker_login:
-    registry: '{{ docker_registry }}'
-    username: '{{ docker_registry_user | default(omit) }}'
-    password: '{{ docker_registry_password | default(omit) }}'
-  when: docker_registry_user is defined
+- name: Verify Docker is installed
+  command: docker --version
+  register: docker_version
+  changed_when: false
 
-- name: Pull Docker image
-  docker_image:
-    name: '{{ docker_image }}'
-    source: pull
-    force: yes
-
-- name: Display Docker setup info
+- name: Display Docker version
   debug:
-    msg:
-      - 'Docker network: {{ docker_network }}'
-      - 'Docker image: {{ docker_image }}'
-      - 'Registry: {{ docker_registry }}'
+    msg: "Docker version installed: {{ docker_version.stdout }}"

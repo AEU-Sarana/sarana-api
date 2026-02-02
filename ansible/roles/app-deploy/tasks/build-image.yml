@@ -1,0 +1,60 @@
+---
+- name: Check if Dockerfile exists
+  stat:
+    path: "{{ dockerfile_path }}"
+  register: dockerfile_stat
+
+- name: Fail if Dockerfile doesn't exist
+  fail:
+    msg: "Dockerfile not found at {{ dockerfile_path }}"
+  when: not dockerfile_stat.stat.exists
+
+- name: Build Docker image
+  docker_image:
+    name: "{{ docker_image_name }}"
+    tag: "{{ docker_image_tag }}"
+    source: build
+    build:
+      path: "{{ app_directory }}"
+      dockerfile: Dockerfile
+      pull: yes
+      cache_from:
+        - "{{ docker_image_name }}:{{ docker_image_tag }}"
+    state: present
+    force_source: yes
+  register: docker_build_result
+
+- name: Display build result
+  debug:
+    msg: "Docker image built successfully: {{ docker_image_name }}:{{ docker_image_tag }}"
+  when: docker_build_result is changed
+
+- name: Tag image for registry (if registry is defined)
+  docker_image:
+    name: "{{ docker_image_name }}:{{ docker_image_tag }}"
+    repository: "{{ docker_registry }}/{{ docker_image_name }}:{{ docker_image_tag }}"
+    source: local
+    force_tag: yes
+  when: docker_registry != ""
+
+- name: Push image to registry (if registry is defined)
+  docker_image:
+    name: "{{ docker_registry }}/{{ docker_image_name }}"
+    tag: "{{ docker_image_tag }}"
+    push: yes
+    source: local
+  when: docker_registry != ""
+  register: push_result
+
+- name: Display push result
+  debug:
+    msg: "Image pushed to registry: {{ docker_registry }}/{{ docker_image_name }}:{{ docker_image_tag }}"
+  when: 
+    - docker_registry != ""
+    - push_result is changed
+
+- name: Clean up dangling images
+  docker_prune:
+    images: yes
+    images_filters:
+      dangling: true

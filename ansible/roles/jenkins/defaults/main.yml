@@ -1,0 +1,25 @@
+---
+# defaults file for jenkins role
+
+# Jenkins configuration
+jenkins_port: 8080
+jenkins_home: /var/lib/jenkins
+
+# Java configuration
+java_version: "21"
+java_home: "/usr/lib/jvm/java-21-openjdk-amd64"
+
+# Jenkins admin configuration
+jenkins_admin_username: admin
+jenkins_admin_email: admin@example.com
+
+# Jenkins plugins (optional - can be extended)
+jenkins_plugins:
+  - git
+  - workflow-aggregator
+  - docker-workflow
+  - ansible
+
+# Jenkins service configuration
+jenkins_service_enabled: true
+jenkins_service_state: started

@@ -1,0 +1,68 @@
+---
+# ============================================================================
+# VAULT VARIABLES - SENSITIVE DATA (TO BE ENCRYPTED WITH ANSIBLE-VAULT)
+# Located: ansible/inventories/production/group_vars/vault.yml
+# This file contains all passwords, secrets, and API keys
+# 
+# IMPORTANT: 
+# 1. Fill in all values with your actual secrets
+# 2. NEVER commit this file to git without encryption
+# 3. After filling values, encrypt with: ansible-vault encrypt ansible/inventories/production/group_vars/vault.yml
+# 4. To edit: ansible-vault edit ansible/inventories/production/group_vars/vault.yml
+# 5. To view: ansible-vault view ansible/inventories/production/group_vars/vault.yml
+# ============================================================================
+
+# ===== DATABASE CREDENTIALS =====
+vault_prod_postgres_user: postgres
+vault_prod_postgres_password: "YOUR_SECURE_POSTGRES_PASSWORD_HERE"
+
+# ===== REDIS CREDENTIALS (if auth enabled) =====
+vault_prod_redis_password: "YOUR_REDIS_PASSWORD_HERE"
+
+# ===== MINIO/S3 CREDENTIALS =====
+vault_prod_minio_root_user: "minioadmin"
+vault_prod_minio_password: "YOUR_MINIO_ADMIN_PASSWORD_HERE"
+vault_prod_minio_access_key: "YOUR_MINIO_ACCESS_KEY"
+vault_prod_minio_secret_key: "YOUR_MINIO_SECRET_KEY"
+
+# ===== JWT SECRETS (CRITICAL - Generate secure random keys) =====
+# Generate with: openssl rand -base64 32
+vault_prod_jwt_secret: "YOUR_JWT_SECRET_KEY_GENERATE_WITH_openssl_rand_base64_32"
+vault_prod_jwt_refresh_secret: "YOUR_JWT_REFRESH_SECRET_KEY_GENERATE_WITH_openssl_rand_base64_32"
+
+# ===== SMTP CREDENTIALS =====
+vault_smtp_host: "smtp.example.com"
+vault_smtp_user: "your-email@example.com"
+vault_smtp_password: "YOUR_SMTP_PASSWORD_HERE"
+
+# ===== APPLICATION SECRETS =====
+vault_app_secret_key: "YOUR_APP_SECRET_KEY_HERE"
+
+# ===== GIT CREDENTIALS (if private repo) =====
+vault_git_username: "your-github-username"
+vault_git_token: "your-github-personal-access-token"
+
+# ===== DOCKER REGISTRY CREDENTIALS (if using private registry) =====
+vault_docker_registry_url: "registry.example.com"
+vault_docker_registry_username: "registry-user"
+vault_docker_registry_password: "registry-password"
+
+# ===== SSL/TLS CERTIFICATES (if needed) =====kznxo;AIcjn?OLKhcnOIchOIcghSODFigSO:IDfugi;ufgesg
+vault_ssl_cert: "PATH_TO_YOUR_SSL_CERT"
+vault_ssl_key: "PATH_TO_YOUR_SSL_KEY"
+
+# ===== SSH KEYS =====
+# Jenkins CI/CD SSH public key for automated deployments
+vault_jenkins_public_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC9gE6RKQBhU43yw8kLySxd3SjC4jbo5Y8CbHNrVU6puJLXdectSgHhtglHO+cl6dDyYcANOhCH70ysBmEfTiZXYojBVbmA8CpPvcL+FSpX2/jBp6E10Ycg+V45PL3NtB41M27cCqrwdocOORlAz/yCIoAtpI4saiai8QZv72I2rGGNJSdCzY832nLVeTc6OmmfpGlh1yyCyZxNkbENF1JPVQoO3Ystu10OqZMojUVDh9PGC8qkzL+nPkA/G4TSKT7GOEcXIo7/M1tj8/K7gT2zcDsq5roGnq+eO/dvtpUKyzoMGT+JrDBld1VzjhiieQm9WRRo+8Hwwq2y8G7Ycm6CbEEetEXqq9CHUX6TcrFXbT0FvC7ds5PO5dAXPIc5o0SOsKI+gK9HXsrmxQc+L1f2Wxi0tU5lR5e79XARiWEWAinUi2hRm/fFO1McOX2aE7w1cWlcKs2/gJSLuYLviGUmUMx5fTCNiOZgZbiQAxe18cgZb2JJfFZcws4bju32dfXiXOMo0G5z/xJIC4MQzA0ThsZ1ZowzNHurwzwKOSHbE3fU8scD+eJZLmphlL7P7CgwH98t/9yHKuQBYnlnJZY4rRsIpTmRj5Y9BpWX7l02alADUPqwNAyeWZNvTKX50IctQMMnUd0Ae6YILsrG2FZpuQPkC3JcHL9H16yEBA3NFQ== jenkins@techey-ci"
+
+# Additional SSH keys for team members or other systems
+vault_additional_ssh_keys:
+  - key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCWamipeGS7imVFTBayx/2b9YK9aXibGUGpbXWVp2O8FSwLpvwzXm5C3UOiMB9/FXHZuaGfPrFUpIIN+QhQvIN5zuq73adOGxX95rNFGZK3z3P6gZuRrAOLniO7BSsRGZRDCB0TQjKN+fFEotIfqCF1vR0IBIT20A58mjox5D3O4bRQxphvyrdZIownrheXr6KJRfEaYAkIgS3VY5SdlfZOnmI92iqZsOjkFVObyAyrZnNaOy0s+TBTJ1OfqaHJWSmiFD8ZTjJ8x5pcQoDHCwAqLOnrCyvJhd0U6OH8+KXI6X9KtcMyJnB9bnLs4660v0ppArh1m3dYmOHZl6nx3yoe2WFfSpuNM3K9kst1hcN01aP/5eMj8Ua3WzCJLQdKnnlIPgt9eMzkzEvSy1decTgTZPybx4g4J6k1G6sdh4rzm1hQdrv1RAr8SfgG9WjpNhtsSo64NaDCHw2OrIfPBIdpQRFSER/rK04u2UILiIekTruA30khr/IZpHEQIbBLksZ5jwaoqUEzboBUAbPJRueNrT8hWVdVzSSWr9VcoUBEILJNzfaMepJydq0zYi+QTADL41VY1l5aC1+h1tHqfcWZkCPt9mlKnqpjBkkcpdhAvGT7TzUpq2+z1FCnBf+JWn70b37ce3Kkjgkp++wM0Ed1A3emKvP1+OTAh1Xn9QDOkQ== workpc@gmail.com"
+    comment: "Laptop Work PC"
+  # - key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC... developer2@laptop"
+  #   comment: "Developer 2 Laptop"
+# Leave empty if not needed: vault_additional_ssh_keys: []
+
+# ===== OTHER SECRETS =====
+vault_api_key_1: "YOUR_API_KEY_HERE"
+vault_api_key_2: "YOUR_API_KEY_HERE"

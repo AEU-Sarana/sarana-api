@@ -21,3 +21,47 @@ logs/
 .idea/
 .vscode/
 /src/database/generated
+# Sensitive Files
+.env.production
+.env.staging
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+
+# OS Files
+.DS_Store
+Thumbs.db
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Temporary Files
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
+*~
+
+# Database Files
+*.sqlite
+*.db
+*.sqlite3
+
+# Credentials & Secrets
+credentials.json
+secrets.json
+.aws/
+.ssh/
+
+# Terraform
+*.tfvars
+*.tfvars.json
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
