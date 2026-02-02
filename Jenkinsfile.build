@@ -43,8 +43,8 @@ pipeline {
                 script {
                     echo "=== Setting up environment ==="
                     sh '''
-                        # Install docker-compose if needed
-                        apk add --no-cache docker-compose git
+                        # Install dependencies if needed
+                        command -v docker-compose > /dev/null || apt-get update && apt-get install -y docker-compose git
                         
                         # Verify installations
                         node --version
