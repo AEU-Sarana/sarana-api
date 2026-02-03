@@ -141,42 +141,96 @@ pipeline {
         }
 
         stage('Push to GHCR') {
-            when {
-                anyOf {
-                    branch 'nan'
-                    branch 'origin/nan'
-                }
-            }
             steps {
                 script {
                     echo "=== Pushing Docker image to GitHub Container Registry ==="
-                    sh '''
-                        set -e
-                        
-                        echo "Registry: ${REGISTRY}"
-                        echo "Username: ${GITHUB_USERNAME}"
-                        echo "Image: ${DOCKER_IMAGE}"
-                        echo "Version: ${VERSION}"
-                        
-                        echo "Logging into GHCR..."
-                        echo "${GITHUB_TOKEN}" | docker login ${REGISTRY} -u ${GITHUB_USERNAME} --password-stdin
-                        
-                        if [ $? -eq 0 ]; then
-                            echo "✓ Login successful"
-                        else
-                            echo "✗ Login failed"
-                            exit 1
-                        fi
-                        
-                        echo "Pushing versioned image ${DOCKER_IMAGE}:${VERSION}..."
-                        docker push ${DOCKER_IMAGE}:${VERSION}
-                        
-                        echo "Pushing latest tag..."
-                        docker push ${DOCKER_IMAGE}:latest
-                        
-                        echo "✓ Successfully pushed to ${DOCKER_IMAGE}"
-                        docker logout ${REGISTRY}
-                    '''
+                    echo "Branch: ${env.GIT_BRANCH ?: env.BRANCH_NAME}"
+                    
+                    withCredentials([
+                        string(credentialsId: 'github-token', variable: 'GHCR_TOKEN')
+                    ]) {
+                        sh '''
+                            set -e
+                            
+                            # Configuration
+                            GHCR_USERNAME="din-chamnan-git"
+                            GHCR_REGISTRY="ghcr.io"
+                            IMAGE_NAME="stock-pos-server"
+                            FULL_IMAGE="${GHCR_REGISTRY}/${GHCR_USERNAME}/${IMAGE_NAME}"
+                            IMAGE_TAG="${BUILD_NUMBER}-${GIT_COMMIT:0:7}"
+                            
+                            echo "=========================================="
+                            echo "Docker Image Push to GHCR"
+                            echo "=========================================="
+                            echo "Registry: ${GHCR_REGISTRY}"
+                            echo "Username: ${GHCR_USERNAME}"
+                            echo "Image: ${FULL_IMAGE}"
+                            echo "Tag: ${IMAGE_TAG}"
+                            echo "=========================================="
+                            
+                            # Login to GitHub Container Registry
+                            echo "Logging into GHCR..."
+                            echo "${GHCR_TOKEN}" | docker login ${GHCR_REGISTRY} -u ${GHCR_USERNAME} --password-stdin
+                            
+                            if [ $? -ne 0 ]; then
+                                echo "✗ GHCR login failed!"
+                                exit 1
+                            fi
+                            echo "✓ GHCR login successful"
+                            
+                            # Tag the image for GHCR
+                            echo ""
+                            echo "Tagging image for GHCR..."
+                            docker tag ${DOCKER_IMAGE}:${VERSION} ${FULL_IMAGE}:${IMAGE_TAG}
+                            docker tag ${DOCKER_IMAGE}:${VERSION} ${FULL_IMAGE}:latest
+                            echo "✓ Images tagged successfully"
+                            
+                            # Push versioned tag
+                            echo ""
+                            echo "Pushing versioned image: ${FULL_IMAGE}:${IMAGE_TAG}"
+                            docker push ${FULL_IMAGE}:${IMAGE_TAG}
+                            
+                            if [ $? -ne 0 ]; then
+                                echo "✗ Failed to push ${FULL_IMAGE}:${IMAGE_TAG}"
+                                docker logout ${GHCR_REGISTRY}
+                                exit 1
+                            fi
+                            echo "✓ Successfully pushed ${FULL_IMAGE}:${IMAGE_TAG}"
+                            
+                            # Push latest tag
+                            echo ""
+                            echo "Pushing latest tag: ${FULL_IMAGE}:latest"
+                            docker push ${FULL_IMAGE}:latest
+                            
+                            if [ $? -ne 0 ]; then
+                                echo "✗ Failed to push ${FULL_IMAGE}:latest"
+                                docker logout ${GHCR_REGISTRY}
+                                exit 1
+                            fi
+                            echo "✓ Successfully pushed ${FULL_IMAGE}:latest"
+                            
+                            # Verify the push
+                            echo ""
+                            echo "Verifying image in GHCR..."
+                            docker pull ${FULL_IMAGE}:${IMAGE_TAG}
+                            
+                            if [ $? -ne 0 ]; then
+                                echo "✗ Image verification failed - cannot pull from GHCR"
+                                docker logout ${GHCR_REGISTRY}
+                                exit 1
+                            fi
+                            echo "✓ Image verification successful"
+                            
+                            # Logout
+                            docker logout ${GHCR_REGISTRY}
+                            
+                            echo ""
+                            echo "=========================================="
+                            echo "✓ Push completed successfully!"
+                            echo "Image: ${FULL_IMAGE}:${IMAGE_TAG}"
+                            echo "=========================================="
+                        '''
+                    }
                 }
             }
             post {
