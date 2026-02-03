@@ -26,11 +26,11 @@
     path: "{{ app_directory }}/docker/nginx/nginx.conf"
   register: nginx_conf_stat
 
-- name: Remove nginx.conf if it is a directory
+- name: Remove nginx.conf if it is not a regular file
   file:
     path: "{{ app_directory }}/docker/nginx/nginx.conf"
     state: absent
-  when: nginx_conf_stat.stat.isdir | default(false)
+  when: nginx_conf_stat.stat.exists | default(false) and not (nginx_conf_stat.stat.isreg | default(false))
 
 - name: Template .env file
   template:
@@ -79,7 +79,7 @@
     dest: "{{ app_directory }}/docker/nginx/nginx.conf"
     owner: "{{ app_user }}"
     mode: '0644'
-    force: no
+    force: yes
   when: create_nginx_config | default(true)
 
 - name: Template nginx default.conf (if not exists in repo)
@@ -88,7 +88,7 @@
     dest: "{{ app_directory }}/docker/nginx/conf.d/default.conf"
     owner: "{{ app_user }}"
     mode: '0644'
-    force: no
+    force: yes
   when: create_nginx_config | default(true)
 
 - name: Create .dockerignore file
