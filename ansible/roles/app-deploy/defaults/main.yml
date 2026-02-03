@@ -23,7 +23,7 @@ build_image: true
 # Template generation flags
 # Set to true only if your repo doesn't have these files
 create_dockerfile: false  # Set true if repo has no Dockerfile
-create_nginx_config: false  # Set true if repo has no nginx configs
+create_nginx_config: true  # Ensure nginx configs are created during deploy
 
 # Backup settings
 backup_enabled: true
