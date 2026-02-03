@@ -21,6 +21,17 @@
     - nginx/conf.d
     - nginx/ssl
 
+- name: Check nginx.conf path
+  stat:
+    path: "{{ app_directory }}/docker/nginx/nginx.conf"
+  register: nginx_conf_stat
+
+- name: Remove nginx.conf if it is a directory
+  file:
+    path: "{{ app_directory }}/docker/nginx/nginx.conf"
+    state: absent
+  when: nginx_conf_stat.stat.isdir | default(false)
+
 - name: Template .env file
   template:
     src: env.j2
@@ -69,7 +80,7 @@
     owner: "{{ app_user }}"
     mode: '0644'
     force: no
-  when: create_nginx_config | default(false)
+  when: create_nginx_config | default(true)
 
 - name: Template nginx default.conf (if not exists in repo)
   template:
@@ -78,7 +89,7 @@
     owner: "{{ app_user }}"
     mode: '0644'
     force: no
-  when: create_nginx_config | default(false)
+  when: create_nginx_config | default(true)
 
 - name: Create .dockerignore file
   copy:
