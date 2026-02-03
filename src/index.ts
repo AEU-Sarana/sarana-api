@@ -1,5 +1,5 @@
 // Register module aliases FIRST (before any @src imports)
-import 'module-alias/register.js';
+import 'module-alias/register';
 import dotenv from 'dotenv';
 
 // Load .env before anything else
