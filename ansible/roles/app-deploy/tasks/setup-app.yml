@@ -5,7 +5,9 @@
     dest: "{{ app_directory }}"
     version: "{{ app_branch }}"
     force: yes
-  when: app_repo != ""
+  when: 
+    - app_repo != ""
+    - build_image | bool
   notify: application updated
 
 - name: Create docker directory structure
