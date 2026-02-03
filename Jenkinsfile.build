@@ -28,7 +28,14 @@ pipeline {
             steps {
                 script {
                     echo "=== Checking out code from repository ==="
-                    checkout scm
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: '*/nan']],
+                        userRemoteConfigs: [[
+                            url: 'git@github.com:techey-solution/stock-pos-server.git',
+                            credentialsId: 'github-ssh-key'
+                        ]]
+                    ])
                     sh '''
                         echo "Branch: ${GIT_BRANCH}"
                         echo "Commit: ${GIT_COMMIT}"
