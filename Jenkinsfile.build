@@ -240,6 +240,7 @@ pipeline {
                                     --vault-password-file /tmp/vault_pass_${BUILD_NUMBER}.txt \
                                     -e "app_repo=https://github.com/techey-solution/stock-pos-server.git" \
                                     -e "app_branch=nan" \
+                                    -e "node_env=production" \
                                     -e "pull_images=true" \
                                     -e "build_image=false" \
                                     -e "docker_image_tag=${VERSION}" \
