@@ -16,6 +16,7 @@
     state: directory
     owner: "{{ app_user }}"
     mode: '0755'
+  become: yes
   loop:
     - nginx
     - nginx/conf.d
@@ -31,6 +32,7 @@
     path: "{{ app_directory }}/docker/nginx/nginx.conf"
     state: absent
   when: nginx_conf_stat.stat.exists | default(false) and not (nginx_conf_stat.stat.isreg | default(false))
+  become: yes
 
 - name: Template .env file
   template:
@@ -81,6 +83,7 @@
     mode: '0644'
     force: yes
   when: create_nginx_config | default(true)
+  become: yes
 
 - name: Template nginx default.conf (if not exists in repo)
   template:
@@ -90,6 +93,7 @@
     mode: '0644'
     force: yes
   when: create_nginx_config | default(true)
+  become: yes
 
 - name: Create .dockerignore file
   copy:
