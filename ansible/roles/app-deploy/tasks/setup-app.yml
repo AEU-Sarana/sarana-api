@@ -27,7 +27,9 @@
     dest: "{{ app_directory }}/.env"
     owner: "{{ app_user }}"
     mode: '0600'
-  notify: environment updated
+  notify:
+    - environment updated
+    - restart app
 
 - name: Template docker-compose.yml
   template:
@@ -35,7 +37,9 @@
     dest: "{{ app_directory }}/docker-compose.yml"
     owner: "{{ app_user }}"
     mode: '0644'
-  notify: compose file updated
+  notify:
+    - compose file updated
+    - restart app
 
 - name: Template docker-compose.prod.yml (override)
   template:
@@ -43,6 +47,9 @@
     dest: "{{ app_directory }}/docker-compose.prod.yml"
     owner: "{{ app_user }}"
     mode: '0644'
+  notify:
+    - compose file updated
+    - restart app
 
 - name: Template Dockerfile (if not exists in repo)
   template:

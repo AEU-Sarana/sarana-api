@@ -7,6 +7,19 @@ services:
   app:
     image: "{{ docker_registry }}/{{ docker_registry_username | lower }}/{{ docker_image_name }}:{{ docker_image_tag }}"
     container_name: {{ app_name }}-app
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+      - redis
+      - minio
+    restart: unless-stopped
+    networks:
+      - {{ app_name }}-network
 
   # Database
   db:
