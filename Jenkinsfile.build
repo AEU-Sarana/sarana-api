@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        // GitHub Container Registryyy
+        // GitHub Container Registry
         REGISTRY = 'ghcr.io'
         GITHUB_USERNAME = credentials('github-username')
         GITHUB_TOKEN = credentials('github-token')
@@ -149,28 +149,21 @@ pipeline {
                     withCredentials([
                         string(credentialsId: 'github-token', variable: 'GHCR_TOKEN')
                     ]) {
-                        sh '''
+                        sh '''#!/bin/bash
                             set -e
-                            
-                            # Configuration
-                            GHCR_USERNAME="din-chamnan-git"
-                            GHCR_REGISTRY="ghcr.io"
-                            IMAGE_NAME="stock-pos-server"
-                            FULL_IMAGE="${GHCR_REGISTRY}/${GHCR_USERNAME}/${IMAGE_NAME}"
-                            IMAGE_TAG="${BUILD_NUMBER}-${GIT_COMMIT:0:7}"
                             
                             echo "=========================================="
                             echo "Docker Image Push to GHCR"
                             echo "=========================================="
-                            echo "Registry: ${GHCR_REGISTRY}"
-                            echo "Username: ${GHCR_USERNAME}"
-                            echo "Image: ${FULL_IMAGE}"
-                            echo "Tag: ${IMAGE_TAG}"
+                            echo "Registry: ${REGISTRY}"
+                            echo "Username: ${GITHUB_USERNAME}"
+                            echo "Image: ${DOCKER_IMAGE}"
+                            echo "Tag: ${VERSION}"
                             echo "=========================================="
                             
                             # Login to GitHub Container Registry
                             echo "Logging into GHCR..."
-                            echo "${GHCR_TOKEN}" | docker login ${GHCR_REGISTRY} -u ${GHCR_USERNAME} --password-stdin
+                            echo "${GHCR_TOKEN}" | docker login ${REGISTRY} -u ${GITHUB_USERNAME} --password-stdin
                             
                             if [ $? -ne 0 ]; then
                                 echo "✗ GHCR login failed!"
@@ -178,56 +171,49 @@ pipeline {
                             fi
                             echo "✓ GHCR login successful"
                             
-                            # Tag the image for GHCR
-                            echo ""
-                            echo "Tagging image for GHCR..."
-                            docker tag ${DOCKER_IMAGE}:${VERSION} ${FULL_IMAGE}:${IMAGE_TAG}
-                            docker tag ${DOCKER_IMAGE}:${VERSION} ${FULL_IMAGE}:latest
-                            echo "✓ Images tagged successfully"
-                            
                             # Push versioned tag
                             echo ""
-                            echo "Pushing versioned image: ${FULL_IMAGE}:${IMAGE_TAG}"
-                            docker push ${FULL_IMAGE}:${IMAGE_TAG}
+                            echo "Pushing versioned image: ${DOCKER_IMAGE}:${VERSION}"
+                            docker push ${DOCKER_IMAGE}:${VERSION}
                             
                             if [ $? -ne 0 ]; then
-                                echo "✗ Failed to push ${FULL_IMAGE}:${IMAGE_TAG}"
-                                docker logout ${GHCR_REGISTRY}
+                                echo "✗ Failed to push ${DOCKER_IMAGE}:${VERSION}"
+                                docker logout ${REGISTRY}
                                 exit 1
                             fi
-                            echo "✓ Successfully pushed ${FULL_IMAGE}:${IMAGE_TAG}"
+                            echo "✓ Successfully pushed ${DOCKER_IMAGE}:${VERSION}"
                             
                             # Push latest tag
                             echo ""
-                            echo "Pushing latest tag: ${FULL_IMAGE}:latest"
-                            docker push ${FULL_IMAGE}:latest
+                            echo "Pushing latest tag: ${DOCKER_IMAGE}:latest"
+                            docker push ${DOCKER_IMAGE}:latest
                             
                             if [ $? -ne 0 ]; then
-                                echo "✗ Failed to push ${FULL_IMAGE}:latest"
-                                docker logout ${GHCR_REGISTRY}
+                                echo "✗ Failed to push ${DOCKER_IMAGE}:latest"
+                                docker logout ${REGISTRY}
                                 exit 1
                             fi
-                            echo "✓ Successfully pushed ${FULL_IMAGE}:latest"
+                            echo "✓ Successfully pushed ${DOCKER_IMAGE}:latest"
                             
                             # Verify the push
                             echo ""
                             echo "Verifying image in GHCR..."
-                            docker pull ${FULL_IMAGE}:${IMAGE_TAG}
+                            docker pull ${DOCKER_IMAGE}:${VERSION}
                             
                             if [ $? -ne 0 ]; then
                                 echo "✗ Image verification failed - cannot pull from GHCR"
-                                docker logout ${GHCR_REGISTRY}
+                                docker logout ${REGISTRY}
                                 exit 1
                             fi
                             echo "✓ Image verification successful"
                             
                             # Logout
-                            docker logout ${GHCR_REGISTRY}
+                            docker logout ${REGISTRY}
                             
                             echo ""
                             echo "=========================================="
                             echo "✓ Push completed successfully!"
-                            echo "Image: ${FULL_IMAGE}:${IMAGE_TAG}"
+                            echo "Image: ${DOCKER_IMAGE}:${VERSION}"
                             echo "=========================================="
                         '''
                     }
