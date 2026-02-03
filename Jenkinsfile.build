@@ -198,19 +198,22 @@ pipeline {
 
         stage('Deploy with Ansible') {
             when {
-                anyOf {
-                    branch 'nan'
-                    branch 'origin/nan'
+                expression { 
+                    env.GIT_BRANCH == 'nan' || 
+                    env.GIT_BRANCH == 'origin/nan' ||
+                    env.BRANCH_NAME == 'nan'
                 }
             }
             steps {
                 script {
                     echo "=== Deploying to app server with Ansible ==="
+                    echo "Current branch: ${env.GIT_BRANCH ?: env.BRANCH_NAME}"
                     
                     withCredentials([
                         string(credentialsId: 'ansible-vault-password', variable: 'VAULT_PASS')
                     ]) {
-                        sh '''
+                        sshagent(['deploy-ssh-key']) {
+                            sh '''
                             # Create temporary vault password file
                             echo "${VAULT_PASS}" > /tmp/vault_pass_${BUILD_NUMBER}.txt
                             chmod 600 /tmp/vault_pass_${BUILD_NUMBER}.txt
@@ -232,6 +235,7 @@ pipeline {
                             # Cleanup vault password file
                             rm -f /tmp/vault_pass_${BUILD_NUMBER}.txt
                         '''
+                        }
                     }
                 }
             }
