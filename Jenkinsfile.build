@@ -241,7 +241,9 @@ pipeline {
                                     -e "node_env=production" \
                                     -e "pull_images=true" \
                                     -e "build_image=false" \
-                                    -e "docker_registry=${REGISTRY}/${GITHUB_USERNAME}" \
+                                    -e "docker_registry=${REGISTRY}" \
+                                    -e "docker_registry_username=${GITHUB_USERNAME}" \
+                                    -e "docker_registry_password=${GITHUB_TOKEN}" \
                                     -e "docker_image_name=${APP_NAME}" \
                                     -e "docker_image_tag=${VERSION}" \
                                     -e "confirm_deploy=yes" \
