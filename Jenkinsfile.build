@@ -207,6 +207,7 @@ pipeline {
             steps {
                 script {
                     echo "=== Deploying to app server with Ansible ==="
+                    echo "Target: app_servers (89.167.6.46)"
                     echo "Current branch: ${env.GIT_BRANCH ?: env.BRANCH_NAME}"
                     
                     withCredentials([
@@ -214,27 +215,35 @@ pipeline {
                     ]) {
                         sshagent(['deploy-ssh-key']) {
                             sh '''
-                            # Create temporary vault password file
-                            echo "${VAULT_PASS}" > /tmp/vault_pass_${BUILD_NUMBER}.txt
-                            chmod 600 /tmp/vault_pass_${BUILD_NUMBER}.txt
-                            
-                            # Run Ansible deployment to app servers
-                            ansible-playbook ansible/playbooks/deploy.yml \
-                                -i ansible/inventories/production/hosts.ini \
-                                -l app_servers \
-                                --vault-password-file /tmp/vault_pass_${BUILD_NUMBER}.txt \
-                                -e "app_repo=https://github.com/techey-solution/stock-pos-server.git" \
-                                -e "app_branch=nan" \
-                                -e "pull_images=true" \
-                                -e "build_image=false" \
-                                -e "docker_image_tag=${VERSION}" \
-                                -e "docker_image_name=stock-pos-app" \
-                                -e "confirm_deploy=yes" \
-                                -vvv
-                            
-                            # Cleanup vault password file
-                            rm -f /tmp/vault_pass_${BUILD_NUMBER}.txt
-                        '''
+                                set -e
+                                
+                                # Create temporary vault password file
+                                echo "${VAULT_PASS}" > /tmp/vault_pass_${BUILD_NUMBER}.txt
+                                chmod 600 /tmp/vault_pass_${BUILD_NUMBER}.txt
+                                
+                                # Test SSH connection to backend server
+                                echo "Testing SSH connection to app_servers..."
+                                ssh -o StrictHostKeyChecking=no deployer@89.167.6.46 "docker ps" || echo "Warning: Could not verify backend connectivity"
+                                
+                                # Run Ansible deployment to app servers (NOT localhost)
+                                echo "Running Ansible deployment..."
+                                ansible-playbook ansible/playbooks/deploy.yml \
+                                    -i ansible/inventories/production/hosts.ini \
+                                    -l app_servers \
+                                    --vault-password-file /tmp/vault_pass_${BUILD_NUMBER}.txt \
+                                    -e "app_repo=https://github.com/techey-solution/stock-pos-server.git" \
+                                    -e "app_branch=nan" \
+                                    -e "pull_images=true" \
+                                    -e "build_image=false" \
+                                    -e "docker_image_tag=${VERSION}" \
+                                    -e "docker_image_name=stock-pos-app" \
+                                    -e "confirm_deploy=yes" \
+                                    -vvv
+                                
+                                # Cleanup
+                                rm -f /tmp/vault_pass_${BUILD_NUMBER}.txt
+                                echo "Deployment completed successfully"
+                            '''
                         }
                     }
                 }
