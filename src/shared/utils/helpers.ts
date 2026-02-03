@@ -71,8 +71,14 @@ export function generateRandomString(length: number = 10): string {
   /**
    * Get local network IP address
    */
-  export function getLocalNetworkIP(): string | null {
-    const interfaces = os.networkInterfaces();
+export function getLocalNetworkIP(): string | null {
+    let interfaces: ReturnType<typeof os.networkInterfaces>;
+    try {
+      interfaces = os.networkInterfaces();
+    } catch {
+      // Some environments (containers/sandboxes) can throw here.
+      return null;
+    }
     
     for (const name of Object.keys(interfaces)) {
       for (const iface of interfaces[name] || []) {
