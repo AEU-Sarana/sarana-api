@@ -14,6 +14,8 @@ async function checkSeededData() {
       prisma.deviceBinding.count(),
       prisma.appSetting.count(),
       prisma.telegramConfig.count(),
+      prisma.telegramAdminLinks.count(),
+      prisma.telegramAdminMessages.count(),
       prisma.auditLog.count(),
     ]);
 
@@ -29,7 +31,9 @@ async function checkSeededData() {
     console.log(`Device Bindings:     ${counts[7]}`);
     console.log(`App Settings:       ${counts[8]}`);
     console.log(`Telegram Configs:   ${counts[9]}`);
-    console.log(`Audit Logs:          ${counts[10]}`);
+    console.log(`Telegram Admin Links:   ${counts[10]}`);
+    console.log(`Telegram Admin Messages:   ${counts[11]}`);
+    console.log(`Audit Logs:          ${counts[12]}`);
     console.log('==========================\n');
 
     // Check if data exists

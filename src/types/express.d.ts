@@ -1,4 +1,4 @@
-import { Order, Shift } from '../database/generated/client';
+import { Order, Shift } from '@prisma/client';
 
 declare global {
   namespace Express {

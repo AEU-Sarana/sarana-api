@@ -10,7 +10,7 @@ import { ReportExportService } from './report-export.service';
 import { eventBus } from '@src/shared/events/event-bus';
 import { ReportGeneratedEvent } from '../events/report-generated.event';
 import { ReportExportedEvent } from '../events/report-exported.event';
-import { Prisma } from '@src/database/generated/client';
+import { Prisma } from '@prisma/client';
 
 export class ReportService {
 

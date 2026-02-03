@@ -35,7 +35,7 @@ const domainConfig = {
     tables: ['stock_movements', 'stocks'],
   },
   telegram: {
-    tables: ['telegram_config'],
+    tables: ['telegram_config','telegram_admin_links','telegram_admin_messages'],
   },
   'device-binding': {
     tables: ['device_bindings'],
@@ -60,9 +60,11 @@ const migrationOrder = [
   'stock/20260118000003_create_stocks_table',
   'stock/20260118000007_create_stock_movements_table',
   'telegram/20260118000008_create_telegram_config_table',
-  'device-binding/20260118000009_create_device_bindings_table',
-  'setting/202601180000010_create_settings_table',
-  'shared/202601180000011_create_audit_logs_table',
+  'telegram/20260118000009_create_telegram_admin_links_table',
+  'telegram/202601180000010_create_telegram_admin_messages_table',
+  'device-binding/202601180000011_create_device_bindings_table',
+  'setting/202601180000012_create_settings_table',
+  'shared/202601180000013_create_audit_logs_table',
 ];
 
 /* ================================
