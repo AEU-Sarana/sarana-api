@@ -10,29 +10,29 @@
   no_log: yes
 
 - name: Stop existing containers (if force recreate)
-  docker_compose:
+  community.docker.docker_compose_v2:
     project_src: "{{ app_directory }}"
     state: absent
   when: force_recreate | bool
   ignore_errors: yes
 
 - name: Pull Docker images from registry
-  docker_compose:
+  community.docker.docker_compose_v2:
     project_src: "{{ app_directory }}"
-    pull: yes
+    pull: always
   when: 
     - pull_images | bool
     - not (build_image | bool)
 
 - name: Deploy application with Docker Compose
-  docker_compose:
+  community.docker.docker_compose_v2:
     project_src: "{{ app_directory }}"
     files:
       - docker-compose.yml
       - docker-compose.prod.yml
     state: present
-    pull: "{{ pull_images | bool }}"
-    build: "{{ build_image | bool }}"
+    pull: "{{ 'always' if pull_images | bool else 'never' }}"
+    build: "{{ 'always' if build_image | bool else 'never' }}"
     recreate: "{{ 'always' if force_recreate else 'smart' }}"
   register: compose_output
 
