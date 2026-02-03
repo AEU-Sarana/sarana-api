@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        // GitHub Container Registry
+        // GitHub Container Registryyy
         REGISTRY = 'ghcr.io'
         GITHUB_USERNAME = credentials('github-username')
         GITHUB_TOKEN = credentials('github-token')
