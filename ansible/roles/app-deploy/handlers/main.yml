@@ -12,7 +12,7 @@
     msg: "Docker Compose configuration has been updated"
 
 - name: restart application
-  docker_compose:
+  community.docker.docker_compose_v2:
     project_src: "{{ app_directory }}"
-    restarted: yes
+    state: restarted
   listen: "restart app"

@@ -40,13 +40,12 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --prod --frozen-lockfile
 
-# Copy built files and prisma schema
+# Copy built files from build stage
 COPY --from=build /app/dist ./dist
-COPY --from=build /app/prisma ./prisma
-COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 
-# Generate Prisma Client
-RUN pnpm db:generate
+# Copy prisma schema and entire node_modules/.prisma from build stage
+COPY --from=build /app/src/database/prisma ./src/database/prisma
+COPY --from=build /app/node_modules ./node_modules
 
 # Expose port
 EXPOSE 3000

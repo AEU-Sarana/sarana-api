@@ -2,11 +2,13 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = credentials('docker-registry-url')
-        REGISTRY_CREDENTIALS = credentials('docker-registry-credentials')
-        SLACK_WEBHOOK = credentials('slack-webhook-url')
+        // GitHub Container Registry
+        REGISTRY = 'ghcr.io'
+        GITHUB_USERNAME = credentials('github-username')
+        GITHUB_TOKEN = credentials('github-token')
         APP_NAME = 'stock-pos-server'
         VERSION = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
+        DOCKER_IMAGE = "${REGISTRY}/${GITHUB_USERNAME.toLowerCase()}/${APP_NAME}"
     }
 
     triggers {
@@ -28,10 +30,10 @@ pipeline {
                     echo "=== Checking out code from repository ==="
                     checkout([
                         $class: 'GitSCM',
-                        branches: [[name: '${GIT_BRANCH}']],
+                        branches: [[name: '*/nan']],
                         userRemoteConfigs: [[
-                            url: '${GIT_URL}',
-                            credentialsId: 'github-credentials'
+                            url: 'git@github.com:techey-solution/stock-pos-server.git',
+                            credentialsId: 'github-ssh-key'
                         ]]
                     ])
                     sh '''
@@ -46,12 +48,12 @@ pipeline {
         stage('Environment Setup') {
             steps {
                 script {
-                    echo "=== Setting up environment ==="
+                    echo "=== Verifying environment ==="
                     sh '''
                         node --version
+                        npm --version
                         pnpm --version
                         docker --version
-                        docker-compose --version
                     '''
                 }
             }
@@ -99,16 +101,20 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    echo "=== Building Docker image ==="
+                    echo "=== Building Docker image for GHCR ==="
                     sh '''
                         docker build \
                             --target production \
-                            -t ${REGISTRY}/${APP_NAME}:${VERSION} \
-                            -t ${REGISTRY}/${APP_NAME}:latest \
+                            -t ${DOCKER_IMAGE}:${VERSION} \
+                            -t ${DOCKER_IMAGE}:latest \
+                            --label "org.opencontainers.image.source=https://github.com/${GITHUB_USERNAME}/stock-pos-server" \
+                            --label "org.opencontainers.image.description=Stock POS Server Application" \
+                            --label "org.opencontainers.image.version=${VERSION}" \
                             -f Dockerfile \
                             .
                         
-                        docker image inspect ${REGISTRY}/${APP_NAME}:${VERSION}
+                        echo "Built image: ${DOCKER_IMAGE}:${VERSION}"
+                        docker image inspect ${DOCKER_IMAGE}:${VERSION}
                     '''
                 }
             }
@@ -116,79 +122,179 @@ pipeline {
 
         stage('Security Scan') {
             when {
-                branch 'main'
+                anyOf {
+                    branch 'nan'
+                    branch 'origin/nan'
+                }
             }
             steps {
                 script {
                     echo "=== Running security scan on Docker image ==="
                     sh '''
                         # Example: Using trivy for image scanning
-                        # trivy image --severity HIGH,CRITICAL ${REGISTRY}/${APP_NAME}:${VERSION} || true
-                        echo "Image: ${REGISTRY}/${APP_NAME}:${VERSION}"
+                        # trivy image --severity HIGH,CRITICAL ${DOCKER_IMAGE}:${VERSION} || true
+                        echo "Image: ${DOCKER_IMAGE}:${VERSION}"
                         echo "Security scan completed"
                     '''
                 }
             }
         }
 
-        stage('Push to Registry') {
-            when {
-                branch 'main'
-            }
+        stage('Push to GHCR') {
             steps {
                 script {
-                    echo "=== Pushing Docker image to registry ==="
-                    sh '''
-                        docker login -u $REGISTRY_CREDENTIALS_USR -p $REGISTRY_CREDENTIALS_PSW
-                        docker push ${REGISTRY}/${APP_NAME}:${VERSION}
-                        docker push ${REGISTRY}/${APP_NAME}:latest
-                        docker logout
-                    '''
+                    echo "=== Pushing Docker image to GitHub Container Registry ==="
+                    echo "Branch: ${env.GIT_BRANCH ?: env.BRANCH_NAME}"
+                    
+                    withCredentials([
+                        string(credentialsId: 'github-token', variable: 'GHCR_TOKEN')
+                    ]) {
+                        sh '''#!/bin/bash
+                            set -e
+                            
+                            echo "=========================================="
+                            echo "Docker Image Push to GHCR"
+                            echo "=========================================="
+                            echo "Registry: ${REGISTRY}"
+                            echo "Username: ${GITHUB_USERNAME}"
+                            echo "Image: ${DOCKER_IMAGE}"
+                            echo "Tag: ${VERSION}"
+                            echo "=========================================="
+                            
+                            # Login to GitHub Container Registry
+                            echo "Logging into GHCR..."
+                            echo "${GHCR_TOKEN}" | docker login ${REGISTRY} -u ${GITHUB_USERNAME} --password-stdin
+                            
+                            if [ $? -ne 0 ]; then
+                                echo "✗ GHCR login failed!"
+                                exit 1
+                            fi
+                            echo "✓ GHCR login successful"
+                            
+                            # Push versioned tag
+                            echo ""
+                            echo "Pushing versioned image: ${DOCKER_IMAGE}:${VERSION}"
+                            docker push ${DOCKER_IMAGE}:${VERSION}
+                            
+                            if [ $? -ne 0 ]; then
+                                echo "✗ Failed to push ${DOCKER_IMAGE}:${VERSION}"
+                                docker logout ${REGISTRY}
+                                exit 1
+                            fi
+                            echo "✓ Successfully pushed ${DOCKER_IMAGE}:${VERSION}"
+                            
+                            # Push latest tag
+                            echo ""
+                            echo "Pushing latest tag: ${DOCKER_IMAGE}:latest"
+                            docker push ${DOCKER_IMAGE}:latest
+                            
+                            if [ $? -ne 0 ]; then
+                                echo "✗ Failed to push ${DOCKER_IMAGE}:latest"
+                                docker logout ${REGISTRY}
+                                exit 1
+                            fi
+                            echo "✓ Successfully pushed ${DOCKER_IMAGE}:latest"
+                            
+                            # Verify the push
+                            echo ""
+                            echo "Verifying image in GHCR..."
+                            docker pull ${DOCKER_IMAGE}:${VERSION}
+                            
+                            if [ $? -ne 0 ]; then
+                                echo "✗ Image verification failed - cannot pull from GHCR"
+                                docker logout ${REGISTRY}
+                                exit 1
+                            fi
+                            echo "✓ Image verification successful"
+                            
+                            # Logout
+                            docker logout ${REGISTRY}
+                            
+                            echo ""
+                            echo "=========================================="
+                            echo "✓ Push completed successfully!"
+                            echo "Image: ${DOCKER_IMAGE}:${VERSION}"
+                            echo "=========================================="
+                        '''
+                    }
+                }
+            }
+            post {
+                success {
+                    script {
+                        echo "=== Cleaning up old stock-pos-server Docker images ==="
+                        sh '''
+                            # Only remove old stock-pos-server images (not Jenkins or other images)
+                            docker images ${DOCKER_IMAGE} --format "{{.ID}} {{.Tag}}" | \
+                                grep -v "latest" | \
+                                grep -v "${VERSION}" | \
+                                awk '{print $1}' | \
+                                xargs -r docker rmi -f || true
+                            
+                            # Prune only dangling images (untagged intermediate layers)
+                            # This won't touch Jenkins or other tagged images
+                            docker image prune -f
+                            
+                            echo "Docker cleanup completed - Jenkins images preserved"
+                            docker images | grep -E "(stock-pos-server|jenkins)"
+                        '''
+                    }
                 }
             }
         }
 
-        stage('Trigger Deployment') {
+        stage('Deploy with Ansible') {
             when {
-                branch 'main'
-            }
-            steps {
-                script {
-                    echo "=== Triggering deployment pipeline ==="
-                    build job: 'stock-pos-server-deploy', 
-                          parameters: [
-                              string(name: 'ENVIRONMENT', value: 'dev'),
-                              string(name: 'IMAGE_VERSION', value: VERSION),
-                              booleanParam(name: 'RUN_TESTS', value: true)
-                          ],
-                          wait: false
+                expression { 
+                    env.GIT_BRANCH == 'nan' || 
+                    env.GIT_BRANCH == 'origin/nan' ||
+                    env.BRANCH_NAME == 'nan'
                 }
             }
-        }
-
-        stage('Notify Success') {
-            when {
-                branch 'main'
-            }
             steps {
                 script {
-                    echo "=== Sending success notifications ==="
-                    // Slack notification
-                    sh '''
-                        curl -X POST $SLACK_WEBHOOK \
-                            -H "Content-type: application/json" \
-                            -d '{
-                                "text": "✅ Build Successful",
-                                "attachments": [{
-                                    "color": "good",
-                                    "fields": [
-                                        {"title": "Build", "value": "'${BUILD_NUMBER}'"},
-                                        {"title": "Version", "value": "'${VERSION}'"},
-                                        {"title": "Branch", "value": "'${GIT_BRANCH}'"}
-                                    ]
-                                }]
-                            }' || true
-                    '''
+                    echo "=== Deploying to app server with Ansible ==="
+                    echo "Target: app_servers (89.167.6.46)"
+                    echo "Current branch: ${env.GIT_BRANCH ?: env.BRANCH_NAME}"
+                    
+                    withCredentials([
+                        string(credentialsId: 'ansible-vault-password', variable: 'VAULT_PASS')
+                    ]) {
+                        sshagent(['deploy-ssh-key']) {
+                            sh '''
+                                set -e
+                                
+                                # Create temporary vault password file
+                                echo "${VAULT_PASS}" > /tmp/vault_pass_${BUILD_NUMBER}.txt
+                                chmod 600 /tmp/vault_pass_${BUILD_NUMBER}.txt
+                                
+                                # Test SSH connection to backend server
+                                echo "Testing SSH connection to app_servers..."
+                                ssh -o StrictHostKeyChecking=no deployer@89.167.6.46 "docker ps" || echo "Warning: Could not verify backend connectivity"
+                                
+                                # Run Ansible deployment to app servers (NOT localhost)
+                                echo "Running Ansible deployment..."
+                                ansible-playbook ansible/playbooks/deploy.yml \
+                                    -i ansible/inventories/production/hosts.ini \
+                                    -l app_servers \
+                                    --vault-password-file /tmp/vault_pass_${BUILD_NUMBER}.txt \
+                                    -e "node_env=production" \
+                                    -e "pull_images=true" \
+                                    -e "build_image=false" \
+                                    -e "docker_registry=${REGISTRY}" \
+                                    -e "docker_registry_username=${GITHUB_USERNAME}" \
+                                    -e "docker_registry_password=${GITHUB_TOKEN}" \
+                                    -e "docker_image_name=${APP_NAME}" \
+                                    -e "docker_image_tag=${VERSION}" \
+                                    -e "confirm_deploy=yes" \
+                                    -vvv
+                                
+                                # Cleanup
+                                rm -f /tmp/vault_pass_${BUILD_NUMBER}.txt
+                                echo "Deployment completed successfully"
+                            '''
+                        }
+                    }
                 }
             }
         }
@@ -198,26 +304,26 @@ pipeline {
         always {
             script {
                 echo "=== Cleanup ==="
+                
+                // Clean up dangling and unused Docker resources
+                sh '''
+                    # Remove dangling images
+                    docker image prune -f
+                    
+                    # Remove unused build cache
+                    docker builder prune -f --filter "until=24h"
+                    
+                    echo "Docker system cleanup completed"
+                '''
+                
                 cleanWs()
             }
         }
         failure {
             script {
                 echo "❌ Build failed!"
-                sh '''
-                    curl -X POST $SLACK_WEBHOOK \
-                        -H "Content-type: application/json" \
-                        -d '{
-                            "text": "❌ Build Failed",
-                            "attachments": [{
-                                "color": "danger",
-                                "fields": [
-                                    {"title": "Build", "value": "'${BUILD_NUMBER}'"},
-                                    {"title": "Branch", "value": "'${GIT_BRANCH}'"}
-                                ]
-                            }]
-                        }' || true
-                '''
+                echo "Build: ${BUILD_NUMBER}"
+                echo "Branch: ${GIT_BRANCH}"
             }
         }
     }
