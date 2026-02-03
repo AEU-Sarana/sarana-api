@@ -101,19 +101,17 @@ export class TelegramController {
   // POST /api/v1/telegram/send-report
   static async sendReport(req: Request, res: Response): Promise<void> {
     try {
-      const { shift_id } = req.body;
       const user = req.user as UserPayload;
-
-      const response: SendReportResponse = await TelegramService.sendDailyReport(
-        shift_id,
-        user.userId,
-        user.role
+      const today = new Date().toISOString().slice(0, 10);
+      const response: SendReportResponse = await TelegramService.sendDailyAggregateReport(
+        today,
+        user.userId
       );
       
       res.json({
         success: true,
         data: response,
-        message: 'Report sent to Telegram'
+        message: 'Report sent to Telegram Successfully'
       });
     } catch (error: any) {
       logger.error('Send Telegram report error', { error: error.message });

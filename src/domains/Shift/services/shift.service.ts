@@ -17,6 +17,30 @@ import { ShiftClosedEvent } from '../events/shift-closed.event';
 
 export class ShiftService {
   /**
+   * Get latest closed shift for report sending
+   */
+  static async getLatestClosedShift(
+    currentUserId: number,
+    currentUserRole: string
+  ): Promise<{ shift_id: number } | null> {
+    const where =
+      currentUserRole === 'SELLER'
+        ? { sellerId: currentUserId, status: 'CLOSED' }
+        : { status: 'CLOSED' };
+
+    const latestShift = await prisma.shift.findFirst({
+      where,
+      orderBy: { endTime: 'desc' },
+      select: { shiftId: true },
+    });
+
+    if (!latestShift) {
+      return null;
+    }
+
+    return { shift_id: latestShift.shiftId };
+  }
+  /**
    * Start shift
    * - Enforce one ACTIVE shift per seller
    * - Pull stock snapshot for mobile + capture stock version
