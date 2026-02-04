@@ -1,6 +1,6 @@
 ---
 # ============================================================================
-# PRODUCTION ENVIRONMENT GROUP VARIABLES
+# PRODUCTION ENVIRONMENT GROUP VARIABLESss
 # Located: ansible/inventories/production/group_vars/app_servers.yml
 # This file contains production-specific configuration
 # Sensitive data is stored in app_servers-vault.yml (encrypted)
