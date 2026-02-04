@@ -271,8 +271,8 @@ pipeline {
                                 fi
                                 echo "VAULT_PASS length: ${#VAULT_PASS}"
                                 
-                                # Create temporary vault password file
-                                echo "${VAULT_PASS}" > /tmp/vault_pass_${BUILD_NUMBER}.txt
+                                # Create temporary vault password file (no newline!)
+                                echo -n "${VAULT_PASS}" > /tmp/vault_pass_${BUILD_NUMBER}.txt
                                 chmod 600 /tmp/vault_pass_${BUILD_NUMBER}.txt
                                 
                                 # Test if vault can be decrypted
