@@ -44,7 +44,7 @@ COPY --from=build /app/prisma.config.ts ./
 
 # Install production dependencies AND prisma CLI
 RUN pnpm install --prod --frozen-lockfile && \
-    pnpm add -D prisma
+    pnpm add -D prisma tsx
 
 # Copy Prisma schema and migrations (needed for migrations)
 COPY --from=build /app/src/database/prisma ./src/database/prisma

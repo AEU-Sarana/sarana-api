@@ -98,7 +98,7 @@
   command: >-
     docker compose -f {{ app_directory }}/docker-compose.yml
     -f {{ app_directory }}/docker-compose.prod.yml
-    exec -T app node apply-domain-migrations.js apply
+    exec -T app pnpm migrate:apply
   register: migrate_output
   changed_when: "'Applied' in migrate_output.stdout or 'migrate' in migrate_output.stdout or 'Success' in migrate_output.stdout"
   failed_when: migrate_output.rc != 0
