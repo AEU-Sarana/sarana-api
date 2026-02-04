@@ -60,6 +60,10 @@ COPY --from=build /app/dist ./dist
 # Regenerate Prisma Client in production
 RUN pnpm db:generate
 
+# Copy generated Prisma client to dist for module resolution
+RUN mkdir -p dist/database/generated && \
+    cp -r src/database/generated/* dist/database/generated/
+
 # Expose port
 EXPOSE 3000
 
