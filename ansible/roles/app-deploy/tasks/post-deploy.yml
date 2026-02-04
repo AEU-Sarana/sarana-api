@@ -30,6 +30,34 @@
   debug:
     msg: "{{ disk_usage.stdout_lines }}"
 
+- name: Clean up dangling Docker images and containers
+  shell: |
+    # Remove dangling images (no tags)
+    docker image prune -f --filter "dangling=true" || true
+    
+    # Remove exited containers
+    docker container prune -f || true
+    
+    # Show remaining images for this app
+    echo "=== Remaining {{ app_name }} images ==="
+    docker images | grep "{{ app_name }}"
+  register: cleanup_result
+  changed_when: false
+  ignore_errors: yes
+
+- name: Display cleanup results
+  debug:
+    msg: "{{ cleanup_result.stdout_lines }}"
+
+- name: Get final disk usage
+  command: df -h {{ app_directory }}
+  register: final_disk_usage
+  changed_when: false
+
+- name: Display final disk usage
+  debug:
+    msg: "{{ final_disk_usage.stdout_lines }}"
+
 - name: Create deployment summary
   set_fact:
     deployment_summary:

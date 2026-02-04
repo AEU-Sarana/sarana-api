@@ -172,7 +172,29 @@ pipeline {
         stage('Cleanup Docker Images') {
             steps {
                 sh '''
+                    echo "=== Before Cleanup ==="
+                    docker images | grep stock-pos-server | wc -l || true
+                    docker system df || true
+                    
+                    echo "=== Cleaning up dangling images ==="
                     docker image prune -f || true
+                    
+                    echo "=== Cleaning up exited containers ==="
+                    docker container prune -f || true
+                    
+                    echo "=== Cleaning up unused volumes ==="
+                    docker volume prune -f || true
+                    
+                    echo "=== Removing old stock-pos-server images (keep last 3) ==="
+                    docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}" | \
+                    grep "stock-pos-server" | \
+                    head -n -3 | \
+                    awk '{print $NF}' | \
+                    xargs -r docker rmi -f || true
+                    
+                    echo "=== After Cleanup ==="
+                    docker images | grep stock-pos-server | wc -l || true
+                    docker system df || true
                 '''
             }
         }
