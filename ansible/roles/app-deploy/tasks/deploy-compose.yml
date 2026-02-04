@@ -88,7 +88,7 @@
   ignore_errors: yes
 
 - name: Get running containers
-  command: docker ps --filter "name={{ app_name }}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+  shell: docker ps --filter "name={{ app_name }}" --format 'table {{{{ '{{' }}.Names}}\t{{{{ '{{' }}.Status}}\t{{{{ '{{' }}.Ports}}'
   register: running_containers
   changed_when: false
 
