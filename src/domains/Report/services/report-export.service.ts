@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import XLSX from 'xlsx';
 import { logger } from '@src/shared/utils/logger';
 
 export class ReportExportService {
@@ -62,6 +63,54 @@ export class ReportExportService {
       return finalFileName;
     } catch (error: any) {
       logger.error('CSV export error', {
+        error: error.message,
+        stack: error.stack,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Export data to XLSX format with multiple sheets
+   */
+  static async exportXLSX(
+    sheets: Record<string, any[]>,
+    fileName?: string
+  ): Promise<string> {
+    const sheetEntries = Object.entries(sheets);
+    if (sheetEntries.length === 0) {
+      throw new Error('No sheets provided for XLSX export');
+    }
+
+    try {
+      const workbook = XLSX.utils.book_new();
+
+      for (const [sheetName, data] of sheetEntries) {
+        const safeName = sheetName.slice(0, 31);
+        const rows = Array.isArray(data) && data.length > 0 ? data : [{}];
+        const worksheet = XLSX.utils.json_to_sheet(rows);
+        XLSX.utils.book_append_sheet(workbook, worksheet, safeName);
+      }
+
+      const tmpDir = '/tmp';
+      if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+      }
+
+      const finalFileName = fileName ? `${fileName}.xlsx` : `report_${Date.now()}.xlsx`;
+      const filePath = path.join(tmpDir, finalFileName);
+
+      XLSX.writeFile(workbook, filePath);
+
+      logger.info('XLSX file exported successfully', {
+        fileName: finalFileName,
+        filePath,
+        sheetCount: sheetEntries.length,
+      });
+
+      return finalFileName;
+    } catch (error: any) {
+      logger.error('XLSX export error', {
         error: error.message,
         stack: error.stack,
       });

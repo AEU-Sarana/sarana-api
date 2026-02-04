@@ -17,6 +17,30 @@ import { ShiftClosedEvent } from '../events/shift-closed.event';
 
 export class ShiftService {
   /**
+   * Get latest closed shift for report sending
+   */
+  static async getLatestClosedShift(
+    currentUserId: number,
+    currentUserRole: string
+  ): Promise<{ shift_id: number } | null> {
+    const where =
+      currentUserRole === 'SELLER'
+        ? { sellerId: currentUserId, status: 'CLOSED' }
+        : { status: 'CLOSED' };
+
+    const latestShift = await prisma.shift.findFirst({
+      where,
+      orderBy: { endTime: 'desc' },
+      select: { shiftId: true },
+    });
+
+    if (!latestShift) {
+      return null;
+    }
+
+    return { shift_id: latestShift.shiftId };
+  }
+  /**
    * Start shift
    * - Enforce one ACTIVE shift per seller
    * - Pull stock snapshot for mobile + capture stock version
@@ -119,8 +143,9 @@ export class ShiftService {
     const shift = await prisma.shift.findUnique({ where: { shiftId } });
     if (!shift) throw new ValidationException('Shift not found');
 
-    const pendingOrdersCount = request.pending_orders_count ?? 0;
-    const forceClose = request.force_close === true;
+    const pendingOrdersCount = request.pending_orders_count;
+    const closeMode = request.close_mode ?? (request.force_close ? 'FORCED' : 'NORMAL');
+    const forceClose = closeMode === 'FORCED';
     const forceCloseReason = request.force_close_reason?.toString().trim() || '';
 
     // Seller can only close own shift
@@ -146,7 +171,7 @@ export class ShiftService {
         throw new BusinessLogicException('Only admin can force close the shift', 'FORBIDDEN', 403);
       }
       if (!forceCloseReason) {
-        throw new ValidationException('force_close_reason is required when force_close is true');
+        throw new ValidationException('force_close_reason is required when close_mode is FORCED');
       }
     }
 
@@ -178,7 +203,7 @@ export class ShiftService {
         totalSalesAmount,
         status: 'CLOSED',
         reportSentStatus: 'PENDING',
-        closeMode: forceClose ? 'FORCED' : 'NORMAL',
+        closeMode,
         forceCloseReason: forceClose ? forceCloseReason : null,
       },
     });

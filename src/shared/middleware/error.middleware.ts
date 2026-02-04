@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '@src/shared/utils/logger';
-import { 
-  ValidationException, 
-  BusinessLogicException, 
-  DomainException 
+import {
+  ValidationException,
+  BusinessLogicException,
+  DomainException
 } from '@src/shared/exceptions';
 
 export interface ApiError {
@@ -62,10 +62,17 @@ export function errorMiddleware(
 
   // Handle Prisma errors
   if (err.name === 'PrismaClientKnownRequestError') {
+    const prismaErr = err as any;
+    const isDevelopment = process.env.NODE_ENV === 'development';
     res.status(400).json({
       success: false,
       message: 'Database operation failed',
       code: 'DATABASE_ERROR',
+      ...(isDevelopment && {
+        prisma_code: prismaErr.code,
+        prisma_meta: prismaErr.meta,
+        prisma_message: prismaErr.message,
+      }),
     });
     return;
   }

@@ -34,8 +34,9 @@ export interface StartShiftResponse {
   
 export interface CloseShiftRequest {
   actual_cash: number;
-  pending_orders_count?: number;
+  pending_orders_count: number;
   last_order_sync_at?: string;
+  close_mode?: 'NORMAL' | 'FORCED';
   force_close?: boolean;
   force_close_reason?: string;
 }

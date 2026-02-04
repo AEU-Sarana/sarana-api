@@ -1,3 +1,11 @@
+import type {
+    DailyReportMetadata,
+    DailyReportSummary,
+    LowStockItem,
+    ShiftBreakdown,
+    TopProduct,
+} from '@src/domains/Report/types/report.types';
+
 export interface TelegramConfigInput {
     bot_token: string;
     group_chat_id: string;
@@ -27,10 +35,25 @@ export interface TestConnectionResponse {
 }
 
 // Report Sending Types
+export interface TelegramDailyReportResponse {
+    date: string;
+    total_sales: number;
+    total_orders: number;
+    total_shifts: number;
+    average_order_value: number;
+    currency: string;
+    shifts: ShiftBreakdown[];
+    top_products: TopProduct[];
+    low_stock_items: LowStockItem[];
+    summary: DailyReportSummary;
+    metadata: DailyReportMetadata;
+}
+
 export interface SendReportResponse {
     sent: boolean;
     message_id: number;
     sent_at: string;
+    report: TelegramDailyReportResponse;
 }
   
 // Telegram Bot API Types
