@@ -20,6 +20,11 @@ force_recreate: false
 pull_images: true
 build_image: true
 
+# Database migration/seed
+run_db_migrations: true
+run_db_seed: false
+app_container_name: "{{ app_name }}-app"
+
 # Template generation flags
 # Set to true only if your repo doesn't have these files
 create_dockerfile: false  # Set true if repo has no Dockerfile

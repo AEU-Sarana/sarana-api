@@ -54,6 +54,30 @@
     var: compose_output
   when: compose_output is changed
 
+- name: Run database migrations
+  command: >-
+    docker compose -f {{ app_directory }}/docker-compose.yml
+    -f {{ app_directory }}/docker-compose.prod.yml
+    exec -T app pnpm db:migrate:deploy
+  register: migrate_output
+  changed_when: "'Applied' in migrate_output.stdout or 'migrate' in migrate_output.stdout"
+  failed_when: migrate_output.rc != 0
+  retries: 3
+  delay: 5
+  when: run_db_migrations | bool
+
+- name: Run database seed
+  command: >-
+    docker compose -f {{ app_directory }}/docker-compose.yml
+    -f {{ app_directory }}/docker-compose.prod.yml
+    exec -T app pnpm seed
+  register: seed_output
+  changed_when: "'seed' in seed_output.stdout or seed_output.rc == 0"
+  failed_when: seed_output.rc != 0
+  retries: 3
+  delay: 5
+  when: run_db_seed | bool
+
 - name: Wait for services to be healthy
   command: docker compose -f {{ app_directory }}/docker-compose.yml -f {{ app_directory }}/docker-compose.prod.yml ps
   register: compose_ps
