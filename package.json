@@ -4,6 +4,9 @@
   "description": "Stock POS System Backend API",
   "type": "commonjs",
   "main": "dist/index.js",
+  "prisma": {
+    "schema": "src/database/prisma/schema.prisma"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "clean": "rm -rf dist",

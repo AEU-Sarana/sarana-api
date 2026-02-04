@@ -36,16 +36,20 @@ RUN npm install -g pnpm@10.15.1
 
 WORKDIR /app
 
-# Copy package files and install production dependencies
+# Copy package files
 COPY package.json pnpm-lock.yaml ./
+
+# Install production dependencies only
 RUN pnpm install --prod --frozen-lockfile
 
-# Copy built files from build stage
+# Copy Prisma schema and migrations (needed for migrations)
+COPY --from=build /app/src/database/prisma ./src/database/prisma
+
+# Copy built application
 COPY --from=build /app/dist ./dist
 
-# Copy prisma schema and entire node_modules/.prisma from build stage
-COPY --from=build /app/src/database/prisma ./src/database/prisma
-COPY --from=build /app/node_modules ./node_modules
+# Regenerate Prisma Client in production
+RUN pnpm db:generate
 
 # Expose port
 EXPOSE 3000
