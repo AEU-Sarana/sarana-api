@@ -6,8 +6,8 @@ services:
     image: postgres:15-alpine
     container_name: stock-pos-db
     environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_USER: ${DB_USER:-stockpos}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-stockpos}
       POSTGRES_DB: ${DB_NAME:-stock_pos}
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -15,7 +15,7 @@ services:
       - "${DB_PORT:-5433}:5432"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-stockpos}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -70,10 +70,6 @@ services:
     environment:
       NODE_ENV: production
       PORT: ${PORT:-3000}
-      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-stock_pos}
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
     volumes:
       - app-logs:/app/logs
     depends_on:
