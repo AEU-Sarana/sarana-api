@@ -84,6 +84,16 @@ minio_root_password: "{{ vault_prod_minio_password }}"
 minio_use_ssl: false
 minio_bucket_name: "{{ app_name }}-storage"
 
+# ===== STORAGE CONFIGURATION (S3/MinIO) =====
+storage_provider: minio
+storage_endpoint: "http://{{ minio_endpoint }}:{{ minio_api_port }}"
+storage_access_key: "{{ minio_root_user }}"
+storage_secret_key: "{{ minio_root_password }}"
+storage_bucket: "{{ minio_bucket_name }}"
+storage_region: "us-east-1"
+storage_use_ssl: "false"
+storage_public_url: ""
+
 # ===== NGINX CONFIGURATION =====
 nginx_http_port: 80
 nginx_https_port: 443
