@@ -351,6 +351,28 @@ export class StockService {
       },
     });
 
+    if (cost != null) {
+      const previousQty = stock.quantity;
+      const previousAvgCost = Number(product.avgCost ?? product.lastPurchaseCost ?? 0);
+      const newQty = previousQty + quantity;
+      const unitCost = Number(cost);
+      const newAvgCost =
+        newQty > 0 ? (previousAvgCost * previousQty + unitCost * quantity) / newQty : unitCost;
+
+      await prisma.product.update({
+        where: { productId: product_id },
+        data: {
+          avgCost: newAvgCost,
+          lastPurchaseCost: unitCost,
+        },
+      });
+    } else {
+      logger.warn('Stock in without cost, avgCost not updated', {
+        productId: product_id,
+        quantity,
+      });
+    }
+
     await auditLogService.createAuditLog({
       userId: currentUserId,
       action: 'STOCK_IN',

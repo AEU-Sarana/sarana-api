@@ -7,4 +7,8 @@ export class TelegramAdminLinksService {
     await TelegramAdminLinkModel.touch(telegramUserId, chatId);
     return link;
   }
+
+  static async linkAdmin(params: { userId: number; telegramUserId: number; chatId: number }) {
+    return TelegramAdminLinkModel.upsertActiveLink(params);
+  }
 }

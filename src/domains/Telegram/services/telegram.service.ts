@@ -1,4 +1,5 @@
-import  prisma  from '@src/database/client';
+import prisma from '@src/database/client';
+import axios from 'axios';
 import { encrypt, decrypt } from '@src/shared/utils/encryption';
 import { logger } from '@src/shared/utils/logger';
 import { ReportService } from '@src/domains/Report/services/report.service';
@@ -14,6 +15,8 @@ import {
   TelegramConfigResponse,
   TestConnectionResponse,
   SendReportResponse,
+  TelegramAPIError,
+  TelegramMessageResponse,
 } from '@src/domains/Telegram/types/telegram.types';
 import { DailySalesReportResponse } from '@src/domains/Report/types/report.types';
 import { GetShiftResponse } from '@src/domains/Shift/types/shift.types';
@@ -28,6 +31,7 @@ import fs from 'fs/promises';
 export class TelegramService {
 
   // Track sent alerts to prevent spam
+  private static readonly BASE_URL = 'https://api.telegram.org/bot';
   private static sentAlerts = new Map<string, number>();
   private static normalizeTestStatus(
     status: string | null
@@ -135,6 +139,299 @@ export class TelegramService {
       last_test_time: config.lastTestTime?.toISOString(),
       last_test_status: this.normalizeTestStatus(config.lastTestStatus)
     };
+  }
+
+  private static async getActiveConfigOrThrow(): Promise<TelegramConfig> {
+    const config = await this.getTelegramConfig();
+    if (!config || !config.is_active) {
+      throw new Error('Telegram not configured or disabled');
+    }
+    return config;
+  }
+
+  private static async sendMessageWithMarkup(
+    botToken: string,
+    chatId: number | string,
+    text: string,
+    parseMode: 'Markdown' | 'HTML' = 'Markdown',
+    replyMarkup?: Record<string, unknown>
+  ): Promise<TelegramMessageResponse> {
+    try {
+      const response = await axios.post(
+        `${this.BASE_URL}${botToken}/sendMessage`,
+        {
+          chat_id: chatId,
+          text,
+          parse_mode: parseMode,
+          reply_markup: replyMarkup,
+        },
+        {
+          timeout: 10000,
+        }
+      );
+
+      return {
+        success: true,
+        messageId: response.data.result.message_id,
+        sentAt: new Date(response.data.result.date * 1000),
+      };
+    } catch (error: any) {
+      if (error.response) {
+        throw new TelegramAPIError(
+          error.response.data.error_code,
+          error.response.data.description
+        );
+      }
+      throw new TelegramAPIError(0, error.message);
+    }
+  }
+
+  static async sendMessageByChatId(
+    chatId: number | string,
+    text: string,
+    parseMode: 'Markdown' | 'HTML' = 'Markdown'
+  ): Promise<TelegramMessageResponse> {
+    const config = await this.getActiveConfigOrThrow();
+    return TelegramBotService.sendMessage(config.bot_token, String(chatId), text, parseMode);
+  }
+
+  static async sendConfirmKeyboard(
+    chatId: number | string,
+    action: string
+  ): Promise<TelegramMessageResponse> {
+    const config = await this.getActiveConfigOrThrow();
+    const replyMarkup = {
+      inline_keyboard: [
+        [
+          { text: 'Confirm', callback_data: `CONFIRM:${action}` },
+          { text: 'Cancel', callback_data: 'CONFIRM:CANCEL' },
+        ],
+      ],
+    };
+    return this.sendMessageWithMarkup(
+      config.bot_token,
+      chatId,
+      'Please confirm this action.',
+      'Markdown',
+      replyMarkup
+    );
+  }
+
+  static async sendAdminMenu(chatId: number | string): Promise<TelegramMessageResponse> {
+    const config = await this.getActiveConfigOrThrow();
+    const replyMarkup = this.buildAdminMenuKeyboard();
+
+    return this.sendMessageWithMarkup(
+      config.bot_token,
+      chatId,
+      'Select an action:',
+      'Markdown',
+      replyMarkup
+    );
+  }
+
+  static buildAdminMenuKeyboard() {
+    return {
+      inline_keyboard: [
+        [
+          { text: 'របាយការណ៍ថ្ងៃនេះ', callback_data: 'REPORT:today' },
+          { text: 'របាយការណ៍ម្សិលមិញ', callback_data: 'REPORT:yesterday' },
+        ],
+        [
+          { text: 'សប្តាហ៍នេះ', callback_data: 'REPORT:this_week' },
+          { text: 'ខែនេះ', callback_data: 'REPORT:this_month' },
+        ],
+        [
+          { text: 'ឆ្នាំនេះ', callback_data: 'REPORT:this_year' },
+          { text: '📦 របាយការណ៍ស្តុក', callback_data: 'inv_menu' },
+        ],
+        [
+          { text: 'សង្ខេបវេន', callback_data: 'SHIFT_SUMMARY' },
+        ],
+        [
+          { text: 'ទំនិញលក់ដាច់បំផុត', callback_data: 'TOP_PRODUCTS:MENU' },
+        ],
+        [
+          { text: 'ទំនិញលក់មិនដាច់', callback_data: 'SLOW_PRODUCTS:MENU' },
+        ],
+        [
+          { text: 'របាយការណ៍ចំណូល', callback_data: 'INCOME:MENU' },
+        ],
+        [
+          { text: 'របាយការណ៍តាមកាលបរិច្ឆេទ', callback_data: 'REPORT:CUSTOM' },
+        ],
+        [
+          { text: 'ផ្ញើរបាយការណ៍ម្តងទៀត', callback_data: 'ACTION:RESEND_LAST_REPORT' },
+        ],
+      ],
+    };
+  }
+
+  static buildInventoryMenuKeyboard() {
+    return {
+      inline_keyboard: [
+        [
+          { text: 'ស្តុកនៅសល់', callback_data: 'inv_on_hand' },
+          { text: 'តម្លៃស្តុកសរុប', callback_data: 'inv_value' },
+        ],
+        [
+          { text: 'ស្តុកទាប', callback_data: 'inv_low_stock' },
+          { text: 'ស្តុកជិតអស់', callback_data: 'inv_reorder' },
+        ],
+        [
+          { text: 'ត្រឡប់ក្រោយ', callback_data: 'nav_back' },
+          { text: 'មុខម៉ឺនុយ', callback_data: 'nav_home' },
+        ],
+      ],
+    };
+  }
+
+  static buildInventoryNavKeyboard() {
+    return {
+      inline_keyboard: [
+        [
+          { text: 'ត្រឡប់ក្រោយ', callback_data: 'nav_back' },
+          { text: 'មុខម៉ឺនុយ', callback_data: 'nav_home' },
+        ],
+      ],
+    };
+  }
+
+  static async sendInventoryMenu(chatId: number | string): Promise<TelegramMessageResponse> {
+    const config = await this.getActiveConfigOrThrow();
+    return this.sendMessageWithMarkup(
+      config.bot_token,
+      chatId,
+      '📦 *របាយការណ៍ស្តុក* — ជ្រើសរបាយការណ៍៖',
+      'Markdown',
+      this.buildInventoryMenuKeyboard()
+    );
+  }
+
+  static async sendInventoryReportMessage(
+    chatId: number | string,
+    text: string
+  ): Promise<TelegramMessageResponse> {
+    const config = await this.getActiveConfigOrThrow();
+    return this.sendMessageWithMarkup(
+      config.bot_token,
+      chatId,
+      text,
+      'Markdown',
+      this.buildInventoryNavKeyboard()
+    );
+  }
+
+  static async sendTopProductsMenu(chatId: number | string): Promise<TelegramMessageResponse> {
+    const config = await this.getActiveConfigOrThrow();
+    const replyMarkup = {
+      inline_keyboard: [
+        [
+          { text: 'ប្រចាំថ្ងៃ', callback_data: 'TOP_PRODUCTS:today' },
+          { text: 'ប្រចាំសប្តាហ៍', callback_data: 'TOP_PRODUCTS:this_week' },
+        ],
+        [
+          { text: 'ប្រចាំខែ', callback_data: 'TOP_PRODUCTS:this_month' },
+          { text: 'ប្រចាំឆ្នាំ', callback_data: 'TOP_PRODUCTS:this_year' },
+        ],
+        [
+          { text: 'តាមកាលបរិច្ឆេទ', callback_data: 'TOP_PRODUCTS:CUSTOM' },
+        ],
+        [
+          { text: 'ត្រឡប់ក្រោយ', callback_data: 'MENU:MAIN' },
+        ],
+      ],
+    };
+
+    return this.sendMessageWithMarkup(
+      config.bot_token,
+      chatId,
+      'ជ្រើសរយៈពេល៖',
+      'Markdown',
+      replyMarkup
+    );
+  }
+
+  static async sendSlowProductsMenu(chatId: number | string): Promise<TelegramMessageResponse> {
+    const config = await this.getActiveConfigOrThrow();
+    const replyMarkup = {
+      inline_keyboard: [
+        [
+          { text: 'ប្រចាំសប្តាហ៍', callback_data: 'SLOW_PRODUCTS:this_week' },
+          { text: 'ប្រចាំខែ', callback_data: 'SLOW_PRODUCTS:this_month' },
+        ],
+        [
+          { text: 'ប្រចាំឆ្នាំ', callback_data: 'SLOW_PRODUCTS:this_year' },
+          { text: 'តាមកាលបរិច្ឆេទ', callback_data: 'SLOW_PRODUCTS:CUSTOM' },
+        ],
+        [
+          { text: 'ត្រឡប់ក្រោយ', callback_data: 'MENU:MAIN' },
+        ],
+      ],
+    };
+
+    return this.sendMessageWithMarkup(
+      config.bot_token,
+      chatId,
+      'ជ្រើសរយៈពេល៖',
+      'Markdown',
+      replyMarkup
+    );
+  }
+
+  static async sendIncomeMenu(chatId: number | string): Promise<TelegramMessageResponse> {
+    const config = await this.getActiveConfigOrThrow();
+    const replyMarkup = {
+      inline_keyboard: [
+        [
+          { text: 'ប្រចាំថ្ងៃ', callback_data: 'INCOME:today' },
+          { text: 'ប្រចាំសប្តាហ៍', callback_data: 'INCOME:this_week' },
+        ],
+        [
+          { text: 'ប្រចាំខែ', callback_data: 'INCOME:this_month' },
+          { text: 'ប្រចាំឆ្នាំ', callback_data: 'INCOME:this_year' },
+        ],
+        [
+          { text: 'តាមកាលបរិច្ឆេទ', callback_data: 'INCOME:CUSTOM' },
+        ],
+        [
+          { text: 'ត្រឡប់ក្រោយ', callback_data: 'MENU:MAIN' },
+        ],
+      ],
+    };
+
+    return this.sendMessageWithMarkup(
+      config.bot_token,
+      chatId,
+      'ជ្រើសរយៈពេល៖',
+      'Markdown',
+      replyMarkup
+    );
+  }
+
+  static async answerCallback(
+    callbackQueryId: string,
+    message = 'OK'
+  ): Promise<void> {
+    const config = await this.getActiveConfigOrThrow();
+    try {
+      await axios.post(
+        `${this.BASE_URL}${config.bot_token}/answerCallbackQuery`,
+        {
+          callback_query_id: callbackQueryId,
+          text: message,
+        },
+        { timeout: 10000 }
+      );
+    } catch (error: any) {
+      if (error.response) {
+        throw new TelegramAPIError(
+          error.response.data.error_code,
+          error.response.data.description
+        );
+      }
+      throw new TelegramAPIError(0, error.message);
+    }
   }
   
   /**

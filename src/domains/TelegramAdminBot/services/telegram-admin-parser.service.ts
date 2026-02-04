@@ -15,11 +15,16 @@ export class TelegramAdminParserService {
       return { type: 'STOCK_WRITE', requestId: callbackData.split(':')[1] };
     }
     if (!text) return { type: 'UNKNOWN' };
-    if (text.startsWith('/report')) return { type: 'REPORT', date: new Date().toISOString().slice(0, 10) };
-    if (text.startsWith('/lowstock')) return { type: 'LOWSTOCK' };
-    if (text.startsWith('/p ')) return { type: 'PRODUCT_LOOKUP', productCode: text.split(' ')[1] };
-    if (text.startsWith('/stock')) {
-      const parts = text.split(' ').filter(Boolean);
+    const parts = text.trim().split(/\s+/).filter(Boolean);
+    const command = (parts[0] || '').split('@')[0];
+    if (command === '/start') return { type: 'START' };
+    if (command === '/report') return { type: 'REPORT', date: new Date().toISOString().slice(0, 10) };
+    if (command === '/lowstock' || command === '/low_stock') return { type: 'LOWSTOCK' };
+    if (command === '/shift_summary') return { type: 'SHIFT_SUMMARY' };
+    if (command === '/resend_last_report') return { type: 'RESEND_LAST_REPORT' };
+    if (command === '/unlink_bot') return { type: 'UNLINK_BOT' };
+    if (command === '/p') return { type: 'PRODUCT_LOOKUP', productCode: parts[1] };
+    if (command === '/stock') {
       return {
         type: 'STOCK_WRITE',
         movementType: parts[1]?.toUpperCase(),

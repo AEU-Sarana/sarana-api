@@ -4,6 +4,7 @@ import fs from 'fs';
 import { TelegramAPIError, TelegramBotInfo, TelegramMessageResponse } from '@src/domains/Telegram/types/telegram.types';
 
 export class TelegramBotService {
+
   private static readonly BASE_URL = 'https://api.telegram.org/bot';
   
   /**
@@ -88,7 +89,7 @@ export class TelegramBotService {
   
   /**
    * Test bot token validity
-   */
+  */
   static async getMe(botToken: string): Promise<TelegramBotInfo> {
     const response = await axios.get(`${this.BASE_URL}${botToken}/getMe`);
     return response.data.result;

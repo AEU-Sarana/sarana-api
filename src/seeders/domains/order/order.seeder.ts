@@ -43,13 +43,14 @@ export class OrderSeeder extends BaseSeeder {
           const productId = SeederHelper.randomElement(productIds);
           const product = await prisma.product.findUnique({
             where: { productId },
-            select: { productName: true, price: true },
+            select: { productName: true, price: true, avgCost: true, lastPurchaseCost: true },
           });
           
           if (!product) continue;
           
           const quantity = SeederHelper.randomInt(1, 5);
           const unitPrice = Number(product.price);
+          const costPerUnitAtSale = Number(product.avgCost ?? product.lastPurchaseCost ?? 0);
           const discountAmount = SeederHelper.randomFloat(0, unitPrice * 0.1);
           const subtotal = (unitPrice * quantity) - discountAmount;
           
@@ -58,6 +59,8 @@ export class OrderSeeder extends BaseSeeder {
             productName: product.productName,
             quantity,
             unitPrice,
+            costPerUnitAtSale,
+            cogsLineTotal: costPerUnitAtSale * quantity,
             discountAmount,
             subtotal,
           });
@@ -97,4 +100,3 @@ export class OrderSeeder extends BaseSeeder {
     console.log(`   Created ${orders.length} orders`);
   }
 }
-
