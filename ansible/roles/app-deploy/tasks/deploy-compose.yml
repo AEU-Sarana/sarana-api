@@ -94,13 +94,13 @@
   when: run_db_migrations | bool
 
 # NOW run migrations after everything is ready
-- name: Run database migrations
+- name: Run database migrations (domain-based)
   command: >-
     docker compose -f {{ app_directory }}/docker-compose.yml
     -f {{ app_directory }}/docker-compose.prod.yml
-    exec -T app pnpm db:migrate:deploy
+    exec -T app node apply-domain-migrations.js apply
   register: migrate_output
-  changed_when: "'Applied' in migrate_output.stdout or 'migrate' in migrate_output.stdout"
+  changed_when: "'Applied' in migrate_output.stdout or 'migrate' in migrate_output.stdout or 'Success' in migrate_output.stdout"
   failed_when: migrate_output.rc != 0
   retries: 3
   delay: 5
