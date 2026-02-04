@@ -1,10 +1,10 @@
 ---
-# ============================================================================
-# PRODUCTION ENVIRONMENT GROUP VARIABLESss
-# Located: ansible/inventories/production/group_vars/app_servers.yml
-# This file contains production-specific configuration
-# Sensitive data is stored in app_servers-vault.yml (encrypted)
-# ============================================================================
+# ==========================================================================
+# PRODUCTION ENVIRONMENT GROUP VARIABLES
+# Located: ansible/inventories/production/group_vars/all.yml
+# This file contains production-specific configuration for all groups
+# Sensitive data is stored in group_vars/vault.yml (encrypted)
+# ==========================================================================
 
 # ===== SSH & ANSIBLE CONFIGURATION =====
 ansible_user: root

@@ -252,52 +252,52 @@ pipeline {
                 }
             }
             steps {
-    script {
-        echo "=== Deploying to app server with Ansible ==="
-        echo "Target: app_servers (89.167.6.46)"
-        echo "Current branch: ${env.GIT_BRANCH ?: env.BRANCH_NAME}"
-        
-        withCredentials([
-            string(credentialsId: 'ansible-vault-password', variable: 'VAULT_PASS')
-        ]) {
-            sshagent(['deploy-ssh-key']) {
-                sh '''
-                    set -e
+                script {
+                    echo "=== Deploying to app server with Ansible ==="
+                    echo "Target: app_servers (89.167.6.46)"
+                    echo "Current branch: ${env.GIT_BRANCH ?: env.BRANCH_NAME}"
                     
-                    # Create temporary vault password file
-                    echo "${VAULT_PASS}" > /tmp/vault_pass_${BUILD_NUMBER}.txt
-                    chmod 600 /tmp/vault_pass_${BUILD_NUMBER}.txt
-                    
-                    # Test SSH connection to backend server
-                    echo "Testing SSH connection to app_servers..."
-                    ssh -o StrictHostKeyChecking=no deployer@89.167.6.46 "docker ps" || echo "Warning: Could not verify backend connectivity"
-                    
-                    # Run Ansible deployment to app servers (NOT localhost)
-                    echo "Running Ansible deployment..."
-                    ansible-playbook ansible/playbooks/deploy.yml \
-                        -i ansible/inventories/production/hosts.ini \
-                        -l app_servers \
-                        --vault-password-file /tmp/vault_pass_${BUILD_NUMBER}.txt \
-                        -e "node_env=production" \
-                        -e "pull_images=true" \
-                        -e "build_image=false" \
-                        -e "run_db_migrations=true" \
-                        -e "run_db_seed=false" \
-                        -e "docker_registry=${REGISTRY}" \
-                        -e "docker_registry_username=${GITHUB_USERNAME}" \
-                        -e "docker_registry_password=${GITHUB_TOKEN}" \
-                        -e "docker_image_name=${APP_NAME}" \
-                        -e "docker_image_tag=${VERSION}" \
-                        -e "confirm_deploy=yes" \
-                        -vvv
-                    
-                    # Cleanup
-                    rm -f /tmp/vault_pass_${BUILD_NUMBER}.txt
-                    echo "Deployment completed successfully"
-                '''
-            }
-        }
-    }
+                    withCredentials([
+                        string(credentialsId: 'ansible-vault-password', variable: 'VAULT_PASS')
+                    ]) {
+                        sshagent(['deploy-ssh-key']) {
+                            sh '''
+                                set -e
+                                
+                                # Create temporary vault password file
+                                echo "${VAULT_PASS}" > /tmp/vault_pass_${BUILD_NUMBER}.txt
+                                chmod 600 /tmp/vault_pass_${BUILD_NUMBER}.txt
+                                
+                                # Test SSH connection to backend server
+                                echo "Testing SSH connection to app_servers..."
+                                ssh -o StrictHostKeyChecking=no deployer@89.167.6.46 "docker ps" || echo "Warning: Could not verify backend connectivity"
+                                
+                                # Run Ansible deployment to app servers (NOT localhost)
+                                echo "Running Ansible deployment..."
+                                ansible-playbook ansible/playbooks/deploy.yml \
+                                    -i ansible/inventories/production/hosts.ini \
+                                    -l app_servers \
+                                    --vault-password-file /tmp/vault_pass_${BUILD_NUMBER}.txt \
+                                    -e "node_env=production" \
+                                    -e "pull_images=true" \
+                                    -e "build_image=false" \
+                                    -e "run_db_migrations=true" \
+                                    -e "run_db_seed=false" \
+                                    -e "docker_registry=${REGISTRY}" \
+                                    -e "docker_registry_username=${GITHUB_USERNAME}" \
+                                    -e "docker_registry_password=${GITHUB_TOKEN}" \
+                                    -e "docker_image_name=${APP_NAME}" \
+                                    -e "docker_image_tag=${VERSION}" \
+                                    -e "confirm_deploy=yes" \
+                                    -vvv
+                                
+                                # Cleanup
+                                rm -f /tmp/vault_pass_${BUILD_NUMBER}.txt
+                                echo "Deployment completed successfully"
+                            '''
+                        }
+                    }
+                }
 }
         }
     }
