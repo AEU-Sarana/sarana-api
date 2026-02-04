@@ -39,6 +39,9 @@ WORKDIR /app
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
+# Copy Prisma config (required for schema location)
+COPY --from=build /app/prisma.config.ts ./
+
 # Install production dependencies AND prisma CLI
 RUN pnpm install --prod --frozen-lockfile && \
     pnpm add -D prisma
