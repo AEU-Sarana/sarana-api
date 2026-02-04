@@ -90,8 +90,8 @@ nginx_http_port_custom: 8081
 nginx_https_port_custom: 8443
 
 # ===== CORS & SECURITY =====
-allowed_origins: "https://app.example.com"
-cors_origin: "https://app.example.com"
+allowed_origins: "http://localhost:3000,http://localhost:8080,http://89.167.6.46,http://89.167.6.46:3000,http://89.167.6.46:8081,https://89.167.6.46,https://yourdomain.com"
+cors_origin: "https://yourdomain.com"
 
 # ===== LOGGING =====
 log_level: info
