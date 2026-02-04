@@ -46,7 +46,7 @@
     state: present
     pull: "{{ 'always' if pull_images | bool else 'never' }}"
     build: "{{ 'always' if build_image | bool else 'never' }}"
-    recreate: "{{ 'always' if force_recreate else 'smart' }}"
+    recreate: "{{ 'always' if force_recreate else 'auto' }}"
   register: compose_output
 
 - name: Display Docker Compose output
