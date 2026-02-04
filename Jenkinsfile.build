@@ -264,9 +264,22 @@ pipeline {
                             sh '''
                                 set -e
                                 
+                                # Debug: Check if vault password is set
+                                if [ -z "${VAULT_PASS}" ]; then
+                                    echo "ERROR: VAULT_PASS is empty! Check Jenkins credential 'ansible-vault-password'"
+                                    exit 1
+                                fi
+                                echo "VAULT_PASS length: ${#VAULT_PASS}"
+                                
                                 # Create temporary vault password file
                                 echo "${VAULT_PASS}" > /tmp/vault_pass_${BUILD_NUMBER}.txt
                                 chmod 600 /tmp/vault_pass_${BUILD_NUMBER}.txt
+                                
+                                # Test if vault can be decrypted
+                                echo "Testing vault decryption..."
+                                ansible-vault view ansible/inventories/production/group_vars/vault.yml \
+                                    --vault-password-file /tmp/vault_pass_${BUILD_NUMBER}.txt | head -5 || \
+                                    echo "WARNING: Vault decryption failed - check password!"
                                 
                                 # Test SSH connection to backend server
                                 echo "Testing SSH connection to app_servers..."
