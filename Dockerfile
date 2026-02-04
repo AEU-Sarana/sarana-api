@@ -39,8 +39,9 @@ WORKDIR /app
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
-# Install production dependencies only
-RUN pnpm install --prod --frozen-lockfile
+# Install production dependencies AND prisma CLI
+RUN pnpm install --prod --frozen-lockfile && \
+    pnpm add -D prisma
 
 # Copy Prisma schema and migrations (needed for migrations)
 COPY --from=build /app/src/database/prisma ./src/database/prisma
