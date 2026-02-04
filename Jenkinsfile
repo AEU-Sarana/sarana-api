@@ -20,7 +20,7 @@ pipeline {
         // ===== Ansible =====
         ANSIBLE_HOST_KEY_CHECKING = 'False'
         ANSIBLE_FORCE_COLOR = 'true'
-        VAULT_PASS = credentials('ansible-vault-pass')
+        VAULT_PASS = credentials('ansible-vault-password')
 
         // ===== Application =====
         APP_NAME = 'stock-pos'
