@@ -4,6 +4,9 @@ export interface UpdateSettingsRequest {
   backup_frequency: BackupFrequency;
   device_binding_enabled: boolean;
   stock_sync_policy: StockSyncPolicy;
+  report_send_enabled?: boolean;
+  report_send_time?: string;
+  report_send_timezone?: string;
 }
 
 // Response Types (snake_case for API)
@@ -12,6 +15,9 @@ export interface GetSettingsResponse {
   backup_frequency: string;
   device_binding_enabled: boolean;
   stock_sync_policy: string;
+  report_send_enabled: boolean;
+  report_send_time: string;
+  report_send_timezone: string;
   updated_at: Date;
   updated_by: number;
 }

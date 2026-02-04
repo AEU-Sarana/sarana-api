@@ -18,8 +18,8 @@ export interface ShiftBreakdown {
   shift_count: number;
   total_sales: number;
   total_orders: number;
-  start_time: string;
-  end_time: string;
+  start_time: string | null;
+  end_time: string | null;
 }
 
 export interface LowStockItem {

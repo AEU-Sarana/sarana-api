@@ -6,6 +6,18 @@ import { GetSettingsResponse, UpdateSettingsRequest, UpdateSettingsResponse } fr
 import { SettingsUpdatedEvent } from '@src/domains/Setting/events/settings-updated.event';
 
 export class SettingService {
+  private static formatTime(value: Date | null | undefined, fallback: string): string {
+    if (!value) return fallback;
+    const hours = value.getUTCHours().toString().padStart(2, '0');
+    const minutes = value.getUTCMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
+  private static parseTime(value: string): Date {
+    const [hours, minutes] = value.split(':').map(Number);
+    return new Date(Date.UTC(1970, 0, 1, hours, minutes, 0));
+  }
+
   /**
    * Get current app settings
    */
@@ -30,6 +42,9 @@ export class SettingService {
       backup_frequency: settings.backupFrequency,
       device_binding_enabled: settings.deviceBindingEnabled,
       stock_sync_policy: settings.stockSyncPolicy,
+      report_send_enabled: settings.reportSendEnabled ?? true,
+      report_send_time: this.formatTime(settings.reportSendTime, '23:30'),
+      report_send_timezone: settings.reportSendTimezone || 'Asia/Phnom_Penh',
       updated_at: settings.updatedAt,
       updated_by: settings.updatedBy,
     };
@@ -46,6 +61,18 @@ export class SettingService {
       orderBy: { updatedAt: 'desc' },
     });
 
+    const reportSendEnabled =
+      request.report_send_enabled ??
+      existing?.reportSendEnabled ??
+      true;
+    const reportSendTimezone =
+      request.report_send_timezone ??
+      existing?.reportSendTimezone ??
+      'Asia/Phnom_Penh';
+    const reportSendTime = request.report_send_time
+      ? this.parseTime(request.report_send_time)
+      : existing?.reportSendTime ?? this.parseTime('23:30');
+
     const updated = existing
       ? await prisma.appSetting.update({
           where: { settingId: existing.settingId },
@@ -54,6 +81,9 @@ export class SettingService {
             backupFrequency: request.backup_frequency,
             deviceBindingEnabled: request.device_binding_enabled,
             stockSyncPolicy: request.stock_sync_policy,
+            reportSendEnabled,
+            reportSendTime,
+            reportSendTimezone,
             updatedBy: currentUserId,
           },
         })
@@ -63,6 +93,9 @@ export class SettingService {
             backupFrequency: request.backup_frequency,
             deviceBindingEnabled: request.device_binding_enabled,
             stockSyncPolicy: request.stock_sync_policy,
+            reportSendEnabled,
+            reportSendTime,
+            reportSendTimezone,
             updatedBy: currentUserId,
           },
         });
@@ -77,6 +110,9 @@ export class SettingService {
         backup_frequency: request.backup_frequency,
         device_binding_enabled: request.device_binding_enabled,
         stock_sync_policy: request.stock_sync_policy,
+        report_send_enabled: reportSendEnabled,
+        report_send_time: this.formatTime(reportSendTime, '23:30'),
+        report_send_timezone: reportSendTimezone,
       },
     });
 
@@ -86,6 +122,9 @@ export class SettingService {
       backup_frequency: updated.backupFrequency,
       device_binding_enabled: updated.deviceBindingEnabled,
       stock_sync_policy: updated.stockSyncPolicy,
+      report_send_enabled: updated.reportSendEnabled ?? true,
+      report_send_time: this.formatTime(updated.reportSendTime, '23:30'),
+      report_send_timezone: updated.reportSendTimezone || 'Asia/Phnom_Penh',
       updated_at: updated.updatedAt,
       updated_by: updated.updatedBy,
     } satisfies SettingsUpdatedEvent);
@@ -95,6 +134,9 @@ export class SettingService {
       backup_frequency: updated.backupFrequency,
       device_binding_enabled: updated.deviceBindingEnabled,
       stock_sync_policy: updated.stockSyncPolicy,
+      report_send_enabled: updated.reportSendEnabled ?? true,
+      report_send_time: this.formatTime(updated.reportSendTime, '23:30'),
+      report_send_timezone: updated.reportSendTimezone || 'Asia/Phnom_Penh',
       updated_at: updated.updatedAt,
       updated_by: updated.updatedBy,
     };

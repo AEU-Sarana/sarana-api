@@ -46,7 +46,7 @@ export class ReportService {
         throw new ValidationException('Invalid date provided');
       }
 
-      const whereClause: any = {
+      const whereClause: Prisma.OrderWhereInput = {
         orderDate: {
           gte: startOfDay,
           lte: endOfDay,
@@ -70,76 +70,73 @@ export class ReportService {
       const total_orders = aggregations._count.orderId;
       const average_order_value = total_orders > 0 ? total_sales / total_orders : 0;
 
-      // Shifts breakdown
-      const shiftsData = await prisma.shift.findMany({
-        where: {
-          shiftDate: {
-            gte: startOfDay,
-            lte: endOfDay,
-          },
-          ...(effectiveSellerId ? { sellerId: effectiveSellerId } : {}),
-        },
-        include: {
-          seller: { select: { userId: true, fullName: true } },
-          orders: {
-            where: {
-              orderDate: {
-                gte: startOfDay,
-                lte: endOfDay,
-              },
-            },
-            select: { totalAmount: true },
-          },
-        },
-      });
-
-      // Group shifts by seller and calculate totals
-      const shiftsBySeller = new Map<number, {
+      // Shifts breakdown (single aggregated query)
+      type ShiftRow = {
         seller_id: number;
         seller_name: string;
-        shifts: typeof shiftsData;
-      }>();
+        shift_count: number | string;
+        total_sales: Prisma.Decimal | number | string;
+        total_orders: number | string;
+        start_time: Date | null;
+        end_time: Date | null;
+      };
 
-      shiftsData.forEach(shift => {
-        const sellerId = shift.sellerId;
-        const sellerName = shift.seller?.fullName || 'Unknown';
+      const shiftRows = await prisma.$queryRaw<ShiftRow[]>(Prisma.sql`
+        SELECT
+          s.seller_id,
+          u.full_name AS seller_name,
+          COUNT(DISTINCT s.shift_id) AS shift_count,
+          COALESCE(SUM(o.total_amount), 0) AS total_sales,
+          COUNT(DISTINCT o.order_id) AS total_orders,
+          MIN(s.start_time) AS start_time,
+          MAX(s.end_time) AS end_time
+        FROM shifts s
+        JOIN users u ON u.user_id = s.seller_id
+        LEFT JOIN orders o
+          ON o.shift_id = s.shift_id
+          AND o.order_date >= ${startOfDay}
+          AND o.order_date <= ${endOfDay}
+        WHERE s.shift_date >= ${startOfDay}::date
+          AND s.shift_date <= ${endOfDay}::date
+          AND (${effectiveSellerId}::int IS NULL OR s.seller_id = ${effectiveSellerId})
+        GROUP BY s.seller_id, u.full_name
+      `);
 
-        if (!shiftsBySeller.has(sellerId)) {
-          shiftsBySeller.set(sellerId, {
-            seller_id: sellerId,
-            seller_name: sellerName,
-            shifts: [],
-          });
+      let shifts_breakdown: ShiftBreakdown[] = shiftRows.map(row => ({
+        seller_id: row.seller_id,
+        seller_name: row.seller_name || 'Unknown',
+        shift_count: Number(row.shift_count || 0),
+        total_sales: Number(row.total_sales || 0),
+        total_orders: Number(row.total_orders || 0),
+        start_time: row.start_time ? new Date(row.start_time).toISOString() : null,
+        end_time: row.end_time ? new Date(row.end_time).toISOString() : null,
+      }));
+
+      if (!effectiveSellerId) {
+        const sellers = await prisma.user.findMany({
+          where: { role: Role.SELLER, status: 'active' },
+          select: { userId: true, fullName: true },
+        });
+
+        const existing = new Map(shifts_breakdown.map(s => [s.seller_id, s]));
+        const missingSellers = sellers.filter(seller => !existing.has(seller.userId));
+
+        if (missingSellers.length) {
+          const missingBreakdown: ShiftBreakdown[] = missingSellers.map(seller => ({
+            seller_id: seller.userId,
+            seller_name: seller.fullName,
+            shift_count: 0,
+            total_sales: 0,
+            total_orders: 0,
+            start_time: null,
+            end_time: null,
+          }));
+
+          shifts_breakdown = [...shifts_breakdown, ...missingBreakdown].sort((a, b) =>
+            a.seller_name.localeCompare(b.seller_name)
+          );
         }
-        shiftsBySeller.get(sellerId)!.shifts.push(shift);
-      });
-
-      const shifts_breakdown: ShiftBreakdown[] = Array.from(shiftsBySeller.values()).map(sellerData => {
-        const totalSales = sellerData.shifts.reduce((sum, shift) =>
-          sum + shift.orders.reduce((orderSum, order) => orderSum + Number(order.totalAmount), 0), 0);
-        const totalOrders = sellerData.shifts.reduce((sum, shift) => sum + shift.orders.length, 0);
-
-        // Get the earliest start time and latest end time for this seller's shifts
-        const startTimes = sellerData.shifts.map(s => s.startTime).filter(t => t !== null);
-        const endTimes = sellerData.shifts.map(s => s.endTime).filter(t => t !== null);
-
-        const start_time = startTimes.length > 0
-          ? new Date(Math.min(...startTimes.map(t => new Date(t!).getTime()))).toISOString()
-          : new Date().toISOString();
-        const end_time = endTimes.length > 0
-          ? new Date(Math.max(...endTimes.map(t => new Date(t!).getTime()))).toISOString()
-          : new Date().toISOString();
-
-        return {
-          seller_id: sellerData.seller_id,
-          seller_name: sellerData.seller_name,
-          shift_count: sellerData.shifts.length,
-          total_sales: totalSales,
-          total_orders: totalOrders,
-          start_time,
-          end_time,
-        };
-      });
+      }
 
       // Top products with product codes and average prices
       const topProductsRaw = await prisma.orderItem.groupBy({
@@ -200,43 +197,43 @@ export class ReportService {
         };
       });
 
-      // Low stock items - get products with their stock information
-      const lowStockItems = await prisma.stock.findMany({
-        where: {
-          product: {
-            status: 'active',
-          },
-        },
-        include: {
-          product: {
-            select: {
-              productName: true,
-              productCode: true,
-              lowStockThreshold: true,
-            },
-          },
-        },
-        orderBy: {
-          quantity: 'asc',
-        },
-        take: 10,
-      });
+      // Low stock items (filter and limit in SQL)
+      type LowStockRow = {
+        product_id: number;
+        product_name: string;
+        product_code: string;
+        current_stock: number;
+        low_stock_threshold: number | null;
+        updated_at: Date;
+      };
 
-      // Filter for low stock items (include negative stock)
-      const filteredLowStockItems = lowStockItems.filter(stock => {
-        if (stock.quantity < 0) return true;
-        if (stock.product?.lowStockThreshold == null) return false;
-        return stock.quantity <= stock.product.lowStockThreshold;
-      });
+      const lowStockRows = await prisma.$queryRaw<LowStockRow[]>(Prisma.sql`
+        SELECT
+          s.product_id,
+          p.product_name,
+          p.product_code,
+          s.quantity AS current_stock,
+          p.low_stock_threshold,
+          s.updated_at
+        FROM stocks s
+        JOIN products p ON p.product_id = s.product_id
+        WHERE p.status = 'active'
+          AND (
+            s.quantity < 0
+            OR (p.low_stock_threshold IS NOT NULL AND s.quantity <= p.low_stock_threshold)
+          )
+        ORDER BY s.quantity ASC
+        LIMIT 10
+      `);
 
-      const low_stock_items: LowStockItem[] = filteredLowStockItems.map(stock => ({
-        product_id: stock.productId,
-        product_name: stock.product?.productName || 'Unknown Product',
-        product_code: stock.product?.productCode || 'N/A',
-        current_stock: stock.quantity,
-        low_stock_threshold: stock.product?.lowStockThreshold || 0,
-        status: stock.quantity <= 0 ? 'out_of_stock' : 'low_stock',
-        last_updated: stock.updatedAt.toISOString(),
+      const low_stock_items: LowStockItem[] = lowStockRows.map(row => ({
+        product_id: row.product_id,
+        product_name: row.product_name || 'Unknown Product',
+        product_code: row.product_code || 'N/A',
+        current_stock: row.current_stock,
+        low_stock_threshold: row.low_stock_threshold || 0,
+        status: row.current_stock <= 0 ? 'out_of_stock' : 'low_stock',
+        last_updated: row.updated_at.toISOString(),
       }));
 
       // Calculate summary statistics
@@ -258,21 +255,14 @@ export class ReportService {
         },
       });
 
-      const uniqueProductsSold = await prisma.orderItem.findMany({
-        where: {
-          order: {
-            orderDate: {
-              gte: startOfDay,
-              lte: endOfDay,
-            },
-            ...(effectiveSellerId ? { sellerId: effectiveSellerId } : {}),
-          },
-        },
-        select: {
-          productId: true,
-        },
-        distinct: ['productId'],
-      });
+      const [{ unique_products_sold }] = await prisma.$queryRaw<{ unique_products_sold: number | string }[]>(Prisma.sql`
+        SELECT COUNT(DISTINCT oi.product_id) AS unique_products_sold
+        FROM order_items oi
+        JOIN orders o ON o.order_id = oi.order_id
+        WHERE o.order_date >= ${startOfDay}
+          AND o.order_date <= ${endOfDay}
+          AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
+      `);
 
       const averageItemsPerOrder = total_orders > 0 ? (totalProductsSold._sum.quantity || 0) / total_orders : 0;
 
@@ -287,7 +277,7 @@ export class ReportService {
 
       const summary: DailyReportSummary = {
         total_products_sold: totalProductsSold._sum.quantity || 0,
-        unique_products_sold: uniqueProductsSold.length,
+        unique_products_sold: Number(unique_products_sold || 0),
         average_items_per_order: Number(averageItemsPerOrder.toFixed(2)),
         peak_sales_hour: peakSalesHour,
         cash_collected: cashCollected,
@@ -327,10 +317,11 @@ export class ReportService {
       } satisfies ReportGeneratedEvent);
 
       return report;
-    } catch (error: any) {
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Error generating daily report', {
-        error: error.message,
-        stack: error.stack,
+        error: err.message,
+        stack: err.stack,
         userId: currentUserId,
         date: request.date,
         seller_id: request.seller_id,
@@ -381,7 +372,12 @@ export class ReportService {
 
       // Aggregate per-day sales
       // If product_id is provided, total_sales is based on order_items.subtotal for that product.
-      type SalesRow = { date: string; total_sales: any; total_orders: any; total_shifts: any };
+      type SalesRow = {
+        date: string;
+        total_sales: Prisma.Decimal | number | string;
+        total_orders: number | string;
+        total_shifts: number | string;
+      };
 
       let sales: SalesRow[] = [];
       let totalDays = 0;
@@ -406,7 +402,7 @@ export class ReportService {
           OFFSET ${offset} LIMIT ${limit}
         `);
 
-        const totals = await prisma.$queryRaw<{ total_days: any; total_sales: any; total_orders: any }[]>(Prisma.sql`
+        const totals = await prisma.$queryRaw<{ total_days: number | string; total_sales: Prisma.Decimal | number | string; total_orders: number | string }[]>(Prisma.sql`
           SELECT
             COUNT(*) AS total_days,
             COALESCE(SUM(day_sales), 0) AS total_sales,
@@ -445,7 +441,7 @@ export class ReportService {
           OFFSET ${offset} LIMIT ${limit}
         `);
 
-        const totals = await prisma.$queryRaw<{ total_days: any; total_sales: any; total_orders: any }[]>(Prisma.sql`
+        const totals = await prisma.$queryRaw<{ total_days: number | string; total_sales: Prisma.Decimal | number | string; total_orders: number | string }[]>(Prisma.sql`
           SELECT
             COUNT(*) AS total_days,
             COALESCE(SUM(day_sales), 0) AS total_sales,
@@ -496,10 +492,11 @@ export class ReportService {
       } satisfies ReportGeneratedEvent);
 
       return response;
-    } catch (error: any) {
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Error generating sales history report', {
-        error: error.message,
-        stack: error.stack,
+        error: err.message,
+        stack: err.stack,
         userId: currentUserId,
         start_date: request.start_date,
         end_date: request.end_date,
@@ -517,7 +514,19 @@ export class ReportService {
 
       if (low_stock_only) {
         // Use raw query for efficient low stock filtering
-        const rawItems = await prisma.$queryRaw`
+        type StockRawRow = {
+          stock_id: number;
+          product_id: number;
+          quantity: number;
+          updated_at: Date;
+          product_name: string;
+          product_code: string;
+          category: string | null;
+          low_stock_threshold: number | null;
+          p_status: string;
+        };
+
+        const rawItems = await prisma.$queryRaw<StockRawRow[]>`
               SELECT s.stock_id, s.product_id, s.quantity, s.updated_at,
                      p.product_name, p.product_code, p.category, p.low_stock_threshold, p.status as p_status
               FROM stocks s
@@ -529,7 +538,7 @@ export class ReportService {
                 )
           `;
 
-        const stock_report = (rawItems as any[]).map(s => ({
+        const stock_report = rawItems.map(s => ({
           product_id: s.product_id,
           product_name: s.product_name,
           product_code: s.product_code,
@@ -611,10 +620,11 @@ export class ReportService {
       } satisfies ReportGeneratedEvent);
 
       return response;
-    } catch (error: any) {
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Error generating stock report', {
-        error: error.message,
-        stack: error.stack,
+        error: err.message,
+        stack: err.stack,
         userId: currentUserId,
         low_stock_only: request.low_stock_only,
       });
@@ -631,7 +641,7 @@ export class ReportService {
     currentUserRole: string
   ): Promise<ExportReportResponse> {
     const { report_type, filters, format } = request;
-    let data: any[];
+    let data: unknown[];
     let fileName: string;
 
     try {
@@ -677,8 +687,6 @@ export class ReportService {
 
       // Normalize format to uppercase for comparison
       const normalizedFormat = format.toUpperCase();
-      let file_name: string;
-      let file_path: string;
       let fileExtension: string;
 
       // Determine file extension based on format
@@ -691,8 +699,8 @@ export class ReportService {
       }
 
       // Generate file with appropriate extension (always CSV for now, but with correct extension)
-      file_name = await ReportExportService.exportCSV(data, `${fileName}${fileExtension}`);
-      file_path = `/tmp/${file_name}`;
+      const file_name = await ReportExportService.exportCSV(data, `${fileName}${fileExtension}`);
+      const file_path = `/tmp/${file_name}`;
 
       const response: ExportReportResponse = {
         file_name,
@@ -710,12 +718,13 @@ export class ReportService {
       } satisfies ReportExportedEvent);
 
       return response;
-    } catch (error: any) {
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Export report error', {
-        error: error.message,
+        error: err.message,
         report_type,
         userId: currentUserId,
-        stack: error.stack,
+        stack: err.stack,
       });
       throw error;
     }
@@ -724,8 +733,8 @@ export class ReportService {
   /**
    * Transform daily report to flat structure for CSV export
    */
-  static transformDailyReportForExport(report: DailySalesReportResponse): any[] {
-    const rows: any[] = [];
+  static transformDailyReportForExport(report: DailySalesReportResponse): Record<string, unknown>[] {
+    const rows: Record<string, unknown>[] = [];
 
     // Add summary row
     rows.push({

@@ -14,7 +14,9 @@ export function buildDailyAggregateReportMessage(report: DailySalesReportRespons
   const shiftsBreakdown = report.shifts_breakdown.length
     ? report.shifts_breakdown
         .map((s, index) => {
+          const status = s.shift_count === 0 ? 'មិនធ្វើការ' : 'ធ្វើការ';
           return ` ${index + 1}) អ្នកលក់: ${s.seller_name}
+    • ស្ថានភាព: ${status}
     • ចំនួនវេន: ${s.shift_count}
     • ការបញ្ជាទិញសរុប: ${s.total_orders}
     • ចំនួនទឹកប្រាក់សរុប: $${s.total_sales.toLocaleString()}

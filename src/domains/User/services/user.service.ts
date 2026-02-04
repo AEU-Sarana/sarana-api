@@ -16,6 +16,7 @@ import { BusinessLogicException, ValidationException } from '@src/shared/excepti
 import { logger } from '@src/shared/utils/logger';
 import { paginate } from '@src/shared/utils/helpers';
 import { auditLogService } from '@src/shared/services/audit-log.service';
+import { hashPIN } from '@src/shared/services/pin.service';
 
 export class UserService {
   /**
@@ -469,7 +470,6 @@ export class UserService {
     }
 
     // Hash PIN
-    const { hashPIN } = await import('@src/shared/services/pin.service');
     const pinHash = await hashPIN(pin);
 
     // Update user PIN

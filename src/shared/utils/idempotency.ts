@@ -1,11 +1,11 @@
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { isValidUUID } from './validators';
 
 /**
  * Generate idempotency key (UUID)
  */
 export function generateIdempotencyKey(): string {
-  return uuidv4();
+  return randomUUID();
 }
 
 /**
