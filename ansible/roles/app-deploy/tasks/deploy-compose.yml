@@ -54,7 +54,7 @@
     var: compose_output
   when: compose_output is changed
 
-# MOVED UP - Wait for services BEFORE running migrations
+# MOVED UP - Wait for services BEFORE running migrationsss
 - name: Wait for services to be healthy
   command: docker compose -f {{ app_directory }}/docker-compose.yml -f {{ app_directory }}/docker-compose.prod.yml ps
   register: compose_ps
