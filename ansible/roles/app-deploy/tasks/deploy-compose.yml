@@ -46,7 +46,7 @@
     state: present
     pull: "{{ 'always' if pull_images | bool else 'never' }}"
     build: "{{ 'always' if build_image | bool else 'never' }}"
-    recreate: "{{ 'always' if force_recreate else 'smart' }}"
+    recreate: "{{ 'always' if force_recreate else 'auto' }}"
   register: compose_output
 
 - name: Display Docker Compose output
@@ -54,6 +54,7 @@
     var: compose_output
   when: compose_output is changed
 
+# MOVED UP - Wait for services BEFORE running migrationsss
 - name: Wait for services to be healthy
   command: docker compose -f {{ app_directory }}/docker-compose.yml -f {{ app_directory }}/docker-compose.prod.yml ps
   register: compose_ps
@@ -63,8 +64,72 @@
   changed_when: false
   ignore_errors: yes
 
+# ADDED - Wait specifically for database to be ready
+- name: Wait for database to accept connections
+  shell: |
+    docker compose -f {{ app_directory }}/docker-compose.yml \
+    -f {{ app_directory }}/docker-compose.prod.yml \
+    exec -T db pg_isready -U stockpos -d stock_pos
+  register: db_ready
+  until: db_ready.rc == 0
+  retries: 30
+  delay: 2
+  changed_when: false
+  when: run_db_migrations | bool
+  ignore_errors: no
+
+# ADDED - Verify app container is running
+- name: Verify app container is running
+  shell: |
+    docker compose -f {{ app_directory }}/docker-compose.yml \
+    -f {{ app_directory }}/docker-compose.prod.yml \
+    ps app --format json
+  register: app_status
+  changed_when: false
+  when: run_db_migrations | bool
+
+- name: Display app container status
+  debug:
+    var: app_status.stdout
+  when: run_db_migrations | bool
+
+# NOW run migrations after everything is ready
+- name: Run database migrations (domain-based)
+  command: >-
+    docker compose -f {{ app_directory }}/docker-compose.yml
+    -f {{ app_directory }}/docker-compose.prod.yml
+    exec -T app pnpm migrate:apply
+  register: migrate_output
+  changed_when: "'Applied' in migrate_output.stdout or 'migrate' in migrate_output.stdout or 'Success' in migrate_output.stdout"
+  failed_when: migrate_output.rc != 0
+  retries: 3
+  delay: 5
+  when: run_db_migrations | bool
+
+- name: Display migration output
+  debug:
+    var: migrate_output.stdout_lines
+  when: run_db_migrations | bool and migrate_output is defined
+
+- name: Run database seed
+  command: >-
+    docker compose -f {{ app_directory }}/docker-compose.yml
+    -f {{ app_directory }}/docker-compose.prod.yml
+    exec -T app pnpm seed
+  register: seed_output
+  changed_when: "'seed' in seed_output.stdout or seed_output.rc == 0"
+  failed_when: seed_output.rc != 0
+  retries: 3
+  delay: 5
+  when: run_db_seed | bool
+
+- name: Display seed output
+  debug:
+    var: seed_output.stdout_lines
+  when: run_db_seed | bool and seed_output is defined
+
 - name: Get running containers
-  command: docker ps --filter "name={{ app_name }}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+  command: docker ps --filter "name={{ app_name }}" --format "table {% raw %}{{.Names}}\t{{.Status}}\t{{.Ports}}{% endraw %}"
   register: running_containers
   changed_when: false
 

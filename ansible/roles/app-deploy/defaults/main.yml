@@ -20,11 +20,21 @@ force_recreate: false
 pull_images: true
 build_image: true
 
+# Database migration/seed
+run_db_migrations: true
+run_db_seed: false
+app_container_name: "{{ app_name }}-app"
+
 # Template generation flags
 # Set to true only if your repo doesn't have these files
 create_dockerfile: false  # Set true if repo has no Dockerfile
-create_nginx_config: false  # Set true if repo has no nginx configs
+create_nginx_config: true  # Ensure nginx configs are created during deploy
 
 # Backup settings
 backup_enabled: true
 backup_directory: "/opt/backups/{{ app_name }}"
+
+# ----- env.j2 / app config: all data from vault.yml via group_vars/all.yml -----
+# Do not define db_*, minio_*, storage_*, jwt_*, etc. here.
+# Production: vault.yml → all.yml (maps vault_* to template vars) → env.j2.
+# If a vault key is missing, env.j2 uses | default(...) only in the template.

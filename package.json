@@ -4,6 +4,9 @@
   "description": "Stock POS System Backend API",
   "type": "commonjs",
   "main": "dist/index.js",
+  "prisma": {
+    "schema": "src/database/prisma/schema.prisma"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "clean": "rm -rf dist",
@@ -40,6 +43,9 @@
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.15.1",
+  "_moduleAliases": {
+    "@src": "dist"
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.982.0",
     "@aws-sdk/s3-request-presigner": "^3.982.0",

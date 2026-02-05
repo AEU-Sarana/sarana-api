@@ -17,8 +17,13 @@ import { auditMutationMiddleware } from '@src/shared/middleware/audit-mutation.m
 registerStockEventListeners();
 registerReportEventListeners();
 
-// Register queue processors
-registerReportExportProcessor();
+// Register queue processors (with error handling)
+try {
+  registerReportExportProcessor();
+} catch (error) {
+  console.error('Failed to register report export processor:', error);
+  // Don't crash the app if queue initialization fails
+}
 
 // Register telegram event listeners
 registerTelegramEventListeners();

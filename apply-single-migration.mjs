@@ -33,6 +33,7 @@ if (!fs.existsSync(fullPath)) {
   process.exit(1);
 }
 
+// pg requires password to be a string (avoids "client password must be a string")
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });

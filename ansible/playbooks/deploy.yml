@@ -56,11 +56,11 @@
           - "Deployment completed successfully!"
           - "Application: {{ app_name }}"
           - "Server: {{ inventory_hostname }}"
-          - "Access URL: http://{{ ansible_host }}:{{ nginx_http_port }}"
+          - "Access URL: http://{{ ansible_host }}:{{ nginx_http_port | default(nginx_http_port_custom) | default(8081) }}"
           - "======================================"
 
     - name: Verify all services are running
-      command: docker ps --filter "name={{ app_name }}" --format "table {{.Names}}\t{{.Status}}"
+      shell: docker ps --filter "name={{ app_name }}" --format "table {%raw%}{{.Names}}\t{{.Status}}{%endraw%}"
       register: final_services
       changed_when: false
 

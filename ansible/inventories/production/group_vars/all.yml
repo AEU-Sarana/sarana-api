@@ -1,10 +1,10 @@
 ---
-# ============================================================================
+# ==========================================================================
 # PRODUCTION ENVIRONMENT GROUP VARIABLES
-# Located: ansible/inventories/production/group_vars/app_servers.yml
-# This file contains production-specific configuration
-# Sensitive data is stored in app_servers-vault.yml (encrypted)
-# ============================================================================
+# Located: ansible/inventories/production/group_vars/all.yml
+# This file contains production-specific configuration for all groups
+# Sensitive data is stored in group_vars/vault.yml (encrypted)
+# ==========================================================================
 
 # ===== SSH & ANSIBLE CONFIGURATION =====
 ansible_user: root
@@ -58,15 +58,16 @@ postgres_user: "{{ vault_prod_postgres_user }}"
 postgres_host: db
 postgres_port: 5432
 postgres_db: "{{ vault_prod_postgres_db }}"
-postgres_password: "{{ vault_prod_postgres_password }}"
+postgres_password: "{{ vault_prod_postgres_password | string }}"
 postgres_external_port: 5433
 
 # Variables used by app-deploy env template
 db_user: "{{ postgres_user }}"
-db_password: "{{ postgres_password }}"
+db_password: "{{ postgres_password | string }}"
 db_name: "{{ postgres_db }}"
 db_host: "{{ postgres_host }}"
 db_port: "{{ postgres_port }}"
+db_external_port: "{{ postgres_external_port }}"
 
 # ===== REDIS CONFIGURATION =====
 redis_host: redis
@@ -83,6 +84,16 @@ minio_root_password: "{{ vault_prod_minio_password }}"
 minio_use_ssl: false
 minio_bucket_name: "{{ app_name }}-storage"
 
+# ===== STORAGE CONFIGURATION (S3/MinIO) =====
+storage_provider: minio
+storage_endpoint: "http://{{ minio_endpoint }}:{{ minio_api_port }}"
+storage_access_key: "{{ minio_root_user }}"
+storage_secret_key: "{{ minio_root_password }}"
+storage_bucket: "{{ minio_bucket_name }}"
+storage_region: "us-east-1"
+storage_use_ssl: "false"
+storage_public_url: ""
+
 # ===== NGINX CONFIGURATION =====
 nginx_http_port: 80
 nginx_https_port: 443
@@ -90,8 +101,8 @@ nginx_http_port_custom: 8081
 nginx_https_port_custom: 8443
 
 # ===== CORS & SECURITY =====
-allowed_origins: "https://app.example.com"
-cors_origin: "https://app.example.com"
+allowed_origins: "http://localhost:3000,http://localhost:8080,http://89.167.6.46,http://89.167.6.46:3000,http://89.167.6.46:8081,https://89.167.6.46,https://yourdomain.com"
+cors_origin: "https://yourdomain.com"
 
 # ===== LOGGING =====
 log_level: info
@@ -107,6 +118,9 @@ smtp_from: noreply@stockpos.com
 jwt_secret: "{{ vault_prod_jwt_secret }}"
 jwt_refresh_secret: "{{ vault_prod_jwt_refresh_secret }}"
 jwt_expiration: "{{ vault_prod_jwt_expiration }}"
+jwt_access_token_expiry: "{{ vault_prod_jwt_expiration }}"
+jwt_refresh_token_expiry: "{{ vault_prod_jwt_expiration }}"
+jwt_expires_in: "{{ vault_prod_jwt_expiration }}"
 
 # ===== DEPLOYMENT OPTIONS =====
 deploy_path: /opt/stock-pos-server

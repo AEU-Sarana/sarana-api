@@ -13,11 +13,11 @@
   pre_tasks:
     - name: Load production group variables
       include_vars:
-        file: "{{ playbook_dir }}/../inventories/production/group_vars/prod.yml"
+        file: "{{ playbook_dir }}/../inventories/production/group_vars/all.yml"
 
     - name: Load vault variables
       include_vars:
-        file: "{{ playbook_dir }}/../inventories/production/group_vars/vault.yml"
+        file: "{{ playbook_dir }}/../inventories/production/group_vars/all/vault.yml"
 
     - name: Display setup information
       debug:

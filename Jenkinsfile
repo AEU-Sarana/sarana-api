@@ -20,7 +20,7 @@ pipeline {
         // ===== Ansible =====
         ANSIBLE_HOST_KEY_CHECKING = 'False'
         ANSIBLE_FORCE_COLOR = 'true'
-        VAULT_PASS = credentials('ansible-vault-pass')
+        VAULT_PASS = credentials('ansible-vault-password')
 
         // ===== Application =====
         APP_NAME = 'stock-pos'
@@ -134,6 +134,12 @@ pipeline {
         }
 
         stage('Deploy / Action') {
+            when {
+                expression {
+                    // Only run Ansible when a playbook exists (deploy, rollback, start, stop, setup)
+                    params.ACTION in ['deploy', 'rollback', 'start', 'stop', 'setup']
+                }
+            }
             steps {
                 sshagent(['deploy-ssh-key']) {
                     script {
@@ -159,6 +165,21 @@ pipeline {
             }
         }
 
+        stage('Build-only / Status (no Ansible)') {
+            when {
+                expression { params.ACTION in ['build-only', 'status'] }
+            }
+            steps {
+                script {
+                    if (params.ACTION == 'build-only') {
+                        echo 'ACTION=build-only: Use Jenkinsfile.build pipeline to build and push Docker image. No Ansible playbook.'
+                    } else {
+                        echo 'ACTION=status: Check container status on target server (e.g. ssh deployer@89.167.6.46 "docker ps"). No playbook yet.'
+                    }
+                }
+            }
+        }
+
         stage('Health Check') {
             when {
                 expression { params.ACTION == 'deploy' || params.ACTION == 'start' }
@@ -172,7 +193,29 @@ pipeline {
         stage('Cleanup Docker Images') {
             steps {
                 sh '''
+                    echo "=== Before Cleanup ==="
+                    docker images | grep stock-pos-server | wc -l || true
+                    docker system df || true
+                    
+                    echo "=== Cleaning up dangling images ==="
                     docker image prune -f || true
+                    
+                    echo "=== Cleaning up exited containers ==="
+                    docker container prune -f || true
+                    
+                    echo "=== Cleaning up unused volumes ==="
+                    docker volume prune -f || true
+                    
+                    echo "=== Removing old stock-pos-server images (keep last 3) ==="
+                    docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}" | \
+                    grep "stock-pos-server" | \
+                    head -n -3 | \
+                    awk '{print $NF}' | \
+                    xargs -r docker rmi -f || true
+                    
+                    echo "=== After Cleanup ==="
+                    docker images | grep stock-pos-server | wc -l || true
+                    docker system df || true
                 '''
             }
         }

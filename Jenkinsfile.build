@@ -264,9 +264,26 @@ pipeline {
                             sh '''
                                 set -e
                                 
-                                # Create temporary vault password file
-                                echo "${VAULT_PASS}" > /tmp/vault_pass_${BUILD_NUMBER}.txt
+                                # Debug: Check if vault password is set
+                                if [ -z "${VAULT_PASS}" ]; then
+                                    echo "ERROR: VAULT_PASS is empty! Check Jenkins credential 'ansible-vault-password'"
+                                    exit 1
+                                fi
+                                echo "VAULT_PASS length: ${#VAULT_PASS}"
+                                
+                                # Create temporary vault password file (using printf for reliability)
+                                printf '%s' "${VAULT_PASS}" > /tmp/vault_pass_${BUILD_NUMBER}.txt
                                 chmod 600 /tmp/vault_pass_${BUILD_NUMBER}.txt
+                                
+                                # Debug: Check file size (should be same as password length)
+                                echo "Vault password file size: $(wc -c < /tmp/vault_pass_${BUILD_NUMBER}.txt) bytes"
+                                echo "Password length: ${#VAULT_PASS} chars"
+                                
+                                # Test if vault can be decrypted
+                                echo "Testing vault decryption..."
+                                ansible-vault view ansible/inventories/production/group_vars/all/vault.yml \
+                                    --vault-password-file /tmp/vault_pass_${BUILD_NUMBER}.txt | head -5 || \
+                                    echo "WARNING: Vault decryption failed - check password!"
                                 
                                 # Test SSH connection to backend server
                                 echo "Testing SSH connection to app_servers..."
@@ -281,6 +298,8 @@ pipeline {
                                     -e "node_env=production" \
                                     -e "pull_images=true" \
                                     -e "build_image=false" \
+                                    -e "run_db_migrations=true" \
+                                    -e "run_db_seed=false" \
                                     -e "docker_registry=${REGISTRY}" \
                                     -e "docker_registry_username=${GITHUB_USERNAME}" \
                                     -e "docker_registry_password=${GITHUB_TOKEN}" \
@@ -296,7 +315,7 @@ pipeline {
                         }
                     }
                 }
-            }
+}
         }
     }
 

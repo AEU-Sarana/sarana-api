@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// pg requires password to be a string (avoids "client password must be a string")
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
