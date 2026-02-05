@@ -105,6 +105,9 @@ smtp_user: "{{ vault_smtp_user }}"
 smtp_pass: "{{ vault_smtp_password }}"
 smtp_from: noreply@stockpos.com
 
+# ===== APPLICATION SECRET (from vault; used as ENCRYPTION_KEY) =====
+app_secret_key: "{{ vault_app_secret_key }}"
+
 # ===== JWT CONFIGURATION (from vault) =====
 jwt_secret: "{{ vault_prod_jwt_secret }}"
 jwt_refresh_secret: "{{ vault_prod_jwt_refresh_secret }}"
