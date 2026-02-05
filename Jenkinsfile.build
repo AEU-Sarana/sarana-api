@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        // GitHub Container Registryyy
+        // GitHub Container Registry
         REGISTRY = 'ghcr.io'
         GITHUB_USERNAME = credentials('github-username')
         GITHUB_TOKEN = credentials('github-token')
@@ -281,7 +281,7 @@ pipeline {
                                 
                                 # Test if vault can be decrypted
                                 echo "Testing vault decryption..."
-                                ansible-vault view ansible/inventories/production/group_vars/vault.yml \
+                                ansible-vault view ansible/inventories/production/group_vars/all/vault.yml \
                                     --vault-password-file /tmp/vault_pass_${BUILD_NUMBER}.txt | head -5 || \
                                     echo "WARNING: Vault decryption failed - check password!"
                                 

@@ -134,6 +134,12 @@ pipeline {
         }
 
         stage('Deploy / Action') {
+            when {
+                expression {
+                    // Only run Ansible when a playbook exists (deploy, rollback, start, stop, setup)
+                    params.ACTION in ['deploy', 'rollback', 'start', 'stop', 'setup']
+                }
+            }
             steps {
                 sshagent(['deploy-ssh-key']) {
                     script {
@@ -154,6 +160,21 @@ pipeline {
                               -e confirm_${params.ACTION}=yes \
                               -v
                         """
+                    }
+                }
+            }
+        }
+
+        stage('Build-only / Status (no Ansible)') {
+            when {
+                expression { params.ACTION in ['build-only', 'status'] }
+            }
+            steps {
+                script {
+                    if (params.ACTION == 'build-only') {
+                        echo 'ACTION=build-only: Use Jenkinsfile.build pipeline to build and push Docker image. No Ansible playbook.'
+                    } else {
+                        echo 'ACTION=status: Check container status on target server (e.g. ssh deployer@89.167.6.46 "docker ps"). No playbook yet.'
                     }
                 }
             }
