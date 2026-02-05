@@ -30,8 +30,10 @@ These variables are referenced by **prod.yml** and must be defined in **vault.ym
 ### MinIO / S3
 | Vault key | Used as | Example / note |
 |-----------|---------|----------------|
-| `vault_prod_minio_root_user` | minio_root_user | `minioadmin` |
-| `vault_prod_minio_password` | minio_root_password | string |
+| `vault_prod_minio_root_user` | minio_root_user | `minioadmin` (also used for STORAGE_ACCESS_KEY) |
+| `vault_prod_minio_password` | minio_root_password | string (also used for STORAGE_SECRET_KEY) |
+
+The app expects **STORAGE_ENDPOINT**, **STORAGE_ACCESS_KEY**, **STORAGE_SECRET_KEY**. These are set in `env.j2` from MinIO by default (`http://minio:9000`, minio_root_user, minio_root_password). For external S3/R2 you can set `storage_endpoint`, `storage_access_key`, `storage_secret_key` (or in vault and map in prod.yml).
 
 ### JWT
 | Vault key | Used as | Example / note |
