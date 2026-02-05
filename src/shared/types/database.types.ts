@@ -1,11 +1,11 @@
-import { Prisma } from '@prisma/client';
+type PrismaClientType = typeof import('@src/database/client').default;
 
 /**
  * Prisma transaction type
  */
 export type PrismaTransaction = Omit<
-  Prisma.TransactionClient,
-  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use'
+  PrismaClientType,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
 >;
 
 /**
@@ -21,5 +21,5 @@ export interface DatabaseResult<T> {
  */
 export interface TransactionOptions {
   timeout?: number;
-  isolationLevel?: Prisma.TransactionIsolationLevel;
+  isolationLevel?: import('@prisma/client').Prisma.TransactionIsolationLevel;
 }

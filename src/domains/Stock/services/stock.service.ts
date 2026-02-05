@@ -1,5 +1,5 @@
 import  prisma  from '@src/database/client';
-import type { Prisma } from '@prisma/client';
+import type { PrismaTransaction } from '@src/shared/types/database.types';
 import { StockMovementType } from '@src/domains/Stock/enums/stock-movement-type.enum';
 import { ProductStatus } from '@src/domains/Product/enums/product-status.enum';
 import { ProductService } from '@src/domains/Product/services/product.service';
@@ -679,7 +679,7 @@ export class StockService {
     orderId: number,
     shiftId: number,
     currentUserId: number,
-    tx?: Prisma.TransactionClient
+    tx?: PrismaTransaction
   ): Promise<void> {
     const db = tx ?? prisma;
 
