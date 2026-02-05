@@ -281,6 +281,24 @@ export class TelegramService {
     );
   }
 
+  static async editMessageByChatId(
+    chatId: number | string,
+    messageId: number,
+    text: string,
+    parseMode: 'Markdown' | 'HTML' = 'Markdown',
+    replyMarkup?: Record<string, unknown>
+  ): Promise<TelegramMessageResponse> {
+    const config = await this.getActiveConfigOrThrow();
+    return this.editMessageWithMarkup(
+      config.bot_token,
+      chatId,
+      messageId,
+      text,
+      parseMode,
+      replyMarkup
+    );
+  }
+
   static async sendConfirmKeyboard(
     chatId: number | string,
     action: string

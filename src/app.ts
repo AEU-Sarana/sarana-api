@@ -13,6 +13,7 @@ import { registerTelegramEventListeners } from './domains/Telegram/events/telegr
 import { startTelegramDailyReportScheduler } from '@src/domains/Telegram/jobs/telegram-daily-report.scheduler';
 import { auditMutationMiddleware } from '@src/shared/middleware/audit-mutation.middleware';
 import { responseTimezoneMiddleware } from '@src/shared/middleware/response-timezone.middleware';
+import { startTelegramAdminWorker } from '@src/domains/TelegramAdminBot/jobs/telegram-admin.worker';
 
 // Register event listeners
 registerStockEventListeners();
@@ -23,7 +24,13 @@ try {
   registerReportExportProcessor();
 } catch (error) {
   console.error('Failed to register report export processor:', error);
-  // Don't crash the app if queue initialization fails
+}
+
+// Register Telegram admin worker
+try {
+  startTelegramAdminWorker();
+} catch (error) {
+  console.error('Failed to start telegram admin worker:', error);
 }
 
 // Register telegram event listeners
