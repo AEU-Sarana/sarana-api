@@ -64,5 +64,16 @@ resource "hcloud_firewall" "firewall" {
     }
   }
 
+  dynamic "rule" {
+    for_each = var.allow_http ? [1] : []  # Placeholder for future rules
+    content {
+      direction  = "in"
+      protocol   = "tcp"
+      port       = "3000"
+      source_ips = ["0.0.0.0/0", "::/0"]
+    
+    }
+  }
+
   labels = var.labels
 }
