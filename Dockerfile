@@ -27,6 +27,8 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm db:generate
 RUN pnpm build
+# Prisma client is at src/database/generated; copy into dist so require('./generated') resolves at runtime
+RUN cp -r src/database/generated dist/database/
 
 # Production stage
 FROM node:20-alpine AS production

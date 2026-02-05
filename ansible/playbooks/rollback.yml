@@ -7,6 +7,11 @@
   become: yes
   gather_facts: yes
 
+  pre_tasks:
+    - name: Load production group variables
+      include_vars:
+        file: "{{ playbook_dir }}/../inventories/production/group_vars/prod.yml"
+
   vars_prompt:
     - name: backup_timestamp
       prompt: "Enter backup timestamp to restore (format: YYYYMMDD_HHMMSS) or 'latest'"
