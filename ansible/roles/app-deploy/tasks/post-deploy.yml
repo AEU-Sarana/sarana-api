@@ -7,14 +7,14 @@
   until: health_check.status == 200
   retries: 30
   delay: 5
-  ignore_errors: yes
+  ignore_errors: true
   when: true
 
 - name: Get application logs
   command: docker compose -f {{ app_directory }}/docker-compose.yml logs --tail=50
   register: app_logs
   changed_when: false
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Display last 20 lines of logs
   debug:
@@ -43,7 +43,7 @@
     docker images | grep "{{ app_name }}"
   register: cleanup_result
   changed_when: false
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Display cleanup results
   debug:

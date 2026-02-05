@@ -4,13 +4,13 @@
 
 - name: Deploy Stock POS Application
   hosts: app_servers
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
 
   vars_prompt:
     - name: confirm_deploy_prompt
       prompt: "Are you sure you want to deploy? (yes/no)"
-      private: no
+      private: true
       default: "no"
 
   pre_tasks:
