@@ -108,6 +108,19 @@
   until: db_check.rc == 0
   when: run_db_migrations | bool
 
+# Ensure database password is synced (PostgreSQL only sets password during initial creation)
+- name: Update database user password to match configuration
+  shell: >-
+    docker compose -f {{ app_directory }}/docker-compose.yml
+    -f {{ app_directory }}/docker-compose.prod.yml
+    exec -T db psql -U {{ db_user }} -c "ALTER USER {{ db_user }} WITH PASSWORD '{{ db_password }}';"
+  environment:
+    PGPASSWORD: "{{ db_password }}"
+  register: password_update
+  changed_when: false
+  failed_when: false
+  when: run_db_migrations | bool
+
 - name: Display .env file for debugging
   command: cat {{ app_directory }}/.env
   register: env_file_content
