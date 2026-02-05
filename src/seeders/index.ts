@@ -2,6 +2,7 @@ import prisma from '../database/client';
 import { UserSeeder } from './domains/auth/user.seeder';
 import { ProductSeeder } from './domains/product/product.seeder';
 import { StockSeeder } from './domains/stock/stock.seeder';
+import { StockLotSeeder } from './domains/stock/stock-lot.seeder';
 import { ShiftSeeder } from './domains/shift/shift.seeder';
 import { OrderSeeder } from './domains/order/order.seeder';
 import { OrderItemSeeder } from './domains/order/order-item.seeder';
@@ -16,7 +17,7 @@ import { AuditLogSeeder } from './domains/shared/audit-log.seeder';
  * Runs all seeders in the correct order based on dependencies
  */
 async function main() {
-  console.log('🌱 Starting database seeding...\n');
+  console.log('🌱Starting database seeding...\n');
 
   const seeders = [
     // 1. Base data (no dependencies)
@@ -25,8 +26,8 @@ async function main() {
     // 2. Products (depends on users)
     new ProductSeeder(),
     
-    // 3. Stock (depends on products)
-    new StockSeeder(),
+    // 3. Stock lots (depends on products)
+    new StockLotSeeder(),
     
     // 4. Shifts (depends on users)
     new ShiftSeeder(),
@@ -35,19 +36,22 @@ async function main() {
     new OrderSeeder(),
     new OrderItemSeeder(), // Order items are created with orders, but keeping for consistency
     
-    // 6. Stock Movements (depends on products, orders, shifts, users)
+    // 6. Stock Movements (depends on products, orders, shifts, users, stock lots)
     new StockMovementSeeder(),
+
+    // 7. Stock totals (sync from stock lots)
+    new StockSeeder(),
     
-    // 7. Device Bindings (depends on users)
+    // 8. Device Bindings (depends on users)
     new DeviceBindingSeeder(),
     
-    // 8. Settings (depends on users)
+    // 9. Settings (depends on users)
     new AppSettingsSeeder(),
     
-    // 9. Telegram Config (depends on users)
+    // 10. Telegram Config (depends on users)
     new TelegramConfigSeeder(),
     
-    // 10. Audit Logs (depends on users, but can be independent)
+    // 11. Audit Logs (depends on users, but can be independent)
     new AuditLogSeeder(),
   ];
 
@@ -63,6 +67,7 @@ async function main() {
       prisma.user.count(),
       prisma.product.count(),
       prisma.stock.count(),
+      prisma.stockLot.count(),
       prisma.shift.count(),
       prisma.order.count(),
       prisma.orderItem.count(),
@@ -78,14 +83,15 @@ async function main() {
     console.log(`Users: ${counts[0]}`);
     console.log(`Products: ${counts[1]}`);
     console.log(`Stock Records: ${counts[2]}`);
-    console.log(`Shifts: ${counts[3]}`);
-    console.log(`Orders: ${counts[4]}`);
-    console.log(`Order Items: ${counts[5]}`);
-    console.log(`Stock Movements: ${counts[6]}`);
-    console.log(`Device Bindings: ${counts[7]}`);
-    console.log(`App Settings: ${counts[8]}`);
-    console.log(`Telegram Configs: ${counts[9]}`);
-    console.log(`Audit Logs: ${counts[10]}`);
+    console.log(`Stock Lots: ${counts[3]}`);
+    console.log(`Shifts: ${counts[4]}`);
+    console.log(`Orders: ${counts[5]}`);
+    console.log(`Order Items: ${counts[6]}`);
+    console.log(`Stock Movements: ${counts[7]}`);
+    console.log(`Device Bindings: ${counts[8]}`);
+    console.log(`App Settings: ${counts[9]}`);
+    console.log(`Telegram Configs: ${counts[10]}`);
+    console.log(`Audit Logs: ${counts[11]}`);
   } catch (error) {
     console.error('❌ Seeding failed:', error);
     throw error;
@@ -101,4 +107,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-

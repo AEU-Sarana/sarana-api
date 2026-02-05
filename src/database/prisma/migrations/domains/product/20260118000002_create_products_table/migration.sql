@@ -6,6 +6,7 @@ CREATE TABLE products (
     price DECIMAL(10,2) NOT NULL,
     avg_cost DECIMAL(10,2),
     last_purchase_cost DECIMAL(10,2),
+    has_expiry BOOLEAN NOT NULL DEFAULT FALSE,
     category VARCHAR(100),
     description TEXT,
     image_path VARCHAR(500),
@@ -23,3 +24,4 @@ CREATE INDEX idx_products_product_code ON products(product_code);
 CREATE INDEX idx_products_barcode ON products(barcode);
 CREATE INDEX idx_products_status ON products(status);
 CREATE INDEX idx_products_category ON products(category);
+CREATE INDEX idx_products_has_expiry ON products(has_expiry);

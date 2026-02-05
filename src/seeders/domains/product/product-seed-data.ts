@@ -10,6 +10,7 @@ export interface ProductSeedData {
   description?: string;
   imagePath?: string;
   lowStockThreshold?: number;
+  hasExpiry?: boolean;
   status: 'active' | 'inactive';
 }
 
@@ -17,6 +18,7 @@ const categories = ['Electronics', 'Clothing', 'Food', 'Beverages', 'Office Supp
 
 export const productSeedData: ProductSeedData[] = Array.from({ length: 50 }, (_, index) => {
   const category = SeederHelper.randomElement(categories);
+  const hasExpiry = category === 'Food' || category === 'Beverages';
   return {
     productCode: DataGenerator.generateProductCode('PROD', index),
     productName: DataGenerator.generateProductName(category, index),
@@ -25,7 +27,7 @@ export const productSeedData: ProductSeedData[] = Array.from({ length: 50 }, (_,
     category,
     description: `Description for ${DataGenerator.generateProductName(category, index)}`,
     lowStockThreshold: Math.floor(Math.random() * 20 + 5), // 5 to 25
+    hasExpiry,
     status: Math.random() > 0.1 ? 'active' : 'inactive', // 90% active
   };
 });
-

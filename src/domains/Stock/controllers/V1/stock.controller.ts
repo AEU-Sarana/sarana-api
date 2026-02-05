@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { StockService } from '@src/domains/Stock/services/stock.service';
+import { StockLotService } from '@src/domains/Stock/services/stock-lot.service';
 import { StockMovementService } from '@src/domains/Stock/services/stock-movement.service';
 import { logger } from '@src/shared/utils/logger';
 import { UserPayload } from '@src/shared/middleware/auth.middleware';
@@ -78,6 +79,8 @@ export class StockController {
         cost: req.body.cost,
         supplier: req.body.supplier,
         date: req.body.date ? new Date(req.body.date) : undefined,
+        received_at: req.body.received_at ? new Date(req.body.received_at) : undefined,
+        expired_at: req.body.expired_at ? new Date(req.body.expired_at) : undefined,
       };
 
       const response = await StockService.stockIn(request, user.userId);
@@ -165,6 +168,35 @@ export class StockController {
       });
     } catch (error: any) {
       logger.error('Get stock movements error', { error: error.message });
+      throw error;
+    }
+  }
+
+  static async getNearExpiry(req: Request, res: Response): Promise<void> {
+    try {
+      const days = req.query.days ? parseInt(String(req.query.days), 10) : 30;
+      const response = await StockLotService.listNearExpiry(days);
+      res.status(200).json({
+        success: true,
+        data: response,
+        message: 'Near expiry lots retrieved',
+      });
+    } catch (error: any) {
+      logger.error('Get near expiry lots error', { error: error.message });
+      throw error;
+    }
+  }
+
+  static async getExpired(req: Request, res: Response): Promise<void> {
+    try {
+      const response = await StockLotService.listExpired();
+      res.status(200).json({
+        success: true,
+        data: response,
+        message: 'Expired lots retrieved',
+      });
+    } catch (error: any) {
+      logger.error('Get expired lots error', { error: error.message });
       throw error;
     }
   }

@@ -60,6 +60,7 @@ model Product {
   imagePath         String?         @map("image_path") @db.VarChar(500)
   lowStockThreshold Int?            @map("low_stock_threshold")
   reorderPoint      Int             @default(0) @map("reorder_point")
+  hasExpiry         Boolean         @default(false) @map("has_expiry")
   status            String          @default("active") @db.VarChar(20)
   createdBy         Int             @map("created_by")
   createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
@@ -70,6 +71,7 @@ model Product {
   creator           User            @relation("ProductCreatedBy", fields: [createdBy], references: [userId], onDelete: NoAction, onUpdate: NoAction)
   updater           User            @relation("ProductUpdatedBy", fields: [updatedBy], references: [userId], onDelete: NoAction, onUpdate: NoAction)
   stockMovements    StockMovement[]
+  stockLots         StockLot[]
   stock             Stock?
 
   @@index([barcode], map: "idx_products_barcode")
@@ -92,9 +94,27 @@ model Stock {
   @@map("stocks")
 }
 
+model StockLot {
+  id         Int       @id @default(autoincrement())
+  productId  Int       @map("product_id")
+  qtyOnHand  Int       @map("qty_on_hand")
+  receivedAt DateTime  @default(now()) @map("received_at") @db.Timestamp(6)
+  expiredAt  DateTime? @map("expired_at") @db.Date
+  cost       Decimal?  @db.Decimal(10, 2)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  product    Product   @relation(fields: [productId], references: [productId], onDelete: NoAction, onUpdate: NoAction)
+  movements  StockMovement[]
+
+  @@index([productId, expiredAt], map: "idx_stock_lots_product_expired")
+  @@index([productId, receivedAt], map: "idx_stock_lots_product_received")
+  @@map("stock_lots")
+}
+
 model StockMovement {
   movementId   Int      @id @default(autoincrement()) @map("movement_id")
   productId    Int      @map("product_id")
+  lotId        Int?     @map("lot_id")
   movementType String   @map("movement_type") @db.VarChar(20)
   quantity     Int
   cost         Decimal? @db.Decimal(10, 2)
@@ -108,11 +128,13 @@ model StockMovement {
   creator      User     @relation(fields: [createdBy], references: [userId], onDelete: NoAction, onUpdate: NoAction)
   order        Order?   @relation(fields: [orderId], references: [orderId], onDelete: NoAction, onUpdate: NoAction)
   product      Product  @relation(fields: [productId], references: [productId], onDelete: NoAction, onUpdate: NoAction)
+  lot          StockLot? @relation(fields: [lotId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   shift        Shift?   @relation(fields: [shiftId], references: [shiftId], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([createdAt], map: "idx_stock_movements_created_at")
   @@index([orderId], map: "idx_stock_movements_order_id")
   @@index([productId], map: "idx_stock_movements_product_id")
+  @@index([lotId], map: "idx_stock_movements_lot_id")
   @@index([shiftId], map: "idx_stock_movements_shift_id")
   @@index([movementType], map: "idx_stock_movements_type")
   @@map("stock_movements")

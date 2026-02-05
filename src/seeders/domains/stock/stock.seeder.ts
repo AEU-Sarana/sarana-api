@@ -13,22 +13,32 @@ export class StockSeeder extends BaseSeeder {
       return;
     }
 
+    const totals = await prisma.stockLot.groupBy({
+      by: ['productId'],
+      _sum: { qtyOnHand: true },
+    });
+    const totalMap = new Map<number, number>(
+      totals.map((row) => [row.productId, Number(row._sum.qtyOnHand || 0)])
+    );
+
     for (const productId of productIds) {
+      const quantity = totalMap.get(productId) ?? 0;
       await prisma.stock.upsert({
         where: { productId },
         update: {
-          quantity: SeederHelper.randomInt(0, 100),
-          stockVersion: SeederHelper.randomInt(1, 10),
+          quantity,
+          stockVersion: { increment: 1 },
+          updatedAt: new Date(),
         },
         create: {
           productId,
-          quantity: SeederHelper.randomInt(0, 100),
-          stockVersion: SeederHelper.randomInt(1, 10),
+          quantity,
+          stockVersion: 1,
+          updatedAt: new Date(),
         },
       });
     }
 
-    console.log(`   Created/Updated stock for ${productIds.length} products`);
+    console.log(`Synced stock totals for ${productIds.length} products`);
   }
 }
-

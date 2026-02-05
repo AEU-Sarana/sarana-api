@@ -16,6 +16,7 @@ seeders/
     │   ├── product-seed-data.ts
     │   └── product.seeder.ts
     ├── stock/
+    │   ├── stock-lot.seeder.ts
     │   ├── stock.seeder.ts
     │   └── stock-movement.seeder.ts
     ├── order/
@@ -52,14 +53,15 @@ Seeders run in the following order (respecting dependencies):
 
 1. **Users** - Base users (admin, sellers)
 2. **Products** - Product catalog (50 products)
-3. **Stock** - Stock levels for products
+3. **Stock Lots** - Lot/batch records for products
 4. **Shifts** - Shift records (30 days)
 5. **Orders** - Order records with order items
 6. **Stock Movements** - Stock movement history
-7. **Device Bindings** - Device binding records
-8. **App Settings** - Application settings
-9. **Telegram Config** - Telegram bot configuration
-10. **Audit Logs** - Audit log entries
+7. **Stock** - Sync stock totals from lots
+8. **Device Bindings** - Device binding records
+9. **App Settings** - Application settings
+10. **Telegram Config** - Telegram bot configuration
+11. **Audit Logs** - Audit log entries
 
 ## Seed Data
 
@@ -73,10 +75,13 @@ Seeders run in the following order (respecting dependencies):
 - Prices: $10 - $1000
 - Random stock thresholds
 
+### Stock Lots
+- 1-3 lots per product
+- Expiry dates for products that require expiry
+- Stock-in movements created per lot
+
 ### Stock
-- Stock records for all products
-- Random quantities (0-100)
-- Stock versions (1-10)
+- Stock totals synced from stock lots
 
 ### Shifts
 - 30 shifts (last 30 days)
@@ -133,4 +138,3 @@ To add a new seeder:
 3. Add it to `index.ts` in the correct order
 4. Use `SeederHelper` for common operations
 5. Use `DataGenerator` for generating test data
-

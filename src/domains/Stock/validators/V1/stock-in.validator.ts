@@ -6,4 +6,6 @@ export const stockInValidator = [
   body('cost').optional().isFloat({ min: 0 }).withMessage('Cost must be a positive number'),
   body('supplier').optional().isString().isLength({ max: 200 }).withMessage('Supplier must be a string'),
   body('date').optional().isISO8601().withMessage('Date must be a valid ISO 8601 date'),
+  body('received_at').optional().isISO8601().withMessage('Received date must be a valid ISO 8601 date'),
+  body('expired_at').optional().isISO8601().withMessage('Expiry date must be a valid ISO 8601 date'),
 ];

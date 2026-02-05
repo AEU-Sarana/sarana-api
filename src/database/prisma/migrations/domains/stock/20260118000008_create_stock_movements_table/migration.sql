@@ -1,6 +1,7 @@
 CREATE TABLE stock_movements (
     movement_id SERIAL PRIMARY KEY,
     product_id INTEGER NOT NULL REFERENCES products(product_id),
+    lot_id INTEGER REFERENCES stock_lots(id),
     movement_type VARCHAR(20) NOT NULL CHECK(movement_type IN ('STOCK_IN', 'STOCK_OUT', 'ADJUSTMENT', 'RETURN')),
     quantity INTEGER NOT NULL,
     cost DECIMAL(10,2),
@@ -18,3 +19,4 @@ CREATE INDEX idx_stock_movements_type ON stock_movements(movement_type);
 CREATE INDEX idx_stock_movements_created_at ON stock_movements(created_at);
 CREATE INDEX idx_stock_movements_order_id ON stock_movements(order_id);
 CREATE INDEX idx_stock_movements_shift_id ON stock_movements(shift_id);
+CREATE INDEX idx_stock_movements_lot_id ON stock_movements(lot_id);

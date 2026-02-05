@@ -37,11 +37,11 @@ const domainConfig = {
   },
 
   stock: {
-    tables: ['stock_movements', 'stocks'],
+    tables: ['stock_movements', 'stock_lots', 'stocks'],
   },
 
   telegram: {
-    tables: ['telegram_config'],
+    tables: ['telegram_config', 'telegram_admin_links', 'telegram_admin_messages'],
   },
 
   'device-binding': {
@@ -61,15 +61,18 @@ const domainConfig = {
    MIGRATION ROLLBACK ORDER (REVERSE)
 ================================ */
 const migrationRollbackOrder = [
-  'shared/202601180000011_create_audit_logs_table',
-  'setting/202601180000010_create_settings_table',
-  'device-binding/20260118000009_create_device_bindings_table',
-  'telegram/20260118000008_create_telegram_config_table',
+  'shared/202601180000014_create_audit_logs_table',
+  'setting/202601180000013_create_settings_table',
+  'device-binding/202601180000012_create_device_bindings_table',
+  'telegram/202601180000011_create_telegram_admin_messages_table',
+  'telegram/202601180000010_create_telegram_admin_links_table',
+  'telegram/20260118000009_create_telegram_config_table',
   'stock/20260118000007_create_stock_movements_table',
-  'stock/20260118000003_create_stocks_table',
-  'order/20260118000006_create_order_items_table',
-  'order/20260118000005_create_orders_table',
-  'shift/20260118000004_create_shifts_table',
+  'stock/20260118000008_create_stock_lots_table',
+  'stock/20260118000006_create_stocks_table',
+  'order/20260118000005_create_order_items_table',
+  'order/20260118000004_create_orders_table',
+  'shift/20260118000003_create_shifts_table',
   'product/20260118000002_create_products_table',
   'auth/20260118000001_create_users_table',
 ];
@@ -344,4 +347,3 @@ async function main() {
 }
 
 main();
-

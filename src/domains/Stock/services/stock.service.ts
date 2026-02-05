@@ -3,6 +3,7 @@ import type { PrismaTransaction } from '@src/shared/types/database.types';
 import { StockMovementType } from '@src/domains/Stock/enums/stock-movement-type.enum';
 import { ProductStatus } from '@src/domains/Product/enums/product-status.enum';
 import { ProductService } from '@src/domains/Product/services/product.service';
+import { StockLotService } from '@src/domains/Stock/services/stock-lot.service';
 import {
   GetStockRequest,
   GetStockResponse,
@@ -295,7 +296,7 @@ export class StockService {
     request: StockInRequest,
     currentUserId: number
   ): Promise<StockInResponse> {
-    const { product_id, quantity, cost, supplier, date } = request;
+    const { product_id, quantity, cost, supplier, date, received_at, expired_at } = request;
 
     // Validate product exists and is active
     const product = await prisma.product.findUnique({
@@ -311,67 +312,76 @@ export class StockService {
       throw new ValidationException('Quantity must be greater than 0');
     }
 
-    // Get or create stock record
-    let stock = await prisma.stock.findUnique({
-      where: { productId: product_id },
-    });
+    const receivedAt = received_at ?? date ?? new Date();
+    const expiredAt = expired_at ?? null;
 
-    if (!stock) {
-      // Create stock record if doesn't exist
-      stock = await prisma.stock.create({
-        data: {
+    if (product.hasExpiry && !expiredAt) {
+      throw new ValidationException('Expiry date is required for this product');
+    }
+
+    const { updatedStock, movement } = await prisma.$transaction(async (tx) => {
+      // Get or create stock record
+      let stock = await tx.stock.findUnique({
+        where: { productId: product_id },
+      });
+
+      if (!stock) {
+        stock = await tx.stock.create({
+          data: {
+            productId: product_id,
+            quantity: 0,
+            stockVersion: 1,
+            updatedAt: new Date(),
+          },
+        });
+      }
+
+      const { movement } = await StockLotService.createLotStockIn(
+        {
           productId: product_id,
-          quantity: 0,
-          stockVersion: 1,
+          quantity,
+          cost,
+          supplier,
+          receivedAt,
+          expiredAt,
+          createdBy: currentUserId,
+        },
+        tx
+      );
+
+      const updatedStock = await tx.stock.update({
+        where: { productId: product_id },
+        data: {
+          quantity: stock.quantity + quantity,
+          stockVersion: stock.stockVersion + 1,
           updatedAt: new Date(),
         },
       });
-    }
 
-    // Create stock movement
-    const movement = await prisma.stockMovement.create({
-      data: {
-        productId: product_id,
-        movementType: 'STOCK_IN',
-        quantity: quantity,
-        cost: cost,
-        supplier: supplier,
-        createdBy: currentUserId,
-        createdAt: date || new Date(),
-      },
+      if (cost != null) {
+        const previousQty = stock.quantity;
+        const previousAvgCost = Number(product.avgCost ?? product.lastPurchaseCost ?? 0);
+        const newQty = previousQty + quantity;
+        const unitCost = Number(cost);
+        const newAvgCost =
+          newQty > 0 ? (previousAvgCost * previousQty + unitCost * quantity) / newQty : unitCost;
+
+        await tx.product.update({
+          where: { productId: product_id },
+          data: {
+            avgCost: newAvgCost,
+            lastPurchaseCost: unitCost,
+          },
+        });
+      } else {
+        logger.warn('Stock in without cost, avgCost not updated', {
+          productId: product_id,
+          quantity,
+        });
+      }
+
+      return { updatedStock, movement };
     });
-
-    // Update stock quantity
-    const updatedStock = await prisma.stock.update({
-      where: { productId: product_id },
-      data: {
-        quantity: stock.quantity + quantity,
-        stockVersion: stock.stockVersion + 1,
-        updatedAt: new Date(),
-      },
-    });
-
-    if (cost != null) {
-      const previousQty = stock.quantity;
-      const previousAvgCost = Number(product.avgCost ?? product.lastPurchaseCost ?? 0);
-      const newQty = previousQty + quantity;
-      const unitCost = Number(cost);
-      const newAvgCost =
-        newQty > 0 ? (previousAvgCost * previousQty + unitCost * quantity) / newQty : unitCost;
-
-      await prisma.product.update({
-        where: { productId: product_id },
-        data: {
-          avgCost: newAvgCost,
-          lastPurchaseCost: unitCost,
-        },
-      });
-    } else {
-      logger.warn('Stock in without cost, avgCost not updated', {
-        productId: product_id,
-        quantity,
-      });
-    }
 
     await auditLogService.createAuditLog({
       userId: currentUserId,
@@ -679,47 +689,52 @@ export class StockService {
     orderId: number,
     shiftId: number,
     currentUserId: number,
-    tx?: PrismaTransaction
+    tx?: PrismaTransaction,
+    options?: { allowExpired?: boolean; reason?: string }
   ): Promise<void> {
-    const db = tx ?? prisma;
+    const execute = async (db: PrismaTransaction) => {
+      const stock = await db.stock.findUnique({
+        where: { productId },
+      });
 
-    // Get stock record
-    const stock = await db.stock.findUnique({
-      where: { productId: productId },
-    });
+      if (!stock) {
+        throw new ValidationException('Stock not found for product');
+      }
 
-    if (!stock) {
-      throw new ValidationException('Stock not found for product');
+      await StockLotService.allocateStockOutFEFO(
+        {
+          productId,
+          quantity,
+          price,
+          orderId,
+          shiftId,
+          createdBy: currentUserId,
+          allowExpired: options?.allowExpired,
+          reason: options?.reason,
+        },
+        db
+      );
+
+      await db.stock.update({
+        where: { productId },
+        data: {
+          quantity: stock.quantity - quantity,
+          stockVersion: stock.stockVersion + 1,
+          updatedAt: new Date(),
+        },
+      });
+    };
+
+    if (tx) {
+      await execute(tx);
+    } else {
+      await prisma.$transaction(async (db) => execute(db));
     }
 
-    // Create stock movement
-    await db.stockMovement.create({
-      data: {
-        productId: productId,
-        movementType: 'STOCK_OUT',
-        quantity: -quantity, // Negative for stock out
-        price: price,
-        orderId: orderId,
-        shiftId: shiftId,
-        createdBy: currentUserId,
-        createdAt: new Date(),
-      },
-    });
-
-    // Update stock quantity
-    await db.stock.update({
-      where: { productId: productId },
-      data: {
-        quantity: stock.quantity - quantity,
-        stockVersion: stock.stockVersion + 1,
-        updatedAt: new Date(),
-      },
-    });
-
     logger.info('Stock Out (automatic)', {
-      productId: productId,
-      quantity: quantity,
-      orderId: orderId,
+      productId,
+      quantity,
+      orderId,
     });
   }
 

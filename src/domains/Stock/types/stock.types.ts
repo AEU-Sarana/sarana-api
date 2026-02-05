@@ -86,6 +86,8 @@ export interface StockInRequest {
   cost?: number;
   supplier?: string;
   date?: Date;
+  received_at?: Date;
+  expired_at?: Date;
 }
 
 export interface StockInResponse {

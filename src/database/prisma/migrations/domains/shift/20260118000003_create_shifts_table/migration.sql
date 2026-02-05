@@ -25,3 +25,4 @@ CREATE INDEX idx_shifts_seller_id ON shifts(seller_id);
 CREATE INDEX idx_shifts_status ON shifts(status);
 CREATE INDEX idx_shifts_shift_date ON shifts(shift_date);
 CREATE INDEX idx_shifts_report_sent_status ON shifts(report_sent_status);
+CREATE INDEX idx_shifts_seller_date ON shifts(seller_id, shift_date);

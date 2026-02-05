@@ -7,6 +7,7 @@ async function checkSeededData() {
       prisma.user.count(),
       prisma.product.count(),
       prisma.stock.count(),
+      prisma.stockLot.count(),
       prisma.shift.count(),
       prisma.order.count(),
       prisma.orderItem.count(),
@@ -24,16 +25,17 @@ async function checkSeededData() {
     console.log(`Users:              ${counts[0]}`);
     console.log(`Products:           ${counts[1]}`);
     console.log(`Stock Records:       ${counts[2]}`);
-    console.log(`Shifts:              ${counts[3]}`);
-    console.log(`Orders:              ${counts[4]}`);
-    console.log(`Order Items:         ${counts[5]}`);
-    console.log(`Stock Movements:     ${counts[6]}`);
-    console.log(`Device Bindings:     ${counts[7]}`);
-    console.log(`App Settings:       ${counts[8]}`);
-    console.log(`Telegram Configs:   ${counts[9]}`);
-    console.log(`Telegram Admin Links:   ${counts[10]}`);
-    console.log(`Telegram Admin Messages:   ${counts[11]}`);
-    console.log(`Audit Logs:          ${counts[12]}`);
+    console.log(`Stock Lots:          ${counts[3]}`);
+    console.log(`Shifts:              ${counts[4]}`);
+    console.log(`Orders:              ${counts[5]}`);
+    console.log(`Order Items:         ${counts[6]}`);
+    console.log(`Stock Movements:     ${counts[7]}`);
+    console.log(`Device Bindings:     ${counts[8]}`);
+    console.log(`App Settings:       ${counts[9]}`);
+    console.log(`Telegram Configs:   ${counts[10]}`);
+    console.log(`Telegram Admin Links:   ${counts[11]}`);
+    console.log(`Telegram Admin Messages:   ${counts[12]}`);
+    console.log(`Audit Logs:          ${counts[13]}`);
     console.log('==========================\n');
 
     // Check if data exists

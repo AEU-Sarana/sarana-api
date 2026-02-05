@@ -20,3 +20,4 @@ CREATE INDEX idx_orders_shift_id ON orders(shift_id);
 CREATE INDEX idx_orders_seller_id ON orders(seller_id);
 CREATE INDEX idx_orders_order_date ON orders(order_date);
 CREATE INDEX idx_orders_created_at ON orders(created_at);
+CREATE INDEX idx_orders_seller_date ON orders(seller_id, order_date);
