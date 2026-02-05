@@ -1,7 +1,8 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-import { PrismaClient } from '@src/database/generated';
+// Relative import so compiled output is require('./generated') and works in Docker (generated is copied to dist/database/)
+import { PrismaClient } from './generated';
 import { logger } from '@src/shared/utils/logger';
 
 // Create a single pool instance (reused across requests)

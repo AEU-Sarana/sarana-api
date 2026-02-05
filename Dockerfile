@@ -27,6 +27,8 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm db:generate
 RUN pnpm build
+# Prisma client is at src/database/generated; copy into dist so require('./generated') resolves at runtime
+RUN cp -r src/database/generated dist/database/
 
 # Production stage
 FROM node:20-alpine AS production
@@ -40,10 +42,10 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --prod --frozen-lockfile
 
-# Copy built files from build stage
+# Copy built files (includes dist/database/generated from build stage)
 COPY --from=build /app/dist ./dist
 
-# Copy prisma schema and entire node_modules/.prisma from build stage
+# Copy prisma schema and node_modules from build stage
 COPY --from=build /app/src/database/prisma ./src/database/prisma
 COPY --from=build /app/node_modules ./node_modules
 
