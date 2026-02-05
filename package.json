@@ -28,7 +28,7 @@
     "migrate:check": "node check-migrations.mjs",
     "seed:check": "node check-seeded-data.mjs",
     "db:migrate:resolve": "prisma migrate resolve",
-    "db:generate": "prisma generate",
+    "db:generate": "node db-generate.mjs",
     "db:pull": "prisma db pull",
     "db:push": "prisma db push",
     "db:studio": "prisma studio"
