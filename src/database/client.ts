@@ -10,25 +10,28 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 // Create the adapter
 const adapter = new PrismaPg(pool);
 
-// Create Prisma Client instance
-const prisma = new PrismaClient({ adapter });
-
 // Slow query logging (default 200ms, configurable via env)
 const slowQueryThresholdMs = Number(process.env.SLOW_QUERY_MS || 200);
-prisma.$use(async (params, next) => {
-  const start = Date.now();
-  const result = await next(params);
-  const duration = Date.now() - start;
 
-  if (duration >= slowQueryThresholdMs) {
-    logger.warn('Slow database query detected', {
-      model: params.model,
-      action: params.action,
-      duration_ms: duration,
-    });
-  }
+// Create Prisma Client instance with query extension (Prisma 7+)
+const prisma = new PrismaClient({ adapter }).$extends({
+  query: {
+    async $allOperations({ model, operation, args, query }) {
+      const start = Date.now();
+      const result = await query(args);
+      const duration = Date.now() - start;
 
-  return result;
+      if (duration >= slowQueryThresholdMs) {
+        logger.warn('Slow database query detected', {
+          model,
+          action: operation,
+          duration_ms: duration,
+        });
+      }
+
+      return result;
+    },
+  },
 });
 
 // Graceful shutdown
