@@ -93,6 +93,51 @@
     var: app_status.stdout
   when: run_db_migrations | bool
 
+# Wait for database to be fully ready
+- name: Wait for database to be accessible
+  command: >-
+    docker compose -f {{ app_directory }}/docker-compose.yml
+    -f {{ app_directory }}/docker-compose.prod.yml
+    exec -T db psql -U {{ db_user }} -d {{ db_name }} -c "SELECT 1"
+  environment:
+    PGPASSWORD: "{{ db_password }}"
+  register: db_check
+  changed_when: false
+  retries: 10
+  delay: 3
+  until: db_check.rc == 0
+  when: run_db_migrations | bool
+
+- name: Display .env file for debugging
+  command: cat {{ app_directory }}/.env
+  register: env_file_content
+  changed_when: false
+  when: run_db_migrations | bool
+
+- name: Show database configuration
+  debug:
+    msg: |
+      DB_USER: {{ db_user }}
+      DB_PASSWORD: {{ db_password | default('NOT_SET') }}
+      DB_NAME: {{ db_name }}
+      DB_HOST: {{ db_host }}
+      DATABASE_URL will be: postgresql://{{ db_user }}:{{ db_password | default('') }}@{{ db_host }}:5432/{{ db_name }}
+  when: run_db_migrations | bool
+
+- name: Check app container environment
+  command: >-
+    docker compose -f {{ app_directory }}/docker-compose.yml
+    -f {{ app_directory }}/docker-compose.prod.yml
+    exec -T app printenv | grep -i database || echo "DATABASE_URL not found"
+  register: app_env
+  changed_when: false
+  when: run_db_migrations | bool
+
+- name: Show app environment (DATABASE_URL)
+  debug:
+    var: app_env.stdout_lines
+  when: run_db_migrations | bool
+
 # NOW run migrations after everything is ready
 - name: Run database migrations (domain-based)
   command: >-
