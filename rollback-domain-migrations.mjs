@@ -12,11 +12,7 @@ const __dirname = path.dirname(__filename);
 
 // pg requires password to be a string (avoids "client password must be a string")
 const pool = new Pool({
-  host: process.env.DB_HOST || 'db',
-  port: Number(process.env.DB_PORT) || 5432,
-  user: process.env.DB_USER || 'postgres',
-  password: String(process.env.DB_PASSWORD ?? ''),
-  database: process.env.DB_NAME || 'stock_pos',
+  connectionString: process.env.DATABASE_URL,
 });
 
 /* ================================
