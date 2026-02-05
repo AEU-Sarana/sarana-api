@@ -1,14 +1,14 @@
 ---
 - name: Wait for application to be ready
   uri:
-    url: "http://localhost:{{ nginx_http_port }}/health"
+    url: "http://localhost:{{ nginx_http_port | default(nginx_http_port_custom) | default(8081) }}/health"
     status_code: 200
   register: health_check
   until: health_check.status == 200
   retries: 30
   delay: 5
   ignore_errors: yes
-  when: nginx_http_port is defined
+  when: true
 
 - name: Get application logs
   command: docker compose -f {{ app_directory }}/docker-compose.yml logs --tail=50

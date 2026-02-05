@@ -61,12 +61,13 @@ postgres_db: "{{ vault_prod_postgres_db }}"
 postgres_password: "{{ vault_prod_postgres_password }}"
 postgres_external_port: 5433
 
-# Variables used by app-deploy env template
+# Variables used by app-deploy env template (all from vault via postgres_* or literal)
 db_user: "{{ postgres_user }}"
 db_password: "{{ postgres_password }}"
 db_name: "{{ postgres_db }}"
 db_host: "{{ postgres_host }}"
 db_port: "{{ postgres_port }}"
+db_external_port: "{{ postgres_external_port }}"
 
 # ===== REDIS CONFIGURATION =====
 redis_host: redis
@@ -107,6 +108,9 @@ smtp_from: noreply@stockpos.com
 jwt_secret: "{{ vault_prod_jwt_secret }}"
 jwt_refresh_secret: "{{ vault_prod_jwt_refresh_secret }}"
 jwt_expiration: "{{ vault_prod_jwt_expiration }}"
+jwt_access_token_expiry: "{{ vault_prod_jwt_expiration }}"
+jwt_refresh_token_expiry: "{{ vault_prod_jwt_expiration }}"
+jwt_expires_in: "{{ vault_prod_jwt_expiration }}"
 
 # ===== DEPLOYMENT OPTIONS =====
 deploy_path: /opt/stock-pos-server
