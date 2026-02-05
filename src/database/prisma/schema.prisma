@@ -32,7 +32,7 @@ model User {
   productsUpdated        Product[]           @relation("ProductUpdatedBy")
   shifts                 Shift[]
   stockMovements         StockMovement[]
-  telegramAdminLinks     TelegramAdminLinks?
+  telegramAdminLinks     TelegramAdminLinks[]
   telegramConfigCreated  TelegramConfig[]    @relation("TelegramConfigCreatedBy")
   telegramConfigUpdated  TelegramConfig[]    @relation("TelegramConfigUpdatedBy")
   creator                User?               @relation("UserCreatedBy", fields: [createdBy], references: [userId], onDelete: NoAction, onUpdate: NoAction)
@@ -252,7 +252,7 @@ model TelegramConfig {
 
 model TelegramAdminLinks {
   id             Int       @id @default(autoincrement())
-  userId         Int       @unique(map: "idx_telegram_admin_links_user") @map("user_id")
+  userId         Int       @map("user_id")
   telegramUserId BigInt    @unique @map("telegram_user_id")
   chatId         BigInt    @map("chat_id")
   status         String    @default("ACTIVE") @db.VarChar(10)

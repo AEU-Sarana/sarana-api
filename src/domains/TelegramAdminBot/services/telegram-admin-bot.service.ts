@@ -8,6 +8,9 @@ import { ShiftService } from '@src/domains/Shift/services/shift.service';
 import { ProductService } from '@src/domains/Product/services/product.service';
 import { TelegramBotService } from '@src/domains/Telegram/services/telegram-bot.service';
 import { TelegramService } from '@src/domains/Telegram/services/telegram.service';
+import { renderMenu } from '@src/domains/Telegram/menu/menu-renderer';
+import { NAV_ROW, type MenuId } from '@src/domains/Telegram/menu/menu-registry';
+import { getMenuStateKey, goHome, popMenu, pushMenu, resetStack } from '@src/domains/Telegram/menu/menu-state';
 import { logger } from '@src/shared/utils/logger';
 import { auditLogService } from '@src/shared/services/audit-log.service';
 import { CreateTelegramAdminLinkRequest, CreateTelegramAdminLinkResponse, PendingTelegramAdminLink, TelegramWebhookPayload } from '@src/domains/TelegramAdminBot/types/telegram-admin-bot.types';
@@ -80,7 +83,13 @@ export class TelegramAdminBotService {
     const command = TelegramAdminParserService.toCommand(text, callbackData);
 
     if (command.type === 'START') {
-      await TelegramService.sendAdminMenu(chatId);
+      const menuKey = getMenuStateKey(chatId, telegramUserId);
+      resetStack(menuKey);
+      await renderMenu(
+        { chatId, telegramUserId },
+        'main',
+        { preferEdit: false }
+      );
       return { sent: true };
     }
 
@@ -221,6 +230,9 @@ export class TelegramAdminBotService {
   static async handleCallback(callback: any, adminUserId = 0) {
     const data = callback.data || '';
     const chatId = callback.message?.chat?.id;
+    const telegramUserId = callback?.from?.id ?? 0;
+    const messageId = callback?.message?.message_id;
+    const menuKey = getMenuStateKey(chatId, telegramUserId);
 
     try {
       await TelegramService.answerCallback(callback.id, 'OK');
@@ -228,10 +240,42 @@ export class TelegramAdminBotService {
       logger.warn('Failed to answer Telegram callback', { error: error.message });
     }
 
+    if (data.startsWith('nav:')) {
+      const parts = data.split(':');
+      const navType = parts[1];
+      const navTarget = parts[2] as MenuId | undefined;
+      const ctx = { chatId, telegramUserId, messageId, fromCallback: true };
+
+      if (navType === 'home') {
+        goHome(menuKey);
+        return renderMenu(ctx, 'main');
+      }
+
+      if (navType === 'back') {
+        const previous = popMenu(menuKey);
+        const target = previous ?? goHome(menuKey);
+        return renderMenu(ctx, target);
+      }
+
+      if (navType === 'open' && navTarget) {
+        if (navTarget === 'main') {
+          resetStack(menuKey);
+        } else {
+          pushMenu(menuKey, navTarget);
+        }
+        return renderMenu(ctx, navTarget);
+      }
+    }
+
+    if (data.startsWith('action:')) {
+      const [, actionId, ...rest] = data.split(':');
+      const payload = rest.length ? rest.join(':') : undefined;
+      return this.handleMenuAction(actionId, payload, chatId, adminUserId, telegramUserId);
+    }
+
     if (data.startsWith('REPORT:')) {
       const range = data.replace('REPORT:', '');
       if (range === 'CUSTOM') {
-        const telegramUserId = callback?.from?.id ?? 0;
         const pendingKey = this.getPendingKey(chatId);
         this.pendingSlowProductsRanges.delete(pendingKey);
         this.pendingTopProductsRanges.delete(pendingKey);
@@ -239,7 +283,7 @@ export class TelegramAdminBotService {
         this.pendingReportRanges.set(pendingKey, { step: 'START', telegramUserId });
         return TelegramService.sendMessageByChatId(
           chatId,
-          'Please enter start date (YYYY-MM-DD). Send /cancel to stop.',
+          this.buildCustomRangePrompt('report'),
           'Markdown'
         );
       }
@@ -255,11 +299,15 @@ export class TelegramAdminBotService {
     }
 
     if (data === 'MENU:MAIN') {
-      return TelegramService.sendAdminMenu(chatId);
+      const ctx = { chatId, telegramUserId, messageId, fromCallback: true };
+      goHome(menuKey);
+      return renderMenu(ctx, 'main');
     }
 
     if (data === 'inv_menu') {
-      return TelegramService.sendInventoryMenu(chatId);
+      const ctx = { chatId, telegramUserId, messageId, fromCallback: true };
+      pushMenu(menuKey, 'inventory');
+      return renderMenu(ctx, 'inventory');
     }
 
     if (data === 'inv_on_hand') {
@@ -279,17 +327,24 @@ export class TelegramAdminBotService {
     }
 
     if (data === 'nav_home') {
-      return TelegramService.sendAdminMenu(chatId);
+      const ctx = { chatId, telegramUserId, messageId, fromCallback: true };
+      goHome(menuKey);
+      return renderMenu(ctx, 'main');
     }
 
     if (data === 'nav_back') {
-      return TelegramService.sendInventoryMenu(chatId);
+      const ctx = { chatId, telegramUserId, messageId, fromCallback: true };
+      const previous = popMenu(menuKey);
+      const target = previous ?? goHome(menuKey);
+      return renderMenu(ctx, target);
     }
 
     if (data.startsWith('TOP_PRODUCTS:')) {
       const range = data.replace('TOP_PRODUCTS:', '');
       if (range === 'MENU') {
-        return TelegramService.sendTopProductsMenu(chatId);
+        const ctx = { chatId, telegramUserId, messageId, fromCallback: true };
+        pushMenu(menuKey, 'top_products');
+        return renderMenu(ctx, 'top_products');
       }
       if (range === 'CUSTOM') {
         const telegramUserId = callback?.from?.id ?? 0;
@@ -300,7 +355,7 @@ export class TelegramAdminBotService {
         this.pendingTopProductsRanges.set(pendingKey, { step: 'START', telegramUserId });
         return TelegramService.sendMessageByChatId(
           chatId,
-          'Please enter start date (YYYY-MM-DD). Send /cancel to stop.',
+          this.buildCustomRangePrompt('top'),
           'Markdown'
         );
       }
@@ -310,7 +365,9 @@ export class TelegramAdminBotService {
     if (data.startsWith('SLOW_PRODUCTS:')) {
       const range = data.replace('SLOW_PRODUCTS:', '');
       if (range === 'MENU') {
-        return TelegramService.sendSlowProductsMenu(chatId);
+        const ctx = { chatId, telegramUserId, messageId, fromCallback: true };
+        pushMenu(menuKey, 'slow_products');
+        return renderMenu(ctx, 'slow_products');
       }
       if (range === 'CUSTOM') {
         const telegramUserId = callback?.from?.id ?? 0;
@@ -321,7 +378,7 @@ export class TelegramAdminBotService {
         this.pendingSlowProductsRanges.set(pendingKey, { step: 'START', telegramUserId });
         return TelegramService.sendMessageByChatId(
           chatId,
-          'Please enter start date (YYYY-MM-DD). Send /cancel to stop.',
+          this.buildCustomRangePrompt('slow'),
           'Markdown'
         );
       }
@@ -331,7 +388,9 @@ export class TelegramAdminBotService {
     if (data.startsWith('INCOME:')) {
       const range = data.replace('INCOME:', '');
       if (range === 'MENU') {
-        return TelegramService.sendIncomeMenu(chatId);
+        const ctx = { chatId, telegramUserId, messageId, fromCallback: true };
+        pushMenu(menuKey, 'income');
+        return renderMenu(ctx, 'income');
       }
       if (range === 'CUSTOM') {
         const telegramUserId = callback?.from?.id ?? 0;
@@ -342,7 +401,7 @@ export class TelegramAdminBotService {
         this.pendingIncomeRanges.set(pendingKey, { step: 'START', telegramUserId });
         return TelegramService.sendMessageByChatId(
           chatId,
-          'Please enter start date (YYYY-MM-DD). Send /cancel to stop.',
+          this.buildCustomRangePrompt('income'),
           'Markdown'
         );
       }
@@ -360,6 +419,117 @@ export class TelegramAdminBotService {
     }
 
     return { sent: false };
+  }
+
+  private static async handleMenuAction(
+    actionId: string,
+    payload: string | undefined,
+    chatId: number,
+    adminUserId: number,
+    telegramUserId: number
+  ) {
+    const pendingKey = this.getPendingKey(chatId);
+
+    switch (actionId) {
+      case 'report': {
+        if (payload === 'custom') {
+          this.pendingSlowProductsRanges.delete(pendingKey);
+          this.pendingTopProductsRanges.delete(pendingKey);
+          this.pendingIncomeRanges.delete(pendingKey);
+          this.pendingReportRanges.set(pendingKey, { step: 'START', telegramUserId });
+          return TelegramService.sendMessageByChatId(
+            chatId,
+            this.buildCustomRangePrompt('report'),
+            'Markdown'
+          );
+        }
+        if (!payload) {
+          return TelegramService.sendMessageByChatId(
+            chatId,
+            'Invalid report range.',
+            'Markdown'
+          );
+        }
+        return this.sendReportByRange(chatId, payload, adminUserId);
+      }
+      case 'top_products': {
+        if (payload === 'custom') {
+          this.pendingReportRanges.delete(pendingKey);
+          this.pendingSlowProductsRanges.delete(pendingKey);
+          this.pendingIncomeRanges.delete(pendingKey);
+          this.pendingTopProductsRanges.set(pendingKey, { step: 'START', telegramUserId });
+          return TelegramService.sendMessageByChatId(
+            chatId,
+            this.buildCustomRangePrompt('top'),
+            'Markdown'
+          );
+        }
+        if (!payload) {
+          return TelegramService.sendMessageByChatId(
+            chatId,
+            'Invalid range.',
+            'Markdown'
+          );
+        }
+        return this.sendTopProductsByRange(chatId, payload, adminUserId);
+      }
+      case 'slow_products': {
+        if (payload === 'custom') {
+          this.pendingReportRanges.delete(pendingKey);
+          this.pendingTopProductsRanges.delete(pendingKey);
+          this.pendingIncomeRanges.delete(pendingKey);
+          this.pendingSlowProductsRanges.set(pendingKey, { step: 'START', telegramUserId });
+          return TelegramService.sendMessageByChatId(
+            chatId,
+            this.buildCustomRangePrompt('slow'),
+            'Markdown'
+          );
+        }
+        if (!payload) {
+          return TelegramService.sendMessageByChatId(
+            chatId,
+            'Invalid range.',
+            'Markdown'
+          );
+        }
+        return this.sendSlowProductsByRange(chatId, payload, adminUserId);
+      }
+      case 'income': {
+        if (payload === 'custom') {
+          this.pendingReportRanges.delete(pendingKey);
+          this.pendingTopProductsRanges.delete(pendingKey);
+          this.pendingSlowProductsRanges.delete(pendingKey);
+          this.pendingIncomeRanges.set(pendingKey, { step: 'START', telegramUserId });
+          return TelegramService.sendMessageByChatId(
+            chatId,
+            this.buildCustomRangePrompt('income'),
+            'Markdown'
+          );
+        }
+        if (!payload) {
+          return TelegramService.sendMessageByChatId(
+            chatId,
+            'Invalid range.',
+            'Markdown'
+          );
+        }
+        return this.sendIncomeByRange(chatId, payload, adminUserId);
+      }
+      case 'inventory_on_hand':
+        return this.sendInventoryOnHand(chatId);
+      case 'inventory_value':
+        return this.sendInventoryValue(chatId);
+      case 'inventory_low_stock':
+        return this.sendLowStockList(chatId, adminUserId, { withNav: true });
+      case 'inventory_reorder':
+        return this.sendReorderAlerts(chatId);
+      case 'shift_summary':
+        return this.sendShiftSummary(chatId, adminUserId);
+      case 'resend_last_report':
+        return this.sendConfirm(chatId, 'RESEND_LAST_REPORT');
+      default:
+        return { sent: false };
+    }
   }
 
   // ---------- Link Code (Admin → /link CODE) ----------
@@ -439,7 +609,7 @@ export class TelegramAdminBotService {
       this.pendingReportRanges.set(key, { step: 'START', telegramUserId });
       return TelegramService.sendMessageByChatId(
         chatId,
-        'Please enter start date (YYYY-MM-DD). Send /cancel to stop.',
+        this.buildCustomRangePrompt('report'),
         'Markdown'
       );
     }
@@ -505,15 +675,15 @@ export class TelegramAdminBotService {
     ].join('\n');
 
     if (options?.withNav) {
-      return TelegramService.sendInventoryReportMessage(chatId, message);
+      return this.sendMessageWithNav(chatId, message);
     }
-    return TelegramService.sendMessageByChatId(chatId, message, 'Markdown');
+    return this.sendMessageWithNav(chatId, message);
   }
 
   private static async sendInventoryOnHand(chatId: number) {
     const report = await InventoryReportService.getStockOnHand();
     if (!report.summary.total_skus) {
-      return TelegramService.sendInventoryReportMessage(chatId, 'មិនមានទិន្នន័យ');
+      return this.sendMessageWithNav(chatId, 'មិនមានទិន្នន័យ');
     }
 
     const lines = report.items.map((item, index) => {
@@ -530,13 +700,13 @@ export class TelegramAdminBotService {
       ...(lines.length ? lines : ['មិនមានទិន្នន័យ']),
     ].join('\n');
 
-    return TelegramService.sendInventoryReportMessage(chatId, message);
+    return this.sendMessageWithNav(chatId, message);
   }
 
   private static async sendInventoryValue(chatId: number) {
     const report = await InventoryReportService.getInventoryValue();
     if (!report.summary.total_skus) {
-      return TelegramService.sendInventoryReportMessage(chatId, 'មិនមានទិន្នន័យ');
+      return this.sendMessageWithNav(chatId, 'មិនមានទិន្នន័យ');
     }
 
     const totalValue = report.summary.total_value.toFixed(2);
@@ -557,13 +727,13 @@ export class TelegramAdminBotService {
       ...(lines.length ? lines : ['មិនមានទិន្នន័យ']),
     ].join('\n');
 
-    return TelegramService.sendInventoryReportMessage(chatId, message);
+    return this.sendMessageWithNav(chatId, message);
   }
 
   private static async sendReorderAlerts(chatId: number) {
     const report = await InventoryReportService.getReorderAlerts();
     if (!report.items.length) {
-      return TelegramService.sendInventoryReportMessage(chatId, 'មិនមានទិន្នន័យ');
+      return this.sendMessageWithNav(chatId, 'មិនមានទិន្នន័យ');
     }
 
     const lines = report.items.map((item, index) => {
@@ -580,7 +750,13 @@ export class TelegramAdminBotService {
       ...lines,
     ].join('\n');
 
-    return TelegramService.sendInventoryReportMessage(chatId, message);
+    return this.sendMessageWithNav(chatId, message);
+  }
+
+  private static async sendMessageWithNav(chatId: number, message: string) {
+    return TelegramService.sendMenuMessage(chatId, message, {
+      inline_keyboard: [NAV_ROW],
+    });
   }
 
   private static async sendShiftSummary(chatId: number, adminUserId: number) {
@@ -605,7 +781,7 @@ export class TelegramAdminBotService {
       lines.length ? lines.join('\n\n') : 'No shifts found for today.',
     ].join('\n');
 
-    return TelegramService.sendMessageByChatId(chatId, message, 'Markdown');
+    return this.sendMessageWithNav(chatId, message);
   }
 
   private static async sendConfirm(chatId: number, action: string) {
@@ -803,6 +979,18 @@ export class TelegramAdminBotService {
 
   private static getPendingKey(chatId: number) {
     return `${chatId}`;
+  }
+
+  private static buildCustomRangePrompt(
+    command: 'report' | 'top' | 'slow' | 'income'
+  ) {
+    const examples = {
+      report: '/report 2026-01-30 2026-02-04',
+      top: '/top 2026-01-30 2026-02-04',
+      slow: '/slow 2026-01-30 2026-02-04',
+      income: '/income 2026-01-30 2026-02-04',
+    };
+    return `សូមបញ្ចូល ថ្ងៃចាប់ផ្តើម និង បញ្ចប់ Ex: ${examples[command]}`;
   }
 
   private static async handleReportRangeInput(
@@ -1162,17 +1350,16 @@ export class TelegramAdminBotService {
 
     const lines = topProducts.map((p, index) => {
       const name = this.escapeMarkdown(p.product_name);
-      const code = this.escapeMarkdown(p.product_code);
-      return `${index + 1}) ${name} (${code})
-• បរិមាណលក់: ${p.quantity_sold}
-• ចំណូល: $${p.revenue.toLocaleString()}
-• តម្លៃមធ្យម: $${p.average_price.toFixed(2)}`;
+      // const code = this.escapeMarkdown(p.product_code);
+      return `${index + 1}) ${name}
+        •បរិមាណលក់: ${p.quantity_sold}
+        •ចំណូល: $${p.revenue.toLocaleString()}
+        •តម្លៃមធ្យម: $${p.average_price.toFixed(2)}`;
     });
 
-    return TelegramService.sendMessageByChatId(
+    return this.sendMessageWithNav(
       chatId,
-      [...header, ...lines].join('\n'),
-      'Markdown'
+      [...header, ...lines].join('\n')
     );
   }
 
@@ -1613,12 +1800,17 @@ export class TelegramAdminBotService {
       _sum: { cogsLineTotal: true, quantity: true },
     });
 
-    const missingCogsCount = await prisma.orderItem.count({
-      where: {
-        order: { orderDate: { gte: start, lte: end } },
-        cogsLineTotal: { equals: null },
-      },
-    });
+    const missingCogsRows = await prisma.$queryRaw<
+      { missing_count: number }[]
+    >(Prisma.sql`
+      SELECT COUNT(*)::int AS missing_count
+      FROM order_items oi
+      JOIN orders o ON o.order_id = oi.order_id
+      WHERE o.order_date >= ${start}
+        AND o.order_date <= ${end}
+        AND oi.cogs_line_total IS NULL
+    `);
+    const missingCogsCount = Number(missingCogsRows[0]?.missing_count || 0);
     if (missingCogsCount > 0) {
       logger.warn('Missing COGS for some order items', { missingCogsCount });
     }
