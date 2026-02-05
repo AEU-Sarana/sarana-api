@@ -1,4 +1,4 @@
-import { Prisma } from '@src/database/generated/client';
+import { Prisma } from '@prisma/client';
 
 /**
  * Prisma transaction type

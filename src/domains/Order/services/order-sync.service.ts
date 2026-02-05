@@ -42,6 +42,30 @@ export class OrderSyncService {
     for (const orderData of orders) {
       try {
         const result = await prisma.$transaction(async (tx) => {
+          const productIds = Array.from(
+            new Set(orderData.items.map((item) => item.product_id))
+          );
+          const products = await tx.product.findMany({
+            where: { productId: { in: productIds } },
+            select: { productId: true, avgCost: true, lastPurchaseCost: true },
+          });
+          const costMap = new Map(
+            products.map((p) => [
+              p.productId,
+              {
+                avgCost: p.avgCost != null ? Number(p.avgCost) : null,
+                lastPurchaseCost: p.lastPurchaseCost != null ? Number(p.lastPurchaseCost) : null,
+              },
+            ])
+          );
+          const resolveCostPerUnit = (productId: number) => {
+            const costInfo = costMap.get(productId);
+            if (costInfo?.avgCost != null) return costInfo.avgCost;
+            if (costInfo?.lastPurchaseCost != null) return costInfo.lastPurchaseCost;
+            logger.warn('Missing avgCost for product, defaulting cost to 0', { productId });
+            return 0;
+          };
+
           // Check if order exists by UUID (idempotency)
           const existingOrder = await tx.order.findUnique({
             where: { orderUuid: orderData.order_uuid },
@@ -82,6 +106,7 @@ export class OrderSyncService {
                 productName = product?.productName || 'Unknown Product';
               }
 
+              const costPerUnitAtSale = resolveCostPerUnit(item.product_id);
               await tx.orderItem.create({
                 data: {
                   orderId: updated.orderId,
@@ -89,6 +114,8 @@ export class OrderSyncService {
                   productName: productName,
                   quantity: item.quantity,
                   unitPrice: item.unit_price,
+                  costPerUnitAtSale,
+                  cogsLineTotal: costPerUnitAtSale * item.quantity,
                   discountAmount: item.discount_amount || 0,
                   subtotal: item.subtotal,
                 },
@@ -130,6 +157,7 @@ export class OrderSyncService {
                 productName = product?.productName || 'Unknown Product';
               }
 
+              const costPerUnitAtSale = resolveCostPerUnit(item.product_id);
               await tx.orderItem.create({
                 data: {
                   orderId: newOrder.orderId,
@@ -137,6 +165,8 @@ export class OrderSyncService {
                   productName: productName,
                   quantity: item.quantity,
                   unitPrice: item.unit_price,
+                  costPerUnitAtSale,
+                  cogsLineTotal: costPerUnitAtSale * item.quantity,
                   discountAmount: item.discount_amount || 0,
                   subtotal: item.subtotal,
                 },

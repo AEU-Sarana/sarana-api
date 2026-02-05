@@ -1,5 +1,5 @@
 import  prisma  from '@src/database/client';
-import type { Prisma } from '@src/database/generated/client';
+import type { Prisma } from '@prisma/client';
 import { StockMovementType } from '@src/domains/Stock/enums/stock-movement-type.enum';
 import { ProductStatus } from '@src/domains/Product/enums/product-status.enum';
 import { ProductService } from '@src/domains/Product/services/product.service';
@@ -350,6 +350,28 @@ export class StockService {
         updatedAt: new Date(),
       },
     });
+
+    if (cost != null) {
+      const previousQty = stock.quantity;
+      const previousAvgCost = Number(product.avgCost ?? product.lastPurchaseCost ?? 0);
+      const newQty = previousQty + quantity;
+      const unitCost = Number(cost);
+      const newAvgCost =
+        newQty > 0 ? (previousAvgCost * previousQty + unitCost * quantity) / newQty : unitCost;
+
+      await prisma.product.update({
+        where: { productId: product_id },
+        data: {
+          avgCost: newAvgCost,
+          lastPurchaseCost: unitCost,
+        },
+      });
+    } else {
+      logger.warn('Stock in without cost, avgCost not updated', {
+        productId: product_id,
+        quantity,
+      });
+    }
 
     await auditLogService.createAuditLog({
       userId: currentUserId,

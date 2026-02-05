@@ -171,6 +171,9 @@ export enum Permission {
       Permission.SHIFT_START,
       Permission.SHIFT_CLOSE,
       Permission.SHIFT_VIEW_OWN,
+
+      // Dashboard - View
+      Permission.DASHBOARD_VIEW,
     ],
   };
   

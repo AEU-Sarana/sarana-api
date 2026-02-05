@@ -1,7 +1,10 @@
 import axios from 'axios';
+import FormData from 'form-data';
+import fs from 'fs';
 import { TelegramAPIError, TelegramBotInfo, TelegramMessageResponse } from '@src/domains/Telegram/types/telegram.types';
 
 export class TelegramBotService {
+
   private static readonly BASE_URL = 'https://api.telegram.org/bot';
   
   /**
@@ -41,10 +44,52 @@ export class TelegramBotService {
       throw new TelegramAPIError(0, error.message);
     }
   }
+
+  /**
+   * Send document to Telegram
+   */
+  static async sendDocument(
+    botToken: string,
+    chatId: string,
+    filePath: string,
+    caption?: string
+  ): Promise<TelegramMessageResponse> {
+    try {
+      const form = new FormData();
+      form.append('chat_id', chatId);
+      if (caption) {
+        form.append('caption', caption);
+      }
+      form.append('document', fs.createReadStream(filePath));
+
+      const response = await axios.post(
+        `${this.BASE_URL}${botToken}/sendDocument`,
+        form,
+        {
+          headers: form.getHeaders(),
+          timeout: 20000,
+        }
+      );
+
+      return {
+        success: true,
+        messageId: response.data.result.message_id,
+        sentAt: new Date(response.data.result.date * 1000),
+      };
+    } catch (error: any) {
+      if (error.response) {
+        throw new TelegramAPIError(
+          error.response.data.error_code,
+          error.response.data.description
+        );
+      }
+      throw new TelegramAPIError(0, error.message);
+    }
+  }
   
   /**
    * Test bot token validity
-   */
+  */
   static async getMe(botToken: string): Promise<TelegramBotInfo> {
     const response = await axios.get(`${this.BASE_URL}${botToken}/getMe`);
     return response.data.result;

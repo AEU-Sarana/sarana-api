@@ -205,6 +205,48 @@ export class ProductService {
   }
 
   /**
+   * Get product details by product code
+   */
+  static async getProductByCode(
+    productCode: string,
+    currentUserId: number
+  ): Promise<GetProductResponse> {
+    const product = await prisma.product.findFirst({
+      where: { productCode, deactivatedDate: null },
+      include: {
+        stock: true,
+      },
+    });
+
+    if (!product) {
+      throw new ValidationException('Product not found');
+    }
+
+    await auditLogService.createAuditLog({
+      userId: currentUserId,
+      action: 'VIEW_PRODUCT',
+      resource: 'Product',
+      entityId: product.productId,
+    });
+
+    return {
+      product_id: product.productId,
+      product_code: product.productCode,
+      product_name: product.productName,
+      barcode: product.barcode,
+      price: Number(product.price),
+      category: product.category,
+      description: product.description,
+      image_path: this.normalizeImageUrl(product.imagePath),
+      low_stock_threshold: product.lowStockThreshold,
+      stock_quantity: product.stock?.quantity || 0,
+      status: (product.status as any) as ProductStatus,
+      created_at: product.createdAt,
+      updated_at: product.updatedAt,
+    };
+  }
+
+  /**
    * Create product (Admin only)
    * 
    * @param request - Product creation request

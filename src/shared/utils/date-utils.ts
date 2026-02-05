@@ -45,7 +45,7 @@ export function formatDateInPhnomPenh(date: Date | string, formatStr: string = '
 
 /**
  * Convert date to Phnom Penh timezone ISO string
- */
+*/
 export function toPhnomPenhISOString(date: Date | string): string {
   const dateObj = typeof date === 'string' ? parseISO(date) : date;
   

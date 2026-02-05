@@ -1,7 +1,9 @@
-import  prisma  from '@src/database/client';
+import prisma from '@src/database/client';
+import axios from 'axios';
 import { encrypt, decrypt } from '@src/shared/utils/encryption';
 import { logger } from '@src/shared/utils/logger';
 import { ReportService } from '@src/domains/Report/services/report.service';
+import { ReportExportService } from '@src/domains/Report/services/report-export.service';
 import { ShiftService } from '@src/domains/Shift/services/shift.service';
 import { StockService } from '@src/domains/Stock/services/stock.service';
 import { ProductService } from '@src/domains/Product/services/product.service';
@@ -13,16 +15,23 @@ import {
   TelegramConfigResponse,
   TestConnectionResponse,
   SendReportResponse,
+  TelegramAPIError,
+  TelegramMessageResponse,
 } from '@src/domains/Telegram/types/telegram.types';
 import { DailySalesReportResponse } from '@src/domains/Report/types/report.types';
 import { GetShiftResponse } from '@src/domains/Shift/types/shift.types';
 import { GetProductResponse } from '@src/domains/Product/types/product.types';
 import { GetStockByProductResponse } from '@src/domains/Stock/types/stock.types';
 import { buildDailyReportMessage } from '@src/domains/Telegram/templates/daily-report.template';
+import { auditLogService } from '@src/shared/services/audit-log.service';
+import { Role } from '@src/shared/config/permissions';
+import path from 'path';
+import fs from 'fs/promises';
 
 export class TelegramService {
 
   // Track sent alerts to prevent spam
+  private static readonly BASE_URL = 'https://api.telegram.org/bot';
   private static sentAlerts = new Map<string, number>();
   private static normalizeTestStatus(
     status: string | null
@@ -131,6 +140,178 @@ export class TelegramService {
       last_test_status: this.normalizeTestStatus(config.lastTestStatus)
     };
   }
+
+  private static async getActiveConfigOrThrow(): Promise<TelegramConfig> {
+    const config = await this.getTelegramConfig();
+    if (!config || !config.is_active) {
+      throw new Error('Telegram not configured or disabled');
+    }
+    return config;
+  }
+
+  private static async sendMessageWithMarkup(
+    botToken: string,
+    chatId: number | string,
+    text: string,
+    parseMode: 'Markdown' | 'HTML' = 'Markdown',
+    replyMarkup?: Record<string, unknown>
+  ): Promise<TelegramMessageResponse> {
+    try {
+      const response = await axios.post(
+        `${this.BASE_URL}${botToken}/sendMessage`,
+        {
+          chat_id: chatId,
+          text,
+          parse_mode: parseMode,
+          reply_markup: replyMarkup,
+        },
+        {
+          timeout: 10000,
+        }
+      );
+
+      return {
+        success: true,
+        messageId: response.data.result.message_id,
+        sentAt: new Date(response.data.result.date * 1000),
+      };
+    } catch (error: any) {
+      if (error.response) {
+        throw new TelegramAPIError(
+          error.response.data.error_code,
+          error.response.data.description
+        );
+      }
+      throw new TelegramAPIError(0, error.message);
+    }
+  }
+
+  private static async editMessageWithMarkup(
+    botToken: string,
+    chatId: number | string,
+    messageId: number,
+    text: string,
+    parseMode: 'Markdown' | 'HTML' = 'Markdown',
+    replyMarkup?: Record<string, unknown>
+  ): Promise<TelegramMessageResponse> {
+    try {
+      const response = await axios.post(
+        `${this.BASE_URL}${botToken}/editMessageText`,
+        {
+          chat_id: chatId,
+          message_id: messageId,
+          text,
+          parse_mode: parseMode,
+          reply_markup: replyMarkup,
+        },
+        { timeout: 10000 }
+      );
+
+      return {
+        success: true,
+        messageId: response.data.result.message_id,
+        sentAt: new Date(response.data.result.date * 1000),
+      };
+    } catch (error: any) {
+      if (error.response) {
+        throw new TelegramAPIError(
+          error.response.data.error_code,
+          error.response.data.description
+        );
+      }
+      throw new TelegramAPIError(0, error.message);
+    }
+  }
+
+  static async sendMessageByChatId(
+    chatId: number | string,
+    text: string,
+    parseMode: 'Markdown' | 'HTML' = 'Markdown'
+  ): Promise<TelegramMessageResponse> {
+    const config = await this.getActiveConfigOrThrow();
+    return TelegramBotService.sendMessage(config.bot_token, String(chatId), text, parseMode);
+  }
+
+  static async sendMenuMessage(
+    chatId: number | string,
+    text: string,
+    replyMarkup: Record<string, unknown>,
+    parseMode: 'Markdown' | 'HTML' = 'Markdown'
+  ): Promise<TelegramMessageResponse> {
+    const config = await this.getActiveConfigOrThrow();
+    return this.sendMessageWithMarkup(
+      config.bot_token,
+      chatId,
+      text,
+      parseMode,
+      replyMarkup
+    );
+  }
+
+  static async editMenuMessage(
+    chatId: number | string,
+    messageId: number,
+    text: string,
+    replyMarkup: Record<string, unknown>,
+    parseMode: 'Markdown' | 'HTML' = 'Markdown'
+  ): Promise<TelegramMessageResponse> {
+    const config = await this.getActiveConfigOrThrow();
+    return this.editMessageWithMarkup(
+      config.bot_token,
+      chatId,
+      messageId,
+      text,
+      parseMode,
+      replyMarkup
+    );
+  }
+
+  static async sendConfirmKeyboard(
+    chatId: number | string,
+    action: string
+  ): Promise<TelegramMessageResponse> {
+    const config = await this.getActiveConfigOrThrow();
+    const replyMarkup = {
+      inline_keyboard: [
+        [
+          { text: 'Confirm', callback_data: `CONFIRM:${action}` },
+          { text: 'Cancel', callback_data: 'CONFIRM:CANCEL' },
+        ],
+      ],
+    };
+    return this.sendMessageWithMarkup(
+      config.bot_token,
+      chatId,
+      'Please confirm this action.',
+      'Markdown',
+      replyMarkup
+    );
+  }
+
+  static async answerCallback(
+    callbackQueryId: string,
+    message = 'OK'
+  ): Promise<void> {
+    const config = await this.getActiveConfigOrThrow();
+    try {
+      await axios.post(
+        `${this.BASE_URL}${config.bot_token}/answerCallbackQuery`,
+        {
+          callback_query_id: callbackQueryId,
+          text: message,
+        },
+        { timeout: 10000 }
+      );
+    } catch (error: any) {
+      if (error.response) {
+        throw new TelegramAPIError(
+          error.response.data.error_code,
+          error.response.data.description
+        );
+      }
+      throw new TelegramAPIError(0, error.message);
+    }
+  }
   
   /**
    * Test Telegram connection
@@ -237,7 +418,20 @@ export class TelegramService {
       const response = {
         sent: true,
         message_id: result.messageId,
-        sent_at: result.sentAt.toISOString()
+        sent_at: result.sentAt.toISOString(),
+        report: {
+          date: report.date,
+          total_sales: report.total_sales,
+          total_orders: report.total_orders,
+          total_shifts: report.total_shifts,
+          average_order_value: report.average_order_value,
+          currency: report.currency,
+          shifts: report.shifts_breakdown,
+          top_products: report.top_products,
+          low_stock_items: report.low_stock_items,
+          summary: report.summary,
+          metadata: report.metadata,
+        },
       };
       eventBus.emit('telegram.report-sent', {
         shift_id: shiftId,
@@ -245,13 +439,176 @@ export class TelegramService {
         sent_at: result.sentAt,
         sent_by: currentUserId,
       });
+      await auditLogService.createAuditLog({
+        userId: currentUserId,
+        action: 'TELEGRAM_REPORT_SENT',
+        resource: 'Telegram',
+        entityType: 'Shift',
+        entityId: shiftId,
+        details: {
+          message_id: result.messageId,
+          sent_at: result.sentAt,
+        },
+      });
       return response;
     } catch (error) {
       // Update shift report status as failed
       await this.updateShiftReportStatus(shiftId, 'FAILED');
-      
+
+      await auditLogService.createAuditLog({
+        userId: currentUserId,
+        action: 'TELEGRAM_REPORT_FAILED',
+        resource: 'Telegram',
+        entityType: 'Shift',
+        entityId: shiftId,
+        details: {
+          error: (error as Error).message,
+        },
+      });
+
       throw error;
     }
+  }
+
+  /**
+   * Send daily report for all sellers (today)
+   */
+  static async sendDailyAggregateReport(
+    date: string,
+    currentUserId: number
+  ): Promise<SendReportResponse> {
+    const config = await this.getTelegramConfig();
+    if (!config || !config.is_active) {
+      throw new Error('Telegram not configured or disabled');
+    }
+
+    const report = await ReportService.getDailyReport(
+      { date },
+      currentUserId,
+      Role.ADMIN
+    );
+
+    const fileName = `daily_report_${date.replace(/-/g, '')}_${Date.now()}`;
+    const mapStockStatus = (status: string) =>
+      status === 'out_of_stock' ? 'អស់ស្តុក' : 'ស្តុកទាប';
+
+    const topProductsRows = report.top_products.map((p) => ({
+      លេខផលិតផល: p.product_id,
+      ឈ្មោះផលិតផល: p.product_name,
+      កូដផលិតផល: p.product_code,
+      បរិមាណលក់: p.quantity_sold,
+      ចំណូល: p.revenue,
+      តម្លៃមធ្យម: p.average_price,
+    }));
+    const lowStockRows = report.low_stock_items.map((item) => ({
+      លេខផលិតផល: item.product_id,
+      ឈ្មោះផលិតផល: item.product_name,
+      កូដផលិតផល: item.product_code,
+      ស្តុកបច្ចុប្បន្ន: item.current_stock,
+      ខ្ពស់បំផុតស្តុកទាប: item.low_stock_threshold,
+      ស្ថានភាព: mapStockStatus(item.status),
+      កែប្រែចុងក្រោយ: item.last_updated,
+    }));
+    const excelName = await ReportExportService.exportXLSX(
+      {
+        សង្ខេប: [
+          {
+            កាលបរិច្ឆេទ: report.date,
+            ចំនួនទឹកប្រាក់សរុប: report.total_sales,
+            ការបញ្ជាទិញសរុប: report.total_orders,
+            ចំនួនវេនសរុប: report.total_shifts,
+            មធ្យមភាគក្នុងការកម្មង់: report.average_order_value,
+            រូបិយប័ណ្ណ: report.currency,
+            សរុបផលិតផលលក់: report.summary.total_products_sold,
+            ចំនួនផលិតផលខុសគ្នាលក់: report.summary.unique_products_sold,
+            មធ្យមភាគទំនិញក្នុងបញ្ជាទិញ: report.summary.average_items_per_order,
+            ម៉ោងលក់កំពូល: report.summary.peak_sales_hour,
+            សាច់ប្រាក់ប្រមូលបាន: report.summary.cash_collected,
+            ខ្វះឬលើសសរុប: report.summary.short_over_amount,
+          },
+        ],
+        វេនការងារ: report.shifts_breakdown.map((s) => ({
+          លេខអ្នកលក់: s.seller_id,
+          អ្នកលក់: s.seller_name,
+          ចំនួនវេន: s.shift_count,
+          ចំនួនទឹកប្រាក់សរុប: s.total_sales,
+          ការបញ្ជាទិញសរុប: s.total_orders,
+          ម៉ោងចាប់ផ្តើម: s.start_time,
+          ម៉ោងបញ្ចប់: s.end_time,
+        })),
+        ផលិតផលលក់ដាច់: topProductsRows.length
+          ? topProductsRows
+          : [
+              {
+                លេខផលិតផល: '',
+                ឈ្មោះផលិតផល: '',
+                កូដផលិតផល: '',
+                បរិមាណលក់: '',
+                ចំណូល: '',
+                តម្លៃមធ្យម: '',
+              },
+            ],
+        ទំនិញស្តុកទាប: lowStockRows.length
+          ? lowStockRows
+          : [
+              {
+                លេខផលិតផល: '',
+                ឈ្មោះផលិតផល: '',
+                កូដផលិតផល: '',
+                ស្តុកបច្ចុប្បន្ន: '',
+                ខ្ពស់បំផុតស្តុកទាប: '',
+                ស្ថានភាព: '',
+                កែប្រែចុងក្រោយ: '',
+              },
+            ],
+      },
+      fileName
+    );
+
+    const filePath = path.join('/tmp', excelName);
+    const caption = `📊 របាយការណ៍លក់ប្រចាំថ្ងៃ (${report.date})`;
+    const result = await TelegramBotService.sendDocument(
+      config.bot_token,
+      config.group_chat_id,
+      filePath,
+      caption
+    );
+
+    const response = {
+      sent: true,
+      message_id: result.messageId,
+      sent_at: result.sentAt.toISOString(),
+      report: {
+        date: report.date,
+        total_sales: report.total_sales,
+        total_orders: report.total_orders,
+        total_shifts: report.total_shifts,
+        average_order_value: report.average_order_value,
+        currency: report.currency,
+        shifts: report.shifts_breakdown,
+        top_products: report.top_products,
+        low_stock_items: report.low_stock_items,
+        summary: report.summary,
+        metadata: report.metadata,
+      },
+    };
+
+    await auditLogService.createAuditLog({
+      userId: currentUserId,
+      action: 'TELEGRAM_REPORT_SENT',
+      resource: 'Telegram',
+      entityType: 'Report',
+      details: {
+        date,
+        scope: 'ALL_SELLERS',
+        message_id: result.messageId,
+        sent_at: result.sentAt,
+      },
+    });
+
+    await fs.unlink(filePath).catch(() => undefined);
+
+    return response;
   }
   
   /**
@@ -356,9 +713,71 @@ export class TelegramService {
         quantity: stock.quantity,
         sent_at: new Date(),
       });
+      await auditLogService.createAuditLog({
+        action: 'TELEGRAM_ALERT_SENT',
+        resource: 'Telegram',
+        entityType: 'Product',
+        entityId: productId,
+        details: {
+          quantity: stock.quantity,
+          threshold: product.low_stock_threshold,
+          status: stock.quantity === 0 ? 'OUT_OF_STOCK' : 'LOW_STOCK',
+        },
+      });
     } catch (error: any) {
+      await auditLogService.createAuditLog({
+        action: 'TELEGRAM_ALERT_FAILED',
+        resource: 'Telegram',
+        entityType: 'Product',
+        entityId: productId,
+        details: {
+          error: error.message,
+          quantity: stock.quantity,
+          threshold: product.low_stock_threshold,
+        },
+      });
       logger.error('Failed to send low stock alert', { productId, error: error.message });
       // Don't throw - alert failure shouldn't break stock operations
+    }
+  }
+
+  /**
+   * Send low stock alerts for all products that meet the threshold
+   */
+  static async sendLowStockAlertsForAll(): Promise<void> {
+    const config = await this.getTelegramConfig();
+    if (!config || !config.is_active) {
+      return;
+    }
+
+    const lowStockItems = await prisma.stock.findMany({
+      where: {
+        product: {
+          deactivatedDate: null,
+          lowStockThreshold: {
+            not: null,
+            gt: 0,
+          },
+        },
+      },
+      include: {
+        product: true,
+      },
+    });
+
+    const thresholdMatches = lowStockItems.filter(
+      (item) => item.quantity <= (item.product.lowStockThreshold ?? 0)
+    );
+
+    for (const item of thresholdMatches) {
+      try {
+        await this.sendLowStockAlert(item.productId);
+      } catch (error: any) {
+        logger.error('Failed to send low stock alert during shift close', {
+          product_id: item.productId,
+          error: error.message,
+        });
+      }
     }
   }
   
@@ -369,14 +788,14 @@ export class TelegramService {
     product: GetProductResponse,
     stock: GetStockByProductResponse
   ): Promise<string> {
-    const status = stock.quantity === 0 ? 'OUT OF STOCK' : 'LOW STOCK';
+    const status = stock.quantity === 0 ? 'អស់ពីស្តុក' : 'ជិតអស់ពីស្តុក';
     
-    return `⚠️ *Low Stock Alert*
+    return `⚠️ *ការជូនដំណឹង: ទំនិញជិតអស់ពីស្តុក*
 
-            Product: ${product.product_name}
-            Current Stock: ${stock.quantity}
-            Threshold: ${product.low_stock_threshold}
-            Status: ${status}
+            ឈ្មោះទំនិញ៖ ${product.product_name}
+            ចំនួនក្នុងស្តុកបច្ចុប្បន្ន៖ ${stock.quantity}
+            ចំនួនកំណត់ទាបបំផុត៖ ${product.low_stock_threshold}
+            ស្ថានភាព៖ ${status}
         `;
   }
 }
