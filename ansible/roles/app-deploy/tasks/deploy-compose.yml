@@ -15,7 +15,7 @@
   register: docker_login_result
   changed_when: false
   failed_when: docker_login_result.rc != 0
-  no_log: yes
+  no_log: true
 
 - name: Verify Docker login was successful
   debug:
@@ -27,7 +27,7 @@
     project_src: "{{ app_directory }}"
     state: absent
   when: force_recreate | bool
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Pull Docker images from registry
   community.docker.docker_compose_v2:
@@ -62,7 +62,7 @@
   retries: 10
   delay: 5
   changed_when: false
-  ignore_errors: yes
+  ignore_errors: true
 
 # ADDED - Wait specifically for database to be ready
 - name: Wait for database to accept connections
@@ -76,7 +76,7 @@
   delay: 2
   changed_when: false
   when: run_db_migrations | bool
-  ignore_errors: no
+  ignore_errors: false
 
 # ADDED - Verify app container is running
 - name: Verify app container is running
