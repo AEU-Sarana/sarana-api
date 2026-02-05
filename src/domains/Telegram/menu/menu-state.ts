@@ -5,7 +5,7 @@ interface MenuState {
   updatedAt: number;
 }
 
-const MENU_STATE_TTL_MS = 1000 * 60 * 60 * 4; // 4 hours
+const MENU_STATE_TTL_MS = 1000 * 60 * 60 * 4; 
 const menuStates = new Map<string, MenuState>();
 
 export const getMenuStateKey = (chatId: number | string, telegramUserId: number) =>

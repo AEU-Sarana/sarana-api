@@ -15,7 +15,6 @@ import { logger } from '@src/shared/utils/logger';
 import { auditLogService } from '@src/shared/services/audit-log.service';
 import { CreateTelegramAdminLinkRequest, CreateTelegramAdminLinkResponse, PendingTelegramAdminLink, TelegramWebhookPayload } from '@src/domains/TelegramAdminBot/types/telegram-admin-bot.types';
 import { Role } from '@src/shared/config/permissions';
-import { buildDailyAggregateReportMessage } from '@src/domains/Telegram/templates/daily-aggregate-report.template';
 import { formatDate, subtractDaysFromDate, toPhnomPenhISOString } from '@src/shared/utils/date-utils';
 import { UserService } from '@src/domains/User/services/user.service';
 import { randomInt } from 'crypto';
@@ -26,16 +25,6 @@ import { Prisma } from '@src/database/generated';
 import { calculateProfit } from '@src/domains/Report/utils/income-math';
 
 export class TelegramAdminBotService {
-
-  private static readonly SALES_REPORT_NAV = {
-    inline_keyboard: [
-      [
-        { text: '⬅️ ត្រឡប់ក្រោយ', callback_data: 'nav:open:report' },
-        { text: '🏠 មុខម៉ឺនុយ', callback_data: 'nav:home' },
-      ],
-    ],
-  };
-
   private static pendingLinks = new Map<string, PendingTelegramAdminLink>();
   private static pendingReportRanges = new Map<
     string,
@@ -643,16 +632,6 @@ export class TelegramAdminBotService {
       );
     }
 
-    if (resolved.startDate === resolved.endDate) {
-      const report = await ReportService.getDailyReport(
-        { date: resolved.startDate },
-        adminUserId,
-        Role.ADMIN
-      );
-      const message = buildDailyAggregateReportMessage(report);
-      return TelegramService.sendMessageByChatId(chatId, message, 'Markdown');
-    }
-
     return this.sendReportByDateRange(
       chatId,
       resolved.startDate,
@@ -914,7 +893,7 @@ export class TelegramAdminBotService {
     }
     return null;
   }
-  
+
   private static async sendReportByDateRange(
     chatId: number,
     startDate: string,
@@ -964,18 +943,19 @@ export class TelegramAdminBotService {
 
     const summary = report.summary;
     const header = [
-      '📊 *Sales Report*',
-      `📅 Range: ${startDate} → ${endDate} (${diffDays} days)`,
+      '📊 *របាយការណ៍លក់*',
+      `🗓️ រយៈពេល៖ ${startDate} ដល់ ${endDate} (${diffDays} ថ្ងៃ)`,
       '',
-      `• Total sales: $${summary.total_sales.toLocaleString()}`,
-      `• Total orders: ${summary.total_orders}`,
-      `• Avg daily sales: $${summary.average_daily_sales.toFixed(2)}`,
+      `•ចំណូលសរុប៖ $${summary.total_sales.toLocaleString()}`,
+      `•ចំនួនការបញ្ជាទិញ៖ ${summary.total_orders} ដង`,
+      `•ចំណូលមធ្យមក្នុងមួយថ្ងៃ៖ $${summary.average_daily_sales.toFixed(2)}`,
     ];
+
 
     const dailyLines = includeDaily
       ? report.sales.map((item, index) => {
-          return `${index + 1}) ${item.date} - $${item.total_sales.toLocaleString()} (${item.total_orders} orders)`;
-        })
+        return `${index + 1}) ${item.date} - $${item.total_sales.toLocaleString()} (${item.total_orders} orders)`;
+      })
       : [];
 
     const message = [
@@ -986,7 +966,7 @@ export class TelegramAdminBotService {
     return TelegramService.sendMenuMessage(
       chatId,
       message,
-      this.SALES_REPORT_NAV,
+      { inline_keyboard: [NAV_ROW] },
       'Markdown'
     );
   }
@@ -1567,7 +1547,14 @@ export class TelegramAdminBotService {
 
     const products = await prisma.product.findMany({
       where: { status: 'active', deactivatedDate: null },
-      select: { productId: true, productName: true, productCode: true, price: true },
+      select: {
+        productId: true,
+        productName: true,
+        productCode: true,
+        price: true,
+        avgCost: true,
+        lastPurchaseCost: true,
+      },
     });
 
     if (!products.length) {
@@ -1578,8 +1565,19 @@ export class TelegramAdminBotService {
       );
     }
 
+    const stockRows = await prisma.stock.findMany({
+      where: { productId: { in: products.map((p) => p.productId) } },
+      select: { productId: true, quantity: true },
+    });
+    const stockMap = new Map(
+      stockRows.map((row) => [row.productId, Number(row.quantity || 0)])
+    );
+
     const merged = products.map((p) => {
       const sales = salesMap.get(p.productId) || { quantity: 0, revenue: 0 };
+      const stockQty = stockMap.get(p.productId) ?? 0;
+      const costPerUnit = Number(p.avgCost ?? p.lastPurchaseCost ?? 0);
+      const stockValue = stockQty * costPerUnit;
       return {
         product_id: p.productId,
         product_name: p.productName,
@@ -1587,6 +1585,7 @@ export class TelegramAdminBotService {
         quantity_sold: sales.quantity,
         revenue: sales.revenue,
         average_price: Number(p.price),
+        stockValue,
       };
     });
 
@@ -1608,29 +1607,37 @@ export class TelegramAdminBotService {
       quantity_sold: number;
       revenue: number;
       average_price: number;
+      stockValue: number;
     }>
   ) {
     const header = [
-      '🐢 *ទំនិញលក់មិនដាច់*',
-      `📅 Range: ${startDate} → ${endDate}`,
+      '🐢 *របាយការណ៍ទំនិញលក់មិនដាច់*',
+      `📅 *រយៈពេល*៖ ${startDate} → ${endDate}`,
       '',
     ];
 
     const lines = slowProducts.map((p, index) => {
       const name = this.escapeMarkdown(p.product_name);
       const code = this.escapeMarkdown(p.product_code);
-      return `${index + 1}) ${name} (${code})
-• បរិមាណលក់: ${p.quantity_sold}
-• ចំណូល: $${p.revenue.toLocaleString()}
-• តម្លៃ: $${p.average_price.toFixed(2)}`;
+
+      return [
+        `*${index + 1}-${name}*`,
+            ` •កូដ៖ \`${code}\``,
+            ` •ចំនួនលក់៖ ${p.quantity_sold}`,
+            ` •ចំណូល៖ $${p.revenue.toLocaleString()}`,
+            ` •តម្លៃស្តុក៖ $${p.stockValue.toFixed(2)}`,
+        '',
+      ].join('\n');
     });
 
     return TelegramService.sendMessageByChatId(
       chatId,
-      [...header, ...(lines.length ? lines : ['No products found.'])].join('\n'),
-      'Markdown'
+      [...header, ...(lines.length ? lines : ['*មិនមានទិន្នន័យ*'])].join('\n'),
+      'Markdown',
+      { inline_keyboard: [NAV_ROW] }
     );
   }
+
 
   private static escapeMarkdown(text: string): string {
     return text.replace(/([_*[\]()`])/g, '\\$1');
@@ -1871,5 +1878,5 @@ export class TelegramAdminBotService {
   private static isValidDate(value: string): boolean {
     return /^\d{4}-\d{2}-\d{2}$/.test(value);
   }
-  
+
 }

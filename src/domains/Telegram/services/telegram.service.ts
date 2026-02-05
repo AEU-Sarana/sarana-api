@@ -226,10 +226,25 @@ export class TelegramService {
   static async sendMessageByChatId(
     chatId: number | string,
     text: string,
-    parseMode: 'Markdown' | 'HTML' = 'Markdown'
+    parseMode: 'Markdown' | 'HTML' = 'Markdown',
+    replyMarkup?: Record<string, unknown>
   ): Promise<TelegramMessageResponse> {
     const config = await this.getActiveConfigOrThrow();
-    return TelegramBotService.sendMessage(config.bot_token, String(chatId), text, parseMode);
+    if (replyMarkup) {
+      return this.sendMessageWithMarkup(
+        config.bot_token,
+        chatId,
+        text,
+        parseMode,
+        replyMarkup
+      );
+    }
+    return TelegramBotService.sendMessage(
+      config.bot_token,
+      String(chatId),
+      text,
+      parseMode
+    );
   }
 
   static async sendMenuMessage(

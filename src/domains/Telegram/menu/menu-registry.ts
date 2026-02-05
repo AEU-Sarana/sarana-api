@@ -29,28 +29,28 @@ const action = (actionId: string, payload?: string) =>
 
 export const MENU_DEFS: Record<MenuId, MenuDefinition> = {
   main: {
-    title: 'Select an action:',
+    title: '🏠សូមជ្រើសរើសមុខងារ៖',
     showNav: false,
     buildButtons: () => [
       [
-        { text: '📊 របាយការណ៍', callback_data: openMenu('report') },
-        { text: '📦 របាយការណ៍ស្តុក', callback_data: openMenu('inventory') },
+        { text: '📊របាយការណ៍លក់', callback_data: openMenu('report') },
+        { text: '📦របាយការណ៍ស្តុក', callback_data: openMenu('inventory') },
       ],
       [
-        { text: 'សង្ខេបវេន', callback_data: action('shift_summary') },
-        { text: 'របាយការណ៍ចំណូល', callback_data: openMenu('income') },
+        { text: '🕒សង្ខេបវេន', callback_data: action('shift_summary') },
+        { text: '💰របាយការណ៍ចំណូល', callback_data: openMenu('income') },
       ],
       [
-        { text: 'ទំនិញលក់ដាច់បំផុត', callback_data: openMenu('top_products') },
-        { text: 'ទំនិញលក់មិនដាច់', callback_data: openMenu('slow_products') },
+        { text: '🔥ទំនិញលក់ដាច់បំផុត', callback_data: openMenu('top_products') },
+        { text: '🐢ទំនិញលក់មិនដាច់', callback_data: openMenu('slow_products') },
       ],
       [
-        { text: 'ផ្ញើរបាយការណ៍ម្តងទៀត', callback_data: action('resend_last_report') },
-      ],
+        { text: '🔁ផ្ញើរបាយការណ៍ម្តងទៀត', callback_data: action('resend_last_report') },
+      ]
     ],
   },
   report: {
-    title: '📊 របាយការណ៍ — ជ្រើសរើសរយៈពេល៖',
+    title: '📊របាយការណ៍ — ជ្រើសរើសរយៈពេល៖',
     parentMenuId: 'main',
     buildButtons: () => [
       [
