@@ -58,12 +58,12 @@ postgres_user: "{{ vault_prod_postgres_user }}"
 postgres_host: db
 postgres_port: 5432
 postgres_db: "{{ vault_prod_postgres_db }}"
-postgres_password: "{{ vault_prod_postgres_password }}"
+postgres_password: "{{ vault_prod_postgres_password | string }}"
 postgres_external_port: 5433
 
 # Variables used by app-deploy env template
 db_user: "{{ postgres_user }}"
-db_password: "{{ postgres_password }}"
+db_password: "{{ postgres_password | string }}"
 db_name: "{{ postgres_db }}"
 db_host: "{{ postgres_host }}"
 db_port: "{{ postgres_port }}"
