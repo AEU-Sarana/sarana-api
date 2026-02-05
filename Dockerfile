@@ -55,6 +55,7 @@ COPY --from=build /app/src/database/prisma ./src/database/prisma
 COPY --from=build /app/apply-domain-migrations.mjs ./
 COPY --from=build /app/check-migrations.mjs ./
 COPY --from=build /app/rollback-domain-migrations.mjs ./
+COPY --from=build /app/db-generate.mjs ./
 
 # Copy built application
 COPY --from=build /app/dist ./dist
