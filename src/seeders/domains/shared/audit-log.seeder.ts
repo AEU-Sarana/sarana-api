@@ -43,7 +43,7 @@ export class AuditLogSeeder extends BaseSeeder {
 
     // Create audit logs for the last 90 days
     for (let i = 0; i < 200; i++) {
-      const userId = SeederHelper.randomElement(users).userId;
+      const userId = SeederHelper.randomElement<{ userId: number }>(users).userId;
       const action = SeederHelper.randomElement(actions);
       const entityType = SeederHelper.randomElement(entityTypes);
       const entityId = SeederHelper.randomInt(1, 100);

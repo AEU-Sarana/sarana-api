@@ -16,10 +16,17 @@ export interface DatabaseResult<T> {
   error?: Error;
 }
 
+/** Prisma-compatible transaction isolation levels */
+export type PrismaTransactionIsolationLevel =
+  | 'ReadUncommitted'
+  | 'ReadCommitted'
+  | 'RepeatableRead'
+  | 'Serializable';
+
 /**
  * Transaction options
  */
 export interface TransactionOptions {
   timeout?: number;
-  isolationLevel?: import('@prisma/client').Prisma.TransactionIsolationLevel;
+  isolationLevel?: PrismaTransactionIsolationLevel;
 }

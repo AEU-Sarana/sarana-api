@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@src/database/generated';
 import { logger } from '@src/shared/utils/logger';
 
 // Create a single pool instance (reused across requests)
@@ -16,7 +16,12 @@ const slowQueryThresholdMs = Number(process.env.SLOW_QUERY_MS || 200);
 // Create Prisma Client instance with query extension (Prisma 7+)
 const prisma = new PrismaClient({ adapter }).$extends({
   query: {
-    async $allOperations({ model, operation, args, query }) {
+    async $allOperations({ model, operation, args, query }: {
+      model?: string;
+      operation: string;
+      args: any;
+      query: (args: any) => any;
+    }) {
       const start = Date.now();
       const result = await query(args);
       const duration = Date.now() - start;

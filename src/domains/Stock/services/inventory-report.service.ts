@@ -1,5 +1,5 @@
 import prisma from '@src/database/client';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@src/database/generated';
 import { ReportService } from '@src/domains/Report/services/report.service';
 import { logger } from '@src/shared/utils/logger';
 import type { StockReportResponse } from '@src/domains/Report/types/report.types';
