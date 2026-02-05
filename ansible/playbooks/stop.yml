@@ -25,7 +25,7 @@
         remove_volumes: no
 
     - name: Verify containers are stopped
-      command: docker ps --filter "name={{ app_name }}" --format "{{.Names}}"
+      command: docker ps --filter "name={{ app_name }}" --format "{% raw %}{{.Names}}{% endraw %}"
       register: running_containers
       changed_when: false
 

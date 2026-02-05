@@ -24,7 +24,7 @@
       changed_when: false
 
     - name: Get running containers
-      command: docker ps --filter "name={{ app_name }}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+      command: docker ps --filter "name={{ app_name }}" --format "table {% raw %}{{.Names}}\t{{.Status}}\t{{.Ports}}{% endraw %}"
       register: running_containers
       changed_when: false
 

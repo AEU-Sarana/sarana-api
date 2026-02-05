@@ -60,7 +60,7 @@
           - "======================================"
 
     - name: Verify all services are running
-      command: docker ps --filter "name={{ app_name }}" --format "table {{.Names}}\t{{.Status}}"
+      command: docker ps --filter "name={{ app_name }}" --format "table {% raw %}{{.Names}}\t{{.Status}}{% endraw %}"
       register: final_services
       changed_when: false
 
