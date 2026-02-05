@@ -17,7 +17,7 @@
     # Load production vars and vault first so all variables (nginx_http_port, db_*, vault_*) are available
     - name: Load production group variables
       include_vars:
-        file: "{{ playbook_dir }}/../inventories/production/group_vars/prod.yml"
+        file: "{{ playbook_dir }}/../inventories/production/group_vars/all.yml"
 
     - name: Load vault variables (decrypted via --vault-password-file)
       include_vars:
