@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { TelegramService } from '@src/domains/Telegram/services/telegram.service';
 import { logger } from '@src/shared/utils/logger';
+import { BusinessLogicException } from '@src/shared/exceptions';
 import { UserPayload } from '@src/shared/middleware/auth.middleware';
 import { SendReportResponse, TelegramConfigResponse, TestConnectionResponse } from '../../types/telegram.types';
 
@@ -35,13 +36,12 @@ export class TelegramController {
       });
     } catch (error: any) {
       logger.error('Configure Telegram error', { error: error.message });
-      res.status(500).json({
-        success: false,
-        error: {
-          code: 'TELEGRAM_CONFIG_ERROR',
-          message: 'Failed to configure Telegram'
-        }
-      });
+      throw new BusinessLogicException(
+        'Failed to configure Telegram',
+        'TELEGRAM_CONFIG_ERROR',
+        500,
+        { reason: error.message }
+      );
     }
   }
   
@@ -62,14 +62,12 @@ export class TelegramController {
       });
     } catch (error: any) {
       logger.error('Test Telegram connection error', { error: error.message });
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'TELEGRAM_TEST_FAILED',
-          message: 'Failed to test Telegram connection',
-          details: error.message
-        }
-      });
+      throw new BusinessLogicException(
+        'Failed to test Telegram connection',
+        'TELEGRAM_TEST_FAILED',
+        400,
+        { reason: error.message }
+      );
     }
   }
  
@@ -87,14 +85,12 @@ export class TelegramController {
       });
     } catch (error: any) {
       logger.error('Send Telegram test message error', { error: error.message });
-      res.status(500).json({
-        success: false,
-        error: {
-          code: 'TELEGRAM_SEND_TEST_FAILED',
-          message: 'Failed to send test message',
-          details: error.message
-        }
-      });
+      throw new BusinessLogicException(
+        'Failed to send test message',
+        'TELEGRAM_SEND_TEST_FAILED',
+        500,
+        { reason: error.message }
+      );
     }
   }
   
@@ -115,14 +111,12 @@ export class TelegramController {
       });
     } catch (error: any) {
       logger.error('Send Telegram report error', { error: error.message });
-      res.status(500).json({
-        success: false,
-        error: {
-          code: 'TELEGRAM_SEND_ERROR',
-          message: 'Failed to send report to Telegram',
-          details: error.message
-        }
-      });
+      throw new BusinessLogicException(
+        'Failed to send report to Telegram',
+        'TELEGRAM_SEND_ERROR',
+        500,
+        { reason: error.message }
+      );
     }
   }
   
@@ -145,14 +139,12 @@ export class TelegramController {
       });
     } catch (error: any) {
       logger.error('Resend Telegram report error', { error: error.message });
-      res.status(500).json({
-        success: false,
-        error: {
-          code: 'TELEGRAM_RESEND_ERROR',
-          message: 'Failed to resend report to Telegram',
-          details: error.message
-        }
-      });
+      throw new BusinessLogicException(
+        'Failed to resend report to Telegram',
+        'TELEGRAM_RESEND_ERROR',
+        500,
+        { reason: error.message }
+      );
     }
   }
 }

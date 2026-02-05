@@ -32,10 +32,10 @@ export function errorMiddleware(
   // Handle known exceptions
   if (err instanceof ValidationException) {
     const validationErr = err as ValidationException;
-    res.status(400).json({
+    res.status(validationErr.statusCode || 400).json({
       success: false,
       message: validationErr.message,
-      code: 'VALIDATION_ERROR',
+      code: validationErr.code || 'VALIDATION_ERROR',
       errors: validationErr.errors,
     });
     return;

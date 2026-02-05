@@ -12,6 +12,7 @@ import { registerReportExportProcessor } from '@src/domains/Report/queues/report
 import { registerTelegramEventListeners } from './domains/Telegram/events/telegram.listeners';
 import { startTelegramDailyReportScheduler } from '@src/domains/Telegram/jobs/telegram-daily-report.scheduler';
 import { auditMutationMiddleware } from '@src/shared/middleware/audit-mutation.middleware';
+import { responseTimezoneMiddleware } from '@src/shared/middleware/response-timezone.middleware';
 
 // Register event listeners
 registerStockEventListeners();
@@ -49,6 +50,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 if (env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
+
+// Add local datetime fields in API responses
+app.use(responseTimezoneMiddleware);
 
 // Storage routes (for serving files) - must be before API routes
 app.use('/', storageRoutes);

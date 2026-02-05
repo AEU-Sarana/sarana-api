@@ -1,7 +1,7 @@
 const { flatConfigs } = require('@typescript-eslint/eslint-plugin/use-at-your-own-risk/raw-plugin');
 
 module.exports = [
-  { ignores: ['dist/', 'node_modules/', '*.cjs'] },
+  { ignores: ['dist/', 'node_modules/', '*.cjs', 'src/database/generated/**'] },
   ...flatConfigs['flat/recommended'],
   {
     files: ['**/*.ts'],
