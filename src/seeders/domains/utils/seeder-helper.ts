@@ -50,7 +50,7 @@ export class SeederHelper {
     const products = await prisma.product.findMany({
       select: { productId: true },
     });
-    return products.map((p) => p.productId);
+    return products.map((p: { productId: number }) => p.productId);
   }
 
   /**
@@ -60,7 +60,7 @@ export class SeederHelper {
     const orders = await prisma.order.findMany({
       select: { orderId: true },
     });
-    return orders.map((o) => o.orderId);
+    return orders.map((o: { orderId: number }) => o.orderId);
   }
 
   /**
@@ -70,7 +70,7 @@ export class SeederHelper {
     const shifts = await prisma.shift.findMany({
       select: { shiftId: true },
     });
-    return shifts.map((s) => s.shiftId);
+    return shifts.map((s: { shiftId: number }) => s.shiftId);
   }
 
   /**

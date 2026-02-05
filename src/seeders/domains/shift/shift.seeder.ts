@@ -24,7 +24,7 @@ export class ShiftSeeder extends BaseSeeder {
       const shiftDate = new Date(today);
       shiftDate.setDate(shiftDate.getDate() - i);
       
-      const seller = SeederHelper.randomElement(sellerIds);
+      const seller = SeederHelper.randomElement<{ userId: number }>(sellerIds);
       const startTime = new Date(shiftDate);
       startTime.setHours(8, 0, 0, 0);
       

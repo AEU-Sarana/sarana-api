@@ -22,7 +22,7 @@ import { randomInt } from 'crypto';
 import { UserRole } from '@src/domains/User/enums';
 import { startOfMonth, startOfWeek, startOfYear } from 'date-fns';
 import prisma from '@src/database/client';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@src/database/generated';
 import { calculateProfit } from '@src/domains/Report/utils/income-math';
 
 export class TelegramAdminBotService {
