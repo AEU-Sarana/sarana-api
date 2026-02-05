@@ -20,4 +20,19 @@ export const updateSettingsValidator = [
     .notEmpty()
     .isIn(Object.values(StockSyncPolicy))
     .withMessage('stock_sync_policy must be allow_with_cached or block_until_sync'),
+  body('report_send_enabled')
+    .optional()
+    .isBoolean()
+    .withMessage('report_send_enabled must be a boolean')
+    .toBoolean(),
+  body('report_send_time')
+    .optional()
+    .isString()
+    .matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .withMessage('report_send_time must be in HH:mm format'),
+  body('report_send_timezone')
+    .optional()
+    .isString()
+    .notEmpty()
+    .withMessage('report_send_timezone must be a valid timezone string'),
 ];

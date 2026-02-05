@@ -137,10 +137,13 @@ model Order {
   shift          Shift           @relation(fields: [shiftId], references: [shiftId], onDelete: NoAction, onUpdate: NoAction)
   stockMovements StockMovement[]
 
-  @@index([createdAt], map: "idx_orders_created_at")
-  @@index([orderDate], map: "idx_orders_order_date")
-  @@index([sellerId], map: "idx_orders_seller_id")
-  @@index([shiftId], map: "idx_orders_shift_id")
+  @@index([createdAt])
+  @@index([orderDate])
+  @@index([orderUuid])
+  @@index([receiptNumber])
+  @@index([sellerId, orderDate], map: "idx_orders_seller_date")
+  @@index([sellerId])
+  @@index([shiftId])
   @@map("orders")
 }
 
@@ -159,8 +162,9 @@ model OrderItem {
   order             Order    @relation(fields: [orderId], references: [orderId], onDelete: Cascade, onUpdate: NoAction)
   product           Product  @relation(fields: [productId], references: [productId], onDelete: NoAction, onUpdate: NoAction)
 
-  @@index([orderId], map: "idx_order_items_order_id")
-  @@index([productId], map: "idx_order_items_product_id")
+  @@index([orderId])
+  @@index([orderId, productId], map: "idx_order_items_order_product")
+  @@index([productId])
   @@map("order_items")
 }
 
@@ -189,10 +193,11 @@ model Shift {
   seller           User            @relation(fields: [sellerId], references: [userId], onDelete: NoAction, onUpdate: NoAction)
   stockMovements   StockMovement[]
 
-  @@index([reportSentStatus], map: "idx_shifts_report_sent_status")
-  @@index([sellerId], map: "idx_shifts_seller_id")
-  @@index([shiftDate], map: "idx_shifts_shift_date")
-  @@index([status], map: "idx_shifts_status")
+  @@index([reportSentStatus])
+  @@index([sellerId, shiftDate], map: "idx_shifts_seller_date")
+  @@index([sellerId])
+  @@index([shiftDate])
+  @@index([status])
   @@map("shifts")
 }
 

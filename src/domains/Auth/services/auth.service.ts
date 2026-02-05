@@ -17,6 +17,7 @@ import { logger } from '@src/shared/utils/logger';
 import { sendPasswordResetEmailJob } from '@src/domains/Auth/jobs/send-password-reset-email.job';
 import { auditLogService } from '@src/shared/services/audit-log.service';
 import { CurrentUser } from '../types/user.types';
+import { hashPIN, verifyPIN } from '@src/shared/services/pin.service';
 
 export class AuthService {
   /**
@@ -355,7 +356,6 @@ export class AuthService {
     }
 
     // Hash PIN
-    const { hashPIN } = await import('@src/shared/services/pin.service');
     const pinHash = await hashPIN(newPin);
 
     // Update user PIN
@@ -396,7 +396,6 @@ export class AuthService {
     }
 
     // Verify current PIN
-    const { verifyPIN } = await import('@src/shared/services/pin.service');
     const isValidPIN = await verifyPIN(currentPin, user.pinHash);
 
     if (!isValidPIN) {
@@ -409,7 +408,6 @@ export class AuthService {
     }
 
     // Hash new PIN
-    const { hashPIN } = await import('@src/shared/services/pin.service');
     const pinHash = await hashPIN(newPin);
 
     // Update user PIN

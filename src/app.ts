@@ -10,6 +10,8 @@ import { registerStockEventListeners } from '@src/domains/Stock/events/stock.lis
 import { registerReportEventListeners } from '@src/domains/Report/events/report.listeners';
 import { registerReportExportProcessor } from '@src/domains/Report/queues/report-export.processor';
 import { registerTelegramEventListeners } from './domains/Telegram/events/telegram.listeners';
+import { startTelegramDailyReportScheduler } from '@src/domains/Telegram/jobs/telegram-daily-report.scheduler';
+import { auditMutationMiddleware } from '@src/shared/middleware/audit-mutation.middleware';
 
 // Register event listeners
 registerStockEventListeners();
@@ -20,6 +22,9 @@ registerReportExportProcessor();
 
 // Register telegram event listeners
 registerTelegramEventListeners();
+
+// Start scheduled Telegram daily report
+startTelegramDailyReportScheduler();
 
 
 const app: Application = express();
@@ -44,6 +49,7 @@ if (env.NODE_ENV !== 'production') {
 app.use('/', storageRoutes);
 
 // API routes
+app.use('/api', auditMutationMiddleware);
 app.use('/api', apiRoutes);
 
 // Root endpoint

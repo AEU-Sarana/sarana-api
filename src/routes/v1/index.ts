@@ -8,7 +8,7 @@ import orderRoutes from './order.routes';
 import shiftRoutes from './shift.routes';
 import reportRoutes from './report.routes';
 import telegramRoutes from './telegram.routes';
-import telegramAdminBot from './telegram-admin-bot.routes';
+import telegramAdminBotRoutes from './telegram-admin-bot.routes';
 import backupRoutes from './backup.routes';
 import userRoutes from './user.routes';
 import deviceBindingRoutes from './device-binding.routes';
@@ -25,7 +25,7 @@ router.use('/orders', orderRoutes);
 router.use('/shifts', shiftRoutes);
 router.use('/reports', reportRoutes);
 router.use('/telegram', telegramRoutes);
-router.use('/telegram-admin-bot',telegramAdminBot)
+router.use('/telegram-admin-bot', telegramAdminBotRoutes);
 router.use('/backup', backupRoutes);
 router.use('/users', userRoutes);
 router.use('/device-bindings', deviceBindingRoutes);
