@@ -51,10 +51,10 @@ RUN pnpm install --prod --frozen-lockfile && \
 # Copy Prisma schema and migrations (needed for migrations)
 COPY --from=build /app/src/database/prisma ./src/database/prisma
 
-# Copy migration scripts
-COPY --from=build /app/apply-domain-migrations.js ./
-COPY --from=build /app/check-migrations.js ./
-COPY --from=build /app/rollback-domain-migrations.js ./
+# Copy migration scripts (now .mjs)
+COPY --from=build /app/apply-domain-migrations.mjs ./
+COPY --from=build /app/check-migrations.mjs ./
+COPY --from=build /app/rollback-domain-migrations.mjs ./
 
 # Copy built application
 COPY --from=build /app/dist ./dist
