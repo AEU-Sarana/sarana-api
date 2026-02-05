@@ -228,7 +228,7 @@ export class AuthService {
     // Verify current password
     const isPasswordValid = await bcrypt.compare(current_password, user.passwordHash);
     if (!isPasswordValid) {
-      throw new ValidationException('Current password is incorrect');
+      throw new ValidationException('Current password is incorrect', [], 'INVALID_PASSWORD', 400);
     }
 
     // Hash new password
@@ -392,19 +392,19 @@ export class AuthService {
     });
 
     if (!user || !user.pinHash) {
-      throw new ValidationException('PIN not configured for user');
+      throw new ValidationException('PIN not configured for user', [], 'PIN_NOT_CONFIGURED', 400);
     }
 
     // Verify current PIN
     const isValidPIN = await verifyPIN(currentPin, user.pinHash);
 
     if (!isValidPIN) {
-      throw new ValidationException('Current PIN is incorrect');
+      throw new ValidationException('Current PIN is incorrect', [], 'INVALID_PIN', 400);
     }
 
     // Validate new PIN format
     if (!/^\d{4,6}$/.test(newPin)) {
-      throw new ValidationException('PIN must be 4-6 numeric digits');
+      throw new ValidationException('PIN must be 4-6 numeric digits', [], 'INVALID_PIN_FORMAT', 400);
     }
 
     // Hash new PIN

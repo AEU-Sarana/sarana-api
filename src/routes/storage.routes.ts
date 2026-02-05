@@ -29,6 +29,7 @@ router.get(/^\/storage\/([^\/]+)\/(.+)$/, async (req: Request, res: Response) =>
       return res.status(400).json({
         success: false,
         message: 'Invalid storage path',
+        code: 'STORAGE_INVALID_PATH',
       });
     }
     
@@ -51,6 +52,7 @@ router.get(/^\/storage\/([^\/]+)\/(.+)$/, async (req: Request, res: Response) =>
       return res.status(400).json({
         success: false,
         message: 'Invalid storage path',
+        code: 'STORAGE_INVALID_PATH',
       });
     }
 
@@ -95,6 +97,7 @@ router.get(/^\/storage\/([^\/]+)\/(.+)$/, async (req: Request, res: Response) =>
       return res.status(500).json({
         success: false,
         message: 'Failed to retrieve file',
+        code: 'STORAGE_RETRIEVE_FAILED',
       });
     }
   } catch (error: any) {
@@ -102,7 +105,7 @@ router.get(/^\/storage\/([^\/]+)\/(.+)$/, async (req: Request, res: Response) =>
     res.status(500).json({
       success: false,
       message: 'Failed to serve file',
-      error: error.message,
+      code: 'STORAGE_SERVE_FAILED',
     });
   }
 });

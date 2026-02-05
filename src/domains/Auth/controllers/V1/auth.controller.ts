@@ -118,20 +118,7 @@ export class AuthController {
       });
     } catch (error: any) {
       logger.error('Change password error', { error: error.message });
-      
-      // Handle validation errors with custom format
-      if (error.message === 'Current password is incorrect') {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 'INVALID_PASSWORD',
-            message: 'Current password is incorrect',
-            details: {},
-          },
-        });
-        return;
-      }
-      
+
       throw error;
     }
   }
@@ -220,32 +207,6 @@ export class AuthController {
       });
     } catch (error: any) {
       logger.error('Change PIN error', { error: error.message });
-      
-      // Handle validation errors with custom format
-      if (error.message === 'Current PIN is incorrect') {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 'INVALID_PIN',
-            message: 'Current PIN is incorrect',
-            details: {},
-          },
-        });
-        return;
-      }
-
-      if (error.message === 'PIN not configured for user') {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 'PIN_NOT_CONFIGURED',
-            message: 'PIN not configured for user',
-            details: {},
-          },
-        });
-        return;
-      }
-      
       throw error;
     }
   }
