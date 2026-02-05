@@ -125,12 +125,13 @@
   when: run_db_migrations | bool
 
 - name: Check app container environment
-  command: >-
+  shell: >-
     docker compose -f {{ app_directory }}/docker-compose.yml
     -f {{ app_directory }}/docker-compose.prod.yml
     exec -T app printenv | grep -i database || echo "DATABASE_URL not found"
   register: app_env
   changed_when: false
+  failed_when: false
   when: run_db_migrations | bool
 
 - name: Show app environment (DATABASE_URL)
