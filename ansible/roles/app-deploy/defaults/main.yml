@@ -33,3 +33,43 @@ create_nginx_config: true  # Ensure nginx configs are created during deploy
 # Backup settings
 backup_enabled: true
 backup_directory: "/opt/backups/{{ app_name }}"
+
+# ----- Defaults for env.j2 (override via group_vars / vault) -----
+# Database
+db_host: "{{ postgres_host | default('db') }}"
+db_port: "{{ postgres_port | default(5432) }}"
+db_user: "{{ postgres_user | default('postgres') }}"
+db_password: "{{ postgres_password | default('') }}"
+db_name: "{{ postgres_db | default('stock_pos') }}"
+db_external_port: "{{ postgres_external_port | default(5433) }}"
+
+# Redis (env.j2 uses literal redis + redis_port variable)
+redis_port: "{{ redis_port | default(6379) }}"
+
+# MinIO / Storage
+minio_root_user: "{{ minio_root_user | default('minioadmin') }}"
+minio_root_password: "{{ minio_root_password | default('') }}"
+minio_api_port: "{{ minio_api_port | default(9000) }}"
+minio_console_port: "{{ minio_console_port | default(9001) }}"
+storage_provider: "{{ storage_provider | default('minio') }}"
+storage_endpoint: "{{ storage_endpoint | default('http://minio:9000') }}"
+storage_access_key: "{{ storage_access_key | default('') }}"
+storage_secret_key: "{{ storage_secret_key | default('') }}"
+storage_bucket: "{{ storage_bucket | default('stock-pos-storage') }}"
+storage_region: "{{ storage_region | default('us-east-1') }}"
+storage_use_ssl: "{{ storage_use_ssl | default('false') }}"
+storage_public_url: "{{ storage_public_url | default('') }}"
+
+# App / Nginx
+nginx_http_port: "{{ nginx_http_port | default(80) }}"
+nginx_https_port: "{{ nginx_https_port | default(443) }}"
+log_level: "{{ log_level | default('info') }}"
+cors_origin: "{{ cors_origin | default('*') }}"
+allowed_origins: "{{ allowed_origins | default('*') }}"
+
+# JWT (must be overridden by vault in production)
+jwt_secret: "{{ jwt_secret | default('change-me-in-vault') }}"
+jwt_refresh_secret: "{{ jwt_refresh_secret | default('change-me-in-vault') }}"
+jwt_access_token_expiry: "{{ jwt_access_token_expiry | default('24h') }}"
+jwt_refresh_token_expiry: "{{ jwt_refresh_token_expiry | default('24h') }}"
+jwt_expires_in: "{{ jwt_expires_in | default('24h') }}"
