@@ -27,6 +27,15 @@ import { calculateProfit } from '@src/domains/Report/utils/income-math';
 
 export class TelegramAdminBotService {
 
+  private static readonly SALES_REPORT_NAV = {
+    inline_keyboard: [
+      [
+        { text: '⬅️ ត្រឡប់ក្រោយ', callback_data: 'nav:open:report' },
+        { text: '🏠 មុខម៉ឺនុយ', callback_data: 'nav:home' },
+      ],
+    ],
+  };
+
   private static pendingLinks = new Map<string, PendingTelegramAdminLink>();
   private static pendingReportRanges = new Map<
     string,
@@ -974,7 +983,12 @@ export class TelegramAdminBotService {
       ...(dailyLines.length ? ['', ...dailyLines] : []),
     ].join('\n');
 
-    return TelegramService.sendMessageByChatId(chatId, message, 'Markdown');
+    return TelegramService.sendMenuMessage(
+      chatId,
+      message,
+      this.SALES_REPORT_NAV,
+      'Markdown'
+    );
   }
 
   private static getPendingKey(chatId: number) {

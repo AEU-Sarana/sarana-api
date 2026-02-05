@@ -1,9 +1,12 @@
-// Register module aliases FIRST (before any @src imports)
-import 'module-alias/register';
 import dotenv from 'dotenv';
 
 // Load .env before anything else
 dotenv.config();
+
+// Register module aliases only in production (dev uses tsconfig paths via tsx)
+if (process.env.NODE_ENV === 'production') {
+  require('module-alias/register');
+}
 
 import app from './app';
 import { env } from '@src/shared/config/env';
