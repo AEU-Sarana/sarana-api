@@ -267,6 +267,7 @@ export class ProductService {
       description,
       image_path,
       low_stock_threshold,
+      has_expiry,
     } = request;
 
     // Convert string values to numbers if needed
@@ -274,6 +275,10 @@ export class ProductService {
     const lowStockThresholdNumber = low_stock_threshold !== undefined && low_stock_threshold !== null
       ? (typeof low_stock_threshold === 'string' ? parseInt(low_stock_threshold, 10) : low_stock_threshold)
       : null;
+    const hasExpiryBoolean =
+      has_expiry !== undefined && has_expiry !== null
+        ? (typeof has_expiry === 'string' ? has_expiry === 'true' : Boolean(has_expiry))
+        : false;
 
     // Uniqueness checks
     const existingCode = await prisma.product.findFirst({
@@ -325,6 +330,7 @@ export class ProductService {
           description,
           imagePath: finalImagePath,
           lowStockThreshold: lowStockThresholdNumber,
+          hasExpiry: hasExpiryBoolean,
           status: 'active',
           createdBy: currentUserId,
           updatedBy: currentUserId,

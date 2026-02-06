@@ -46,6 +46,7 @@ export interface CreateProductRequest {
     description?: string | null;
     image_path?: string | null;
     low_stock_threshold?: number | null;
+    has_expiry?: boolean;
     status: ProductStatus;
 }
 
