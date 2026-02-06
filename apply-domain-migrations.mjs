@@ -60,6 +60,7 @@ const migrationOrder = [
   'stock/20260118000006_create_stocks_table',
   'stock/20260118000007_create_stock_lots_table',
   'stock/20260118000008_create_stock_movements_table',
+  'stock/20260205000009_add_stock_movements_product_created_at_index',
   'telegram/20260118000009_create_telegram_config_table',
   'telegram/202601180000010_create_telegram_admin_links_table',
   'telegram/202601180000011_create_telegram_admin_messages_table',

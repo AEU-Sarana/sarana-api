@@ -14,6 +14,8 @@ import { startTelegramDailyReportScheduler } from '@src/domains/Telegram/jobs/te
 import { auditMutationMiddleware } from '@src/shared/middleware/audit-mutation.middleware';
 import { responseTimezoneMiddleware } from '@src/shared/middleware/response-timezone.middleware';
 import { startTelegramAdminWorker } from '@src/domains/TelegramAdminBot/jobs/telegram-admin.worker';
+import { startTelegramAdminExportWorker } from '@src/domains/TelegramAdminBot/jobs/telegram-admin-export-excel.worker';
+import { startTelegramAdminStockHistoryExportWorker } from '@src/domains/TelegramAdminBot/jobs/telegram-admin-stock-history-export.worker';
 
 // Register event listeners
 registerStockEventListeners();
@@ -31,6 +33,20 @@ try {
   startTelegramAdminWorker();
 } catch (error) {
   console.error('Failed to start telegram admin worker:', error);
+}
+
+// Register Telegram admin export worker
+try {
+  startTelegramAdminExportWorker();
+} catch (error) {
+  console.error('Failed to start telegram admin export worker:', error);
+}
+
+// Register Telegram admin stock history export worker
+try {
+  startTelegramAdminStockHistoryExportWorker();
+} catch (error) {
+  console.error('Failed to start telegram admin stock history export worker:', error);
 }
 
 // Register telegram event listeners

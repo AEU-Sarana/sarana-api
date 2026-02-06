@@ -1,13 +1,13 @@
 import { Worker } from 'bullmq';
 import { logger } from '@src/shared/utils/logger';
-import { TELEGRAM_ADMIN_QUEUE_NAME, redisConnection } from './telegram-admin.queue';
+import { TELEGRAM_ADMIN_QUEUE_NAME, redisOptions } from './telegram-admin.queue';
 import { processTelegramAdminJob } from './telegram-admin.processor';
 
 export const startTelegramAdminWorker = () => {
   const concurrency = Number(process.env.TELEGRAM_ADMIN_WORKER_CONCURRENCY || 5);
 
   const worker = new Worker(TELEGRAM_ADMIN_QUEUE_NAME, processTelegramAdminJob, {
-    connection: redisConnection,
+    connection: redisOptions,
     concurrency,
   });
 

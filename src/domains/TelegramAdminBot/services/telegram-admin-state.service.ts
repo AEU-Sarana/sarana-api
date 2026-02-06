@@ -1,4 +1,7 @@
 import { PendingTelegramAdminLink } from '@src/domains/TelegramAdminBot/types/telegram-admin-bot.types';
+import type { PendingStockHistoryQuery } from '@src/domains/TelegramAdminBot/types/telegram-admin-stock-history.types';
+import type { StockInDraft, PendingStockInBlock } from '@src/domains/TelegramAdminBot/types/telegram-admin-stock-in.types';
+import type { PendingStockAdjustBlock, StockAdjustDraft } from '@src/domains/TelegramAdminBot/types/telegram-admin-stock-adjust.types';
 
 export type PendingRange = {
   step: 'START' | 'END';
@@ -11,6 +14,11 @@ export const pendingReportRanges = new Map<string, PendingRange>();
 export const pendingTopProductsRanges = new Map<string, PendingRange>();
 export const pendingSlowProductsRanges = new Map<string, PendingRange>();
 export const pendingIncomeRanges = new Map<string, PendingRange>();
+export const pendingStockHistoryQueries = new Map<string, PendingStockHistoryQuery>();
+export const pendingStockInBlocks = new Map<string, PendingStockInBlock>();
+export const stockInDrafts = new Map<string, StockInDraft>();
+export const pendingStockAdjustBlocks = new Map<string, PendingStockAdjustBlock>();
+export const stockAdjustDrafts = new Map<string, StockAdjustDraft>();
 
 export const DEFAULT_EXPIRES_MINUTES = 10;
 export const MAX_CUSTOM_RANGE_DAYS = 31;
@@ -27,4 +35,73 @@ export function clearAllRangePending(pendingKey: string) {
   pendingTopProductsRanges.delete(pendingKey);
   pendingSlowProductsRanges.delete(pendingKey);
   pendingIncomeRanges.delete(pendingKey);
+}
+
+export function setStockHistoryPending(chatId: number, telegramUserId: number) {
+  pendingStockHistoryQueries.set(getPendingKey(chatId), {
+    telegramUserId,
+    startedAt: Date.now(),
+  });
+}
+
+export function clearStockHistoryPending(chatId: number) {
+  pendingStockHistoryQueries.delete(getPendingKey(chatId));
+}
+
+export function getStockHistoryPending(chatId: number) {
+  return pendingStockHistoryQueries.get(getPendingKey(chatId));
+}
+
+export function setStockInPending(chatId: number, telegramUserId: number) {
+  pendingStockInBlocks.set(getPendingKey(chatId), {
+    telegramUserId,
+    startedAt: Date.now(),
+  });
+}
+
+export function clearStockInPending(chatId: number) {
+  pendingStockInBlocks.delete(getPendingKey(chatId));
+}
+
+export function getStockInPending(chatId: number) {
+  return pendingStockInBlocks.get(getPendingKey(chatId));
+}
+
+export function saveStockInDraft(draft: StockInDraft) {
+  stockInDrafts.set(draft.draftId, draft);
+}
+
+export function getStockInDraft(draftId: string) {
+  return stockInDrafts.get(draftId);
+}
+
+export function clearStockInDraft(draftId: string) {
+  stockInDrafts.delete(draftId);
+}
+
+export function setStockAdjustPending(chatId: number, telegramUserId: number) {
+  pendingStockAdjustBlocks.set(getPendingKey(chatId), {
+    telegramUserId,
+    startedAt: Date.now(),
+  });
+}
+
+export function clearStockAdjustPending(chatId: number) {
+  pendingStockAdjustBlocks.delete(getPendingKey(chatId));
+}
+
+export function getStockAdjustPending(chatId: number) {
+  return pendingStockAdjustBlocks.get(getPendingKey(chatId));
+}
+
+export function saveStockAdjustDraft(draft: StockAdjustDraft) {
+  stockAdjustDrafts.set(draft.draftId, draft);
+}
+
+export function getStockAdjustDraft(draftId: string) {
+  return stockAdjustDrafts.get(draftId);
+}
+
+export function clearStockAdjustDraft(draftId: string) {
+  stockAdjustDrafts.delete(draftId);
 }

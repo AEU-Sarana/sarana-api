@@ -60,7 +60,9 @@ export class TelegramBotService {
       if (caption) {
         form.append('caption', caption);
       }
-      form.append('document', fs.createReadStream(filePath));
+      const isUrl = /^https?:\/\//i.test(filePath);
+      const documentSource = isUrl ? filePath : fs.createReadStream(filePath);
+      form.append('document', documentSource as any);
 
       const response = await axios.post(
         `${this.BASE_URL}${botToken}/sendDocument`,

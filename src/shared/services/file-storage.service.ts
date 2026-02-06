@@ -42,10 +42,16 @@ export class FileStorageService {
     }
 
     // Validate file type (for images) - skip for reports (CSV/PDF)
-    const isReportFile = options?.contentType?.includes('csv') || 
-                         options?.contentType?.includes('pdf') ||
-                         file.mimetype?.includes('csv') ||
-                         file.mimetype?.includes('pdf');
+    const contentType = options?.contentType ?? '';
+    const mimeType = file.mimetype ?? '';
+    const isReportFile = contentType.includes('csv') ||
+                         contentType.includes('pdf') ||
+                         contentType.includes('spreadsheetml') ||
+                         contentType.includes('xlsx') ||
+                         mimeType.includes('csv') ||
+                         mimeType.includes('pdf') ||
+                         mimeType.includes('spreadsheetml') ||
+                         mimeType.includes('xlsx');
     
     if (!isReportFile && !APP_CONSTANTS.ALLOWED_IMAGE_TYPES.includes(file.mimetype as typeof APP_CONSTANTS.ALLOWED_IMAGE_TYPES[number])) {
       throw new Error(`File type not allowed. Allowed types: ${APP_CONSTANTS.ALLOWED_IMAGE_TYPES.join(', ')}`);

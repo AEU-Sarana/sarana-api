@@ -17,7 +17,7 @@ export interface ReportExportJobData {
     page?: number;
     limit?: number;
   };
-  format: 'CSV' | 'PDF';
+  format: 'CSV' | 'PDF' | 'XLSX';
 }
 
 /**
@@ -44,8 +44,8 @@ export function getReportExportQueue(): Queue<ReportExportJobData> {
   if (!reportExportQueue) {
     reportExportQueue = QueueUtil.createQueue<ReportExportJobData>('report-export', {
       limiter: {
-        max: 10, // Process max 10 jobs concurrently
-        duration: 1000, // Per second
+        max: 10, 
+        duration: 1000, 
       },
     });
   }

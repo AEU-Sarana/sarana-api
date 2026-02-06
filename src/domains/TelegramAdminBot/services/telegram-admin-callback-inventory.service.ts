@@ -36,6 +36,10 @@ export class TelegramAdminCallbackInventoryService {
       return TelegramAdminInventoryService.buildReorderAlertsMessage();
     }
 
+    if (callbackData === 'inv_near_expiry' || callbackData === 'action:inventory_near_expiry') {
+      return TelegramAdminInventoryService.buildNearExpiryMessage();
+    }
+
     return null;
   }
 }

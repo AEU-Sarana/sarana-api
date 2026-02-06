@@ -112,7 +112,6 @@ export function startTelegramDailyReportScheduler(): void {
     void runOnce();
   }, TICK_INTERVAL_MS);
 
-  void runOnce();
   logger.info('Telegram daily report scheduler started', {
     interval_ms: TICK_INTERVAL_MS,
   });

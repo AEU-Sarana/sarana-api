@@ -16,6 +16,9 @@ export class TelegramAdminCallbackReportService {
     callbackData: string,
     ctx: CallbackContext
   ): Promise<TelegramAdminCallbackResult | null> {
+    if (callbackData.startsWith('EXPORT_EXCEL_')) {
+      return null;
+    }
     const parsed = this.parseCallback(callbackData);
     if (!parsed) return null;
 

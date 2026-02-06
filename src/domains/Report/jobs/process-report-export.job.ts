@@ -42,11 +42,14 @@ export async function processReportExportJob(
     await job.progress(10);
 
     // Step 1: Generate report data and determine filename
+    const tGenerateStart = Date.now();
     const { reportData, fileName } = await generateReportData(reportType, filters, userId);
+    const tGenerateMs = Date.now() - tGenerateStart;
 
     await job.progress(30);
 
     // Step 2: Export to file and determine actual format
+    const tExportStart = Date.now();
     const { finalFileName, actualFormat } = await exportReportToFile(
       reportData,
       fileName,
@@ -54,12 +57,14 @@ export async function processReportExportJob(
       safeJobId,
       reportType
     );
+    const tExportMs = Date.now() - tExportStart;
 
     localFilePath = path.join('/tmp', finalFileName);
 
     await job.progress(50);
 
     // Step 3: Upload file to MinIO using streams
+    const tUploadStart = Date.now();
     const uploadResult = await uploadFileToStorage(
       localFilePath,
       finalFileName,
@@ -68,6 +73,7 @@ export async function processReportExportJob(
       userId,
       reportType
     );
+    const tUploadMs = Date.now() - tUploadStart;
 
     await job.progress(90);
 
@@ -87,6 +93,9 @@ export async function processReportExportJob(
       actualFormat,
       fileUrl: result.fileUrl,
       fileSize: result.fileSize,
+      t_generate_ms: tGenerateMs,
+      t_export_ms: tExportMs,
+      t_upload_ms: tUploadMs,
     });
 
     return result;
@@ -217,7 +226,8 @@ async function exportReportToFile(
   reportType: string
 ): Promise<{ finalFileName: string; actualFormat: string }> {
   const normalizedRequestedFormat = requestedFormat.toUpperCase();
-  const actualFormat = normalizedRequestedFormat === 'PDF' ? 'CSV' : normalizedRequestedFormat;
+  const actualFormat =
+    normalizedRequestedFormat === 'PDF' ? 'CSV' : normalizedRequestedFormat;
 
   if (normalizedRequestedFormat === 'PDF') {
     logger.warn('PDF export requested but not implemented, falling back to CSV', {
@@ -226,10 +236,18 @@ async function exportReportToFile(
     });
   }
 
-  const finalFileName = await ReportExportService.exportCSV(
-    reportData,
-    `${baseFileName}.csv`
-  );
+  let finalFileName: string;
+  if (normalizedRequestedFormat === 'XLSX') {
+    finalFileName = await ReportExportService.exportXLSX(
+      { Report: reportData },
+      baseFileName
+    );
+  } else {
+    finalFileName = await ReportExportService.exportCSV(
+      reportData,
+      `${baseFileName}.csv`
+    );
+  }
 
   return { finalFileName, actualFormat };
 }
@@ -289,7 +307,11 @@ async function uploadFileToStorage(
  * Get MIME type for format
  */
 function getMimeType(format: string): string {
-  return format === 'PDF' ? 'application/pdf' : 'text/csv';
+  if (format === 'PDF') return 'application/pdf';
+  if (format === 'XLSX') {
+    return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  }
+  return 'text/csv';
 }
 
 /**

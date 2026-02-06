@@ -361,17 +361,11 @@ export class ReportController {
       displayFileName = finalFileName.replace('.csv', '.pdf');
       localFilePath = path.join('/tmp', finalFileName);
     } else if (normalizedFormat === 'XLSX') {
-      // XLSX export not yet implemented, fallback to CSV
-      logger.warn('XLSX export requested but not implemented, falling back to CSV', {
-        reportType,
-        userId,
-      });
-      actualFormat = 'CSV';
-      finalFileName = await ReportExportService.exportCSV(
-        reportData,
+      finalFileName = await ReportExportService.exportXLSX(
+        { Report: reportData },
         fileName
       );
-      displayFileName = finalFileName.replace('.csv', '.xlsx');
+      displayFileName = finalFileName;
       localFilePath = path.join('/tmp', finalFileName);
     } else {
       // Default to CSV
@@ -388,11 +382,18 @@ export class ReportController {
     const fileSize = fileBuffer.length;
 
     // Create a temporary multer-like file object for upload
+    const resolvedMimeType =
+      actualFormat === 'PDF'
+        ? 'application/pdf'
+        : actualFormat === 'XLSX'
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          : 'text/csv';
+
     const multerFile: Express.Multer.File = {
       fieldname: 'report',
       originalname: finalFileName,
       encoding: 'utf8',
-      mimetype: normalizedFormat === 'PDF' ? 'application/pdf' : 'text/csv',
+      mimetype: resolvedMimeType,
       size: fileSize,
       buffer: fileBuffer,
       destination: '/tmp',
@@ -403,15 +404,15 @@ export class ReportController {
     const fileStorageService = new FileStorageService();
     const uploadResult = await fileStorageService.uploadFile(
       multerFile,
-      `reports/${Date.now()}`, // Use timestamp instead of job ID
+      `reports/${Date.now()}`, 
       {
         filename: displayFileName,
-        contentType: actualFormat === 'PDF' ? 'application/pdf' : 'text/csv',
+        contentType: resolvedMimeType,
         metadata: {
           reportType,
           userId: userId.toString(),
           format: actualFormat,
-          requestedFormat: normalizedFormat, // Track what was originally requested
+          requestedFormat: normalizedFormat, 
         },
       }
     );

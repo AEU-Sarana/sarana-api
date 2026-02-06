@@ -93,10 +93,14 @@ export class TelegramAdminMenuActionService {
         return TelegramAdminInventoryService.sendLowStockList(chatId, adminUserId, { withNav: true });
       case 'inventory_reorder':
         return TelegramAdminInventoryService.sendReorderAlerts(chatId);
+      case 'inventory_near_expiry':
+        return TelegramAdminInventoryService.sendNearExpiryList(chatId);
       case 'shift_summary':
         return TelegramAdminInventoryService.sendShiftSummary(chatId, adminUserId);
       case 'resend_last_report':
         return TelegramAdminUiService.sendConfirm(chatId, 'RESEND_LAST_REPORT');
+      case 'export_excel':
+        return TelegramService.sendMessageByChatId(chatId, '⏳ Processing...', 'Markdown');
       default:
         return { sent: false };
     }

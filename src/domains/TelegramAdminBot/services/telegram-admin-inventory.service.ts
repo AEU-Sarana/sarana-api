@@ -1,11 +1,15 @@
 import { InventoryReportService } from '@src/domains/Stock/services/inventory-report.service';
 import { ShiftService } from '@src/domains/Shift/services/shift.service';
+import { StockLotService } from '@src/domains/Stock/services/stock-lot.service';
 import { Role } from '@src/shared/config/permissions';
 import { formatDate } from '@src/shared/utils/date-utils';
 import { TelegramAdminFormatService } from './telegram-admin-format.service';
 import { TelegramAdminUiService } from './telegram-admin-ui.service';
 import { NAV_ROW } from '@src/domains/Telegram/menu/menu-registry';
 import type { TelegramAdminCallbackResult } from '@src/domains/TelegramAdminBot/types/telegram-admin-callback.types';
+
+const MARKDOWN = 'Markdown' as const;
+const DEFAULT_NEAR_EXPIRY_DAYS = 30;
 
 export class TelegramAdminInventoryService {
   static async sendLowStockList(
@@ -35,6 +39,11 @@ export class TelegramAdminInventoryService {
     return TelegramAdminUiService.sendMessageWithNav(chatId, result.text);
   }
 
+  static async sendNearExpiryList(chatId: number, days = DEFAULT_NEAR_EXPIRY_DAYS) {
+    const result = await this.buildNearExpiryMessage(days);
+    return TelegramAdminUiService.sendMessageWithNav(chatId, result.text);
+  }
+
   static async sendShiftSummary(chatId: number, adminUserId: number) {
     const result = await this.buildShiftSummaryMessage(adminUserId);
     return TelegramAdminUiService.sendMessageWithNav(chatId, result.text);
@@ -61,7 +70,7 @@ export class TelegramAdminInventoryService {
     return {
       text: message,
       replyMarkup: { inline_keyboard: [NAV_ROW] },
-      parseMode: 'Markdown',
+      parseMode: MARKDOWN,
     };
   }
 
@@ -71,7 +80,7 @@ export class TelegramAdminInventoryService {
       return {
         text: 'មិនមានទិន្នន័យ',
         replyMarkup: { inline_keyboard: [NAV_ROW] },
-        parseMode: 'Markdown',
+        parseMode: MARKDOWN,
       };
     }
 
@@ -92,7 +101,7 @@ export class TelegramAdminInventoryService {
     return {
       text: message,
       replyMarkup: { inline_keyboard: [NAV_ROW] },
-      parseMode: 'Markdown',
+      parseMode: MARKDOWN,
     };
   }
 
@@ -102,7 +111,7 @@ export class TelegramAdminInventoryService {
       return {
         text: 'មិនមានទិន្នន័យ',
         replyMarkup: { inline_keyboard: [NAV_ROW] },
-        parseMode: 'Markdown',
+        parseMode: MARKDOWN,
       };
     }
 
@@ -127,7 +136,7 @@ export class TelegramAdminInventoryService {
     return {
       text: message,
       replyMarkup: { inline_keyboard: [NAV_ROW] },
-      parseMode: 'Markdown',
+      parseMode: MARKDOWN,
     };
   }
 
@@ -137,7 +146,7 @@ export class TelegramAdminInventoryService {
       return {
         text: 'មិនមានទិន្នន័យ',
         replyMarkup: { inline_keyboard: [NAV_ROW] },
-        parseMode: 'Markdown',
+        parseMode: MARKDOWN,
       };
     }
 
@@ -158,7 +167,42 @@ export class TelegramAdminInventoryService {
     return {
       text: message,
       replyMarkup: { inline_keyboard: [NAV_ROW] },
-      parseMode: 'Markdown',
+      parseMode: MARKDOWN,
+    };
+  }
+
+  static async buildNearExpiryMessage(
+    days = DEFAULT_NEAR_EXPIRY_DAYS
+  ): Promise<TelegramAdminCallbackResult> {
+    const report = await StockLotService.listNearExpiry(days);
+
+    if (!report.lots.length) {
+      return {
+        text: 'មិនមានទិន្នន័យ',
+        replyMarkup: { inline_keyboard: [NAV_ROW] },
+        parseMode: MARKDOWN,
+      };
+    }
+
+    const lines = report.lots.map((lot, index) => {
+      const name = TelegramAdminFormatService.escapeMarkdown(lot.product_name);
+      const code = TelegramAdminFormatService.escapeMarkdown(lot.product_code ?? '-');
+      const expiredAt = lot.expired_at ? formatDate(new Date(lot.expired_at)) : '-';
+      return `${index + 1}) ${name} (${code})
+• ចំនួននៅសល់: ${lot.qty_on_hand}
+• ផុតកំណត់: ${expiredAt}`;
+    });
+
+    const message = [
+      `⏳ *ស្តុកជិតផុតកំណត់* (${report.days} ថ្ងៃ)`,
+      '',
+      ...lines,
+    ].join('\n');
+
+    return {
+      text: message,
+      replyMarkup: { inline_keyboard: [NAV_ROW] },
+      parseMode: MARKDOWN,
     };
   }
 
@@ -201,7 +245,7 @@ export class TelegramAdminInventoryService {
     return {
       text: message,
       replyMarkup: { inline_keyboard: [NAV_ROW] },
-      parseMode: 'Markdown',
+      parseMode: MARKDOWN,
     };
   }
 }

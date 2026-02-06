@@ -1,4 +1,4 @@
-import { MENU_DEFS, NAV_ROW, type MenuId, type MenuButton } from '@src/domains/Telegram/menu/menu-registry';
+import { MENU_DEFS, NAV_ROW, NAV_EXPORT_EXCEL, NAV_EXPORT_SALES_RANK, NAV_MAIN, NAV_STOCK_HISTORY, NAV_UPDATE_STOCK, NAV_UPDATE_STOCK_ADMIN, type MenuId, type MenuButton } from '@src/domains/Telegram/menu/menu-registry';
 import {
   getMenuStateKey,
   goHome,
@@ -7,6 +7,7 @@ import {
   resetStack,
 } from '@src/domains/Telegram/menu/menu-state';
 import type { TelegramAdminCallbackResult } from '@src/domains/TelegramAdminBot/types/telegram-admin-callback.types';
+import { TelegramAdminStockService } from './telegram-admin-stock.service';
 
 type CallbackContext = {
   chatId: number;
@@ -55,6 +56,32 @@ export class TelegramAdminCallbackNavService {
       }
     }
 
+
+    if (callbackData === NAV_MAIN) {
+      goHome(menuKey);
+      return this.buildMenuResult('main');
+    }
+
+    if (callbackData === NAV_EXPORT_EXCEL) {
+      pushMenu(menuKey, 'export_excel');
+      return this.buildMenuResult('export_excel');
+    }
+
+    if (callbackData === NAV_EXPORT_SALES_RANK) {
+      pushMenu(menuKey, 'export_sales_rank');
+      return this.buildMenuResult('export_sales_rank');
+    }
+    if (callbackData === NAV_STOCK_HISTORY) {
+      return TelegramAdminStockService.startStockHistoryPrompt(ctx.chatId, ctx.telegramUserId);
+    }
+    if (callbackData === NAV_UPDATE_STOCK) {
+      goHome(menuKey);
+      return this.buildMenuResult('main');
+    }
+    if (callbackData === NAV_UPDATE_STOCK_ADMIN) {
+      pushMenu(menuKey, 'update_stock');
+      return this.buildMenuResult('update_stock');
+    }
     if (callbackData === 'MENU:MAIN' || callbackData === 'nav_home') {
       goHome(menuKey);
       return this.buildMenuResult('main');
