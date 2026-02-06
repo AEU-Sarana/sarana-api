@@ -90,7 +90,7 @@ export class TelegramAdminLinkService {
     if (!pending) {
       return TelegramService.sendMessageByChatId(
         chatId,
-        'Invalid or expired link code.',
+        'កូដមិនត្រឹមត្រូវ រឹ ផុតកំណត់',
         'Markdown'
       );
     }

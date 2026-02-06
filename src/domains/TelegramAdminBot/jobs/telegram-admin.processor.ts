@@ -64,8 +64,21 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
       );
     }
 
-    const link = await TelegramAdminLinksService.requireActiveLink(telegramUserId, chatId);
-    const adminUserId = link.userId;
+    let adminUserId = 0;
+    try {
+      const link = await TelegramAdminLinksService.requireActiveLink(telegramUserId, chatId);
+      adminUserId = link.userId;
+    } catch (error: any) {
+      if (error?.message === 'TELEGRAM_ADMIN_NOT_LINKED') {
+        return TelegramService.editMessageByChatId(
+          chatId,
+          processingMessageId,
+          'Bot មិនទាន់ភ្ជាប់ជាមួយ Admin ទេ។\nសូមប្រើ `/link CODE` (ឧ. `/link ADM-CXUJD9`).',
+          'Markdown'
+        );
+      }
+      throw error;
+    }
 
     const exportHandled = await handleExportCallback({
       chatId,
@@ -396,8 +409,26 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
       return renderMenu({ chatId, telegramUserId }, 'main', { preferEdit: false });
     }
 
-    const link = await TelegramAdminLinksService.requireActiveLink(telegramUserId, chatId);
-    const adminUserId = link.userId;
+    let adminUserId = 0;
+    try {
+      const link = await TelegramAdminLinksService.requireActiveLink(telegramUserId, chatId);
+      adminUserId = link.userId;
+    } catch (error: any) {
+      if (error?.message === 'TELEGRAM_ADMIN_NOT_LINKED') {
+        const message =
+          'Bot មិនទាន់ភ្ជាប់ជាមួយ Admin ទេ។\nសូមប្រើ `/link CODE` (ឧ. `/link 435ergfd`).';
+        if (processingMessageId) {
+          return TelegramService.editMessageByChatId(
+            chatId,
+            processingMessageId,
+            message,
+            'Markdown'
+          );
+        }
+        return TelegramService.sendMessageByChatId(chatId, message, 'Markdown');
+      }
+      throw error;
+    }
 
     const pendingKey = getPendingKey(chatId);
     if (pendingReportRanges.has(pendingKey) && processingMessageId) {
