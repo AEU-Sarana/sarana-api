@@ -63,6 +63,7 @@
     state: started
     enabled: yes
   become: yes
+  when: not letsencrypt_cert.stat.exists
 
 - name: Obtain Let's Encrypt certificate
   command: >
@@ -101,6 +102,14 @@
     force: yes
   become: yes
   notify: test and reload nginx
+  when: letsencrypt_cert.stat.exists
+
+- name: Ensure Nginx is running (after certificate obtained)
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes
+  become: yes
   when: letsencrypt_cert.stat.exists
 
 - name: Setup automatic certificate renewal
