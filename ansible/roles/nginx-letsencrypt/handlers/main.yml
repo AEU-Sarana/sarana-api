@@ -8,18 +8,6 @@
   become: yes
 
 - name: test and reload nginx
-  block:
-    - name: Test nginx configuration
-      command: nginx -t
-      become: yes
-      changed_when: false
-      
-    - name: Reload nginx if test passes
-      systemd:
-        name: nginx
-        state: reloaded
-      become: yes
-  rescue:
-    - name: Nginx test failed
-      fail:
-        msg: "Nginx configuration test failed. Please check the configuration."
+  shell: nginx -t && systemctl reload nginx
+  become: yes
+  changed_when: true
