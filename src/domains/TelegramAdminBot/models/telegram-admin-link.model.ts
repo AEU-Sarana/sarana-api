@@ -2,13 +2,13 @@ import prisma from '@src/database/client';
 
 export class TelegramAdminLinkModel {
   static async findActive(telegramUserId: number, chatId: number) {
-    return prisma.telegramAdminLinks.findFirst({
+    return prisma.telegramAdminLink.findFirst({
       where: { telegramUserId, chatId, status: 'ACTIVE' }
     });
   }
 
   static async touch(telegramUserId: number, chatId: number) {
-    return prisma.telegramAdminLinks.updateMany({
+    return prisma.telegramAdminLink.updateMany({
       where: { telegramUserId, chatId, status: 'ACTIVE' },
       data: { lastSeenAt: new Date() }
     });
@@ -20,7 +20,7 @@ export class TelegramAdminLinkModel {
     chatId: number;
   }) {
     const now = new Date();
-    return prisma.telegramAdminLinks.upsert({
+    return prisma.telegramAdminLink.upsert({
       where: { telegramUserId: params.telegramUserId },
       update: {
         userId: params.userId,

@@ -287,7 +287,7 @@ export class ShiftService {
       take: limit,
       orderBy: { startTime: 'desc' },
       include: {
-        seller: { select: { userId: true, fullName: true } },
+        user: { select: { userId: true, fullName: true } },
       },
     });
 
@@ -295,7 +295,7 @@ export class ShiftService {
     const allShifts = await prisma.shift.findMany({
       select: {
         sellerId: true,
-        seller: {
+        user: {
           select: {
             userId: true,
             fullName: true,
@@ -307,10 +307,10 @@ export class ShiftService {
     // Extract unique sellers
     const uniqueSellers = new Map<number, { id: number; name: string }>();
     allShifts.forEach((shift) => {
-      if (shift.seller) {
-        uniqueSellers.set(shift.seller.userId, {
-          id: shift.seller.userId,
-          name: shift.seller.fullName,
+      if (shift.user) {
+        uniqueSellers.set(shift.user.userId, {
+          id: shift.user.userId,
+          name: shift.user.fullName,
         });
       }
     });
@@ -328,7 +328,7 @@ export class ShiftService {
       shifts: shifts.map((s: any) => ({
         shift_id: s.shiftId,
         seller_id: s.sellerId,
-        seller_name: s.seller?.fullName ?? null,
+        seller_name: s.user?.fullName ?? null,
         shift_date: s.shiftDate.toISOString().slice(0, 10),
         start_time: s.startTime,
         end_time: s.endTime,
@@ -360,7 +360,7 @@ export class ShiftService {
     const shift = await prisma.shift.findFirst({
       where,
       include: {
-        seller: { select: { userId: true, fullName: true } },
+        user: { select: { userId: true, fullName: true } },
         orders: {
           select: { orderId: true, receiptNumber: true, orderDate: true, totalAmount: true },
           orderBy: { orderDate: 'asc' },
@@ -379,7 +379,7 @@ export class ShiftService {
     return {
       shift_id: shift.shiftId,
       seller_id: shift.sellerId,
-      seller_name: shift.seller?.fullName ?? null,
+      seller_name: shift.user?.fullName ?? null,
       stock_version: shift.stockVersion ?? null,
       shift_date: shift.shiftDate.toISOString().slice(0, 10),
       start_time: shift.startTime,

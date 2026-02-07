@@ -77,7 +77,7 @@ export async function processTelegramAdminStockHistoryExportJob(
     const movements = await prisma.stockMovement.findMany({
       where,
       include: {
-        creator: { select: { username: true, fullName: true } },
+        user: { select: { username: true, fullName: true } },
       },
       orderBy: { createdAt: 'desc' },
       take,
@@ -97,7 +97,7 @@ export async function processTelegramAdminStockHistoryExportJob(
       'Order ID': m.orderId ?? '-',
       'Shift ID': m.shiftId ?? '-',
       'Lot ID': m.lotId ?? '-',
-      'Created By': m.creator?.fullName || m.creator?.username || String(m.createdBy),
+  'Created By': m.user?.fullName || m.user?.username || String(m.createdBy),
     }));
 
     const tExportStart = Date.now();

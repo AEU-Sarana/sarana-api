@@ -45,8 +45,8 @@ export class TelegramAdminStockService {
   ): TelegramAdminCallbackResult {
     const pendingKey = getPendingKey(chatId);
     clearAllRangePending(pendingKey);
-    clearStockHistoryPending(chatId);
-    clearStockAdjustPending(chatId);
+    clearStockHistoryPending(chatId, telegramUserId);
+    clearStockAdjustPending(chatId, telegramUserId);
     setStockHistoryPending(chatId, telegramUserId);
     return {
       text:
@@ -65,9 +65,9 @@ export class TelegramAdminStockService {
   ): TelegramAdminCallbackResult {
     const pendingKey = getPendingKey(chatId);
     clearAllRangePending(pendingKey);
-    clearStockHistoryPending(chatId);
-    clearStockInPending(chatId);
-    clearStockAdjustPending(chatId);
+    clearStockHistoryPending(chatId, telegramUserId);
+    clearStockInPending(chatId, telegramUserId);
+    clearStockAdjustPending(chatId, telegramUserId);
     setStockInPending(chatId, telegramUserId);
 
     const template = [
@@ -192,7 +192,7 @@ export class TelegramAdminStockService {
     };
 
     saveStockInDraft(draft);
-    clearStockInPending(chatId);
+    clearStockInPending(chatId, telegramUserId);
 
     return {
       text: TelegramAdminFormatService.formatStockInSummary(draft),
@@ -387,9 +387,9 @@ export class TelegramAdminStockService {
   ): TelegramAdminCallbackResult {
     const pendingKey = getPendingKey(chatId);
     clearAllRangePending(pendingKey);
-    clearStockHistoryPending(chatId);
-    clearStockInPending(chatId);
-    clearStockAdjustPending(chatId);
+    clearStockHistoryPending(chatId, telegramUserId);
+    clearStockInPending(chatId, telegramUserId);
+    clearStockAdjustPending(chatId, telegramUserId);
     setStockAdjustPending(chatId, telegramUserId);
 
     const template = [
@@ -528,7 +528,7 @@ export class TelegramAdminStockService {
       ...validation.value,
     };
     saveStockAdjustDraft(draft);
-    clearStockAdjustPending(chatId);
+    clearStockAdjustPending(chatId, telegramUserId);
 
     logger.info('Telegram admin stock adjust validated', {
       chatId,
@@ -784,7 +784,7 @@ export class TelegramAdminStockService {
     const movements = await prisma.stockMovement.findMany({
       where: { productId },
       include: {
-        creator: { select: { username: true, fullName: true } },
+        user: { select: { username: true, fullName: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: limit,
@@ -804,7 +804,7 @@ export class TelegramAdminStockService {
         orderId: m.orderId,
         shiftId: m.shiftId,
         lotId: m.lotId,
-        createdByLabel: m.creator?.fullName || m.creator?.username || String(m.createdBy),
+  createdByLabel: m.user?.fullName || m.user?.username || String(m.createdBy),
       })),
     });
 

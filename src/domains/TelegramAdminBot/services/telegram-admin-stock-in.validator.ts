@@ -65,28 +65,28 @@ export class TelegramAdminStockInValidator {
     const costRaw = (fields.cost || '').trim();
     const cost =
       costRaw === '' ? null : Number.parseFloat(costRaw);
-    if (costRaw && (!Number.isFinite(cost) || cost < 0)) {
+    if (costRaw && (typeof cost !== 'number' || !Number.isFinite(cost) || cost < 0)) {
       errors.push('cost must be a number >= 0.');
     }
 
     const priceRaw = (fields.price || '').trim();
     const price =
       priceRaw === '' ? null : Number.parseFloat(priceRaw);
-    if (priceRaw && (!Number.isFinite(price) || price < 0)) {
+    if (priceRaw && (typeof price !== 'number' || !Number.isFinite(price) || price < 0)) {
       errors.push('price must be a number >= 0.');
     }
 
     const lowStockRaw = (fields.low_stock || '').trim();
     const lowStock =
       lowStockRaw === '' ? null : Number.parseInt(lowStockRaw, 10);
-    if (lowStockRaw && (!Number.isFinite(lowStock) || lowStock < 0)) {
+    if (lowStockRaw && (typeof lowStock !== 'number' || !Number.isFinite(lowStock) || lowStock < 0)) {
       errors.push('low_stock must be an integer >= 0.');
     }
 
     const reorderRaw = (fields.reorder || '').trim();
     const reorder =
       reorderRaw === '' ? null : Number.parseInt(reorderRaw, 10);
-    if (reorderRaw && (!Number.isFinite(reorder) || reorder < 0)) {
+    if (reorderRaw && (typeof reorder !== 'number' || !Number.isFinite(reorder) || reorder < 0)) {
       errors.push('reorder must be an integer >= 0.');
     }
 

@@ -53,6 +53,7 @@ export interface GetStockByProductResponse {
   product_id: number;
   product_code: string;
   product_name: string;
+  has_expiry: boolean;
   image_path: string | null;
   barcode: string;
   category: string | null;

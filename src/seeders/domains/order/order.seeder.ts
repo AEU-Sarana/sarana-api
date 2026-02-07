@@ -87,7 +87,7 @@ export class OrderSeeder extends BaseSeeder {
             taxAmount,
             serviceFee,
             paymentMethod: 'CASH',
-            orderItems: {
+            order_items: {
               create: orderItems,
             },
           },

@@ -2,7 +2,7 @@ import  prisma  from '@src/database/client';
 
 export class TelegramAdminMessageModel {
   static async exists(requestId: string) {
-    const count = await prisma.telegramAdminMessages.count({ where: { requestId } });
+    const count = await prisma.telegramAdminMessage.count({ where: { requestId } });
     return count > 0;
   }
 
@@ -14,6 +14,6 @@ export class TelegramAdminMessageModel {
     messageId?: number;
     errorMessage?: string;
   }) {
-    return prisma.telegramAdminMessages.create({ data: params });
+    return prisma.telegramAdminMessage.create({ data: params });
   }
 }

@@ -69,7 +69,7 @@ export class OrderSyncService {
           // Check if order exists by UUID (idempotency)
           const existingOrder = await tx.order.findUnique({
             where: { orderUuid: orderData.order_uuid },
-            include: { orderItems: true },
+            include: { order_items: true },
           });
 
           if (existingOrder) {
@@ -182,7 +182,8 @@ export class OrderSyncService {
                 newOrder.orderId,
                 orderData.shift_id,
                 currentUserId,
-                tx
+                tx,
+                { allowNegative: true, reason: 'ORDER_SYNC' }
               );
             }
 

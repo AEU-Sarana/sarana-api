@@ -1,0 +1,398 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model app_settings {
+  setting_id             Int      @id @default(autoincrement())
+  auto_backup            Boolean  @default(true)
+  backup_frequency       String   @default("daily") @db.VarChar(20)
+  device_binding_enabled Boolean  @default(false)
+  report_send_time       DateTime @default(dbgenerated("'23:30:00'::time without time zone")) @db.Time(6)
+  report_send_timezone   String   @default("Asia/Phnom_Penh") @db.VarChar(50)
+  report_send_enabled    Boolean  @default(true)
+  stock_sync_policy      String   @default("allow_with_cached") @db.VarChar(50)
+  updated_by             Int
+  updated_at             DateTime @default(now()) @db.Timestamp(6)
+  created_at             DateTime @default(now()) @db.Timestamp(6)
+  users                  users    @relation(fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model audit_logs {
+  log_id      Int      @id @default(autoincrement())
+  user_id     Int?
+  action      String   @db.VarChar(100)
+  entity_type String?  @db.VarChar(50)
+  entity_id   Int?
+  old_values  Json?
+  new_values  Json?
+  ip_address  String?  @db.VarChar(45)
+  user_agent  String?
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+  users       users?   @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([action], map: "idx_audit_logs_action")
+  @@index([created_at], map: "idx_audit_logs_created_at")
+  @@index([entity_type, entity_id], map: "idx_audit_logs_entity")
+  @@index([user_id], map: "idx_audit_logs_user_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model device_bindings {
+  binding_id                               Int              @id @default(autoincrement())
+  user_id                                  Int
+  device_id                                String           @db.VarChar(255)
+  device_name                              String?          @db.VarChar(200)
+  status                                   String           @db.VarChar(20)
+  approved_by                              Int?
+  approved_at                              DateTime?        @db.Timestamp(6)
+  created_at                               DateTime         @default(now()) @db.Timestamp(6)
+  updated_at                               DateTime         @default(now()) @db.Timestamp(6)
+  users_device_bindings_approved_byTousers users?           @relation("device_bindings_approved_byTousers", fields: [approved_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  users_device_bindings_user_idTousers     users            @relation("device_bindings_user_idTousers", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  refresh_tokens                           refresh_tokens[]
+
+  @@index([device_id], map: "idx_device_bindings_device_id")
+  @@index([status], map: "idx_device_bindings_status")
+  @@index([user_id], map: "idx_device_bindings_user_id")
+}
+
+model order_items {
+  order_item_id         Int      @id @default(autoincrement())
+  order_id              Int
+  product_id            Int
+  product_name          String   @db.VarChar(200)
+  quantity              Int
+  unit_price            Decimal  @db.Decimal(10, 2)
+  cost_per_unit_at_sale Decimal  @db.Decimal(10, 2)
+  cogs_line_total       Decimal  @db.Decimal(10, 2)
+  discount_amount       Decimal  @default(0) @db.Decimal(10, 2)
+  subtotal              Decimal  @db.Decimal(10, 2)
+  created_at            DateTime @default(now()) @db.Timestamp(6)
+  orders                orders   @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: NoAction)
+  products              products @relation(fields: [product_id], references: [product_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([order_id], map: "idx_order_items_order_id")
+  @@index([order_id, product_id], map: "idx_order_items_order_product")
+  @@index([product_id], map: "idx_order_items_product_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model orders {
+  order_id        Int               @id @default(autoincrement())
+  order_uuid      String            @unique(map: "idx_orders_order_uuid") @db.Uuid
+  receipt_number  String            @unique(map: "idx_orders_receipt_number") @db.VarChar(50)
+  shift_id        Int
+  seller_id       Int
+  order_date      DateTime          @default(now()) @db.Timestamp(6)
+  total_amount    Decimal           @db.Decimal(10, 2)
+  discount_amount Decimal           @default(0) @db.Decimal(10, 2)
+  tax_amount      Decimal           @default(0) @db.Decimal(10, 2)
+  service_fee     Decimal           @default(0) @db.Decimal(10, 2)
+  payment_method  String            @default("CASH") @db.VarChar(20)
+  created_at      DateTime          @default(now()) @db.Timestamp(6)
+  updated_at      DateTime          @default(now()) @db.Timestamp(6)
+  order_items     order_items[]
+  users           users             @relation(fields: [seller_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  shifts          shifts            @relation(fields: [shift_id], references: [shift_id], onDelete: NoAction, onUpdate: NoAction)
+  receipt_links   receipt_links[]
+  stock_movements stock_movements[]
+
+  @@index([created_at], map: "idx_orders_created_at")
+  @@index([order_date], map: "idx_orders_order_date")
+  @@index([seller_id, order_date], map: "idx_orders_seller_date")
+  @@index([seller_id], map: "idx_orders_seller_id")
+  @@index([shift_id], map: "idx_orders_shift_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model products {
+  product_id                       Int               @id @default(autoincrement())
+  product_code                     String            @unique @db.VarChar(50)
+  product_name                     String            @db.VarChar(200)
+  barcode                          String            @unique @db.VarChar(255)
+  price                            Decimal           @db.Decimal(10, 2)
+  avg_cost                         Decimal?          @db.Decimal(10, 2)
+  last_purchase_cost               Decimal?          @db.Decimal(10, 2)
+  has_expiry                       Boolean           @default(false)
+  category                         String?           @db.VarChar(100)
+  description                      String?
+  image_path                       String?           @db.VarChar(500)
+  low_stock_threshold              Int?
+  reorder_point                    Int               @default(0)
+  status                           String            @default("active") @db.VarChar(20)
+  created_by                       Int
+  created_at                       DateTime          @default(now()) @db.Timestamp(6)
+  updated_by                       Int
+  updated_at                       DateTime          @default(now()) @db.Timestamp(6)
+  deactivated_date                 DateTime?         @db.Timestamp(6)
+  order_items                      order_items[]
+  users_products_created_byTousers users             @relation("products_created_byTousers", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  users_products_updated_byTousers users             @relation("products_updated_byTousers", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  stock_lots                       stock_lots[]
+  stock_movements                  stock_movements[]
+  stocks                           stocks?
+
+  @@index([barcode], map: "idx_products_barcode")
+  @@index([category], map: "idx_products_category")
+  @@index([has_expiry], map: "idx_products_has_expiry")
+  @@index([product_code], map: "idx_products_product_code")
+  @@index([status], map: "idx_products_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model receipt_links {
+  receipt_link_id   Int       @id @default(autoincrement())
+  order_id          Int
+  code              String    @unique(map: "idx_receipt_links_code") @db.VarChar(100)
+  link_status       String    @default("PENDING") @db.VarChar(20)
+  expires_at        DateTime  @db.Timestamp(6)
+  used_at           DateTime? @db.Timestamp(6)
+  telegram_user_id  BigInt?
+  telegram_chat_id  BigInt?
+  telegram_username String?   @db.VarChar(255)
+  created_by        Int
+  created_at        DateTime  @default(now()) @db.Timestamp(6)
+  users             users     @relation(fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  orders            orders    @relation(fields: [order_id], references: [order_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_receipt_links_created_at")
+  @@index([expires_at], map: "idx_receipt_links_expires_at")
+  @@index([order_id], map: "idx_receipt_links_order_id")
+  @@index([link_status], map: "idx_receipt_links_status")
+  @@index([telegram_user_id], map: "idx_receipt_links_telegram_user_id")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model receipt_settings {
+  setting_id        Int      @id @default(autoincrement())
+  store_name        String   @db.VarChar(200)
+  logo_path         String?  @db.VarChar(500)
+  phone             String?  @db.VarChar(30)
+  address           String?
+  tax_id            String?  @db.VarChar(100)
+  footer_note       String?
+  is_logo_enabled   Boolean  @default(true)
+  is_footer_enabled Boolean  @default(true)
+  updated_by        Int?
+  updated_at        DateTime @default(now()) @db.Timestamp(6)
+  created_at        DateTime @default(now()) @db.Timestamp(6)
+  users             users?   @relation(fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([store_name], map: "idx_receipt_settings_store_name")
+  @@index([updated_at], map: "idx_receipt_settings_updated_at")
+}
+
+model refresh_tokens {
+  id                   Int              @id @default(autoincrement())
+  user_id              Int
+  refresh_token_hash   String           @unique @db.VarChar(255)
+  token_family_id      String           @db.Uuid
+  parent_token_id      Int?
+  device_id            String?          @db.VarChar(255)
+  device_binding_id    Int?
+  absolute_expires_at  DateTime         @db.Timestamp(6)
+  idle_expires_at      DateTime         @db.Timestamp(6)
+  last_used_at         DateTime?        @db.Timestamp(6)
+  revoked_at           DateTime?        @db.Timestamp(6)
+  created_at           DateTime         @default(now()) @db.Timestamp(6)
+  ip_address           String?          @db.VarChar(45)
+  user_agent           String?
+  device_bindings      device_bindings? @relation(fields: [device_binding_id], references: [binding_id], onDelete: NoAction, onUpdate: NoAction)
+  refresh_tokens       refresh_tokens?  @relation("refresh_tokensTorefresh_tokens", fields: [parent_token_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_refresh_tokens refresh_tokens[] @relation("refresh_tokensTorefresh_tokens")
+  users                users            @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([absolute_expires_at], map: "idx_refresh_tokens_absolute_expires_at")
+  @@index([device_id], map: "idx_refresh_tokens_device_id")
+  @@index([token_family_id], map: "idx_refresh_tokens_family_id")
+  @@index([idle_expires_at], map: "idx_refresh_tokens_idle_expires_at")
+  @@index([revoked_at], map: "idx_refresh_tokens_revoked_at")
+  @@index([user_id, device_id], map: "idx_refresh_tokens_user_device")
+  @@index([user_id], map: "idx_refresh_tokens_user_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model shifts {
+  shift_id           Int               @id @default(autoincrement())
+  seller_id          Int
+  shift_date         DateTime          @db.Date
+  start_time         DateTime          @db.Timestamp(6)
+  end_time           DateTime?         @db.Timestamp(6)
+  opening_cash       Decimal           @db.Decimal(10, 2)
+  expected_cash      Decimal?          @db.Decimal(10, 2)
+  actual_cash        Decimal?          @db.Decimal(10, 2)
+  short_amount       Decimal?          @db.Decimal(10, 2)
+  over_amount        Decimal?          @db.Decimal(10, 2)
+  total_sales_count  Int               @default(0)
+  total_sales_amount Decimal           @default(0) @db.Decimal(10, 2)
+  stock_version      Int?
+  last_sync_time     DateTime?         @db.Timestamp(6)
+  report_sent_status String            @default("PENDING") @db.VarChar(20)
+  status             String            @default("CLOSED") @db.VarChar(20)
+  close_mode         String            @default("NORMAL") @db.VarChar(20)
+  force_close_reason String?
+  created_at         DateTime          @default(now()) @db.Timestamp(6)
+  updated_at         DateTime          @default(now()) @db.Timestamp(6)
+  orders             orders[]
+  users              users             @relation(fields: [seller_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  stock_movements    stock_movements[]
+
+  @@index([report_sent_status], map: "idx_shifts_report_sent_status")
+  @@index([seller_id, shift_date], map: "idx_shifts_seller_date")
+  @@index([seller_id], map: "idx_shifts_seller_id")
+  @@index([shift_date], map: "idx_shifts_shift_date")
+  @@index([status], map: "idx_shifts_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model stock_lots {
+  id              Int               @id @default(autoincrement())
+  product_id      Int
+  qty_on_hand     Int
+  received_at     DateTime          @default(now()) @db.Timestamp(6)
+  expired_at      DateTime?         @db.Date
+  cost            Decimal?          @db.Decimal(10, 2)
+  created_at      DateTime          @default(now()) @db.Timestamp(6)
+  updated_at      DateTime          @default(now()) @db.Timestamp(6)
+  products        products          @relation(fields: [product_id], references: [product_id], onDelete: NoAction, onUpdate: NoAction)
+  stock_movements stock_movements[]
+
+  @@index([product_id, expired_at], map: "idx_stock_lots_product_expired")
+  @@index([product_id, received_at], map: "idx_stock_lots_product_received")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model stock_movements {
+  movement_id   Int         @id @default(autoincrement())
+  product_id    Int
+  lot_id        Int?
+  movement_type String      @db.VarChar(20)
+  quantity      Int
+  cost          Decimal?    @db.Decimal(10, 2)
+  price         Decimal?    @db.Decimal(10, 2)
+  supplier      String?     @db.VarChar(200)
+  reason        String?
+  order_id      Int?
+  shift_id      Int?
+  created_by    Int
+  created_at    DateTime    @default(now()) @db.Timestamp(6)
+  users         users       @relation(fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  stock_lots    stock_lots? @relation(fields: [lot_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  orders        orders?     @relation(fields: [order_id], references: [order_id], onDelete: NoAction, onUpdate: NoAction)
+  products      products    @relation(fields: [product_id], references: [product_id], onDelete: NoAction, onUpdate: NoAction)
+  shifts        shifts?     @relation(fields: [shift_id], references: [shift_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_stock_movements_created_at")
+  @@index([lot_id], map: "idx_stock_movements_lot_id")
+  @@index([order_id], map: "idx_stock_movements_order_id")
+  @@index([product_id, created_at(sort: Desc)], map: "idx_stock_movements_product_created_at")
+  @@index([product_id], map: "idx_stock_movements_product_id")
+  @@index([shift_id], map: "idx_stock_movements_shift_id")
+  @@index([movement_type], map: "idx_stock_movements_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model telegram_admin_links {
+  id               Int       @id @default(autoincrement())
+  user_id          Int
+  telegram_user_id BigInt    @unique
+  chat_id          BigInt
+  status           String    @default("ACTIVE") @db.VarChar(10)
+  linked_at        DateTime  @default(now()) @db.Timestamp(6)
+  revoked_at       DateTime? @db.Timestamp(6)
+  last_seen_at     DateTime? @db.Timestamp(6)
+  users            users     @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model telegram_admin_messages {
+  id               Int      @id @default(autoincrement())
+  telegram_user_id BigInt
+  command          String
+  request_id       String?  @db.Uuid
+  status           String   @default("SENT") @db.VarChar(10)
+  message_id       BigInt?
+  error_message    String?
+  created_at       DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([request_id], map: "idx_telegram_admin_messages_request")
+  @@index([telegram_user_id], map: "idx_telegram_admin_messages_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model telegram_config {
+  config_id                               Int       @id @default(autoincrement())
+  bot_token                               String
+  group_chat_id                           String    @db.VarChar(255)
+  is_active                               Boolean   @default(true)
+  last_test_time                          DateTime? @db.Timestamp(6)
+  last_test_status                        String?   @db.VarChar(20)
+  created_by                              Int
+  created_at                              DateTime  @default(now()) @db.Timestamp(6)
+  updated_by                              Int
+  updated_at                              DateTime  @default(now()) @db.Timestamp(6)
+  users_telegram_config_created_byTousers users     @relation("telegram_config_created_byTousers", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  users_telegram_config_updated_byTousers users     @relation("telegram_config_updated_byTousers", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  user_id                                            Int                    @id @default(autoincrement())
+  username                                           String                 @unique @db.VarChar(100)
+  email                                              String?                @db.VarChar(255)
+  password_hash                                      String                 @db.VarChar(255)
+  pin_hash                                           String?                @db.VarChar(255)
+  full_name                                          String                 @db.VarChar(200)
+  role                                               String                 @db.VarChar(20)
+  phone                                              String?                @db.VarChar(20)
+  status                                             String                 @default("active") @db.VarChar(20)
+  device_id                                          String?                @db.VarChar(255)
+  is_device_bound                                    Boolean                @default(false)
+  created_by                                         Int?
+  created_at                                         DateTime               @default(now()) @db.Timestamp(6)
+  updated_by                                         Int?
+  updated_at                                         DateTime               @default(now()) @db.Timestamp(6)
+  deactivated_date                                   DateTime?              @db.Timestamp(6)
+  app_settings                                       app_settings[]
+  audit_logs                                         audit_logs[]
+  device_bindings_device_bindings_approved_byTousers device_bindings[]      @relation("device_bindings_approved_byTousers")
+  device_bindings_device_bindings_user_idTousers     device_bindings[]      @relation("device_bindings_user_idTousers")
+  orders                                             orders[]
+  products_products_created_byTousers                products[]             @relation("products_created_byTousers")
+  products_products_updated_byTousers                products[]             @relation("products_updated_byTousers")
+  receipt_links                                      receipt_links[]
+  receipt_settings                                   receipt_settings[]
+  refresh_tokens                                     refresh_tokens[]
+  shifts                                             shifts[]
+  stock_movements                                    stock_movements[]
+  telegram_admin_links                               telegram_admin_links[]
+  telegram_config_telegram_config_created_byTousers  telegram_config[]      @relation("telegram_config_created_byTousers")
+  telegram_config_telegram_config_updated_byTousers  telegram_config[]      @relation("telegram_config_updated_byTousers")
+  users_users_created_byTousers                      users?                 @relation("users_created_byTousers", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  other_users_users_created_byTousers                users[]                @relation("users_created_byTousers")
+  users_users_updated_byTousers                      users?                 @relation("users_updated_byTousers", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  other_users_users_updated_byTousers                users[]                @relation("users_updated_byTousers")
+
+  @@index([email], map: "idx_users_email")
+  @@index([role], map: "idx_users_role")
+  @@index([status], map: "idx_users_status")
+  @@index([username], map: "idx_users_username")
+}
+
+model stocks {
+  stock_id       Int       @id @default(autoincrement())
+  product_id     Int       @unique(map: "idx_stocks_product_id")
+  quantity       Int       @default(0)
+  stock_version  Int       @default(1)
+  last_sync_time DateTime? @db.Timestamp(6)
+  updated_at     DateTime  @default(now()) @db.Timestamp(6)
+  products       products  @relation(fields: [product_id], references: [product_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([stock_version], map: "idx_stocks_version")
+}

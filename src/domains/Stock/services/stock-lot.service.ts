@@ -25,6 +25,7 @@ export interface AllocateStockOutParams {
   shiftId?: number | null;
   createdBy: number;
   allowExpired?: boolean;
+  allowNegative?: boolean;
   reason?: string | null;
 }
 
@@ -122,12 +123,30 @@ export class StockLotService {
       );
 
       if (remaining > 0) {
-        throw new BusinessLogicException(
-          'INSUFFICIENT_STOCK',
-          'INSUFFICIENT_STOCK',
-          409,
-          { remaining }
-        );
+        if (!params.allowNegative) {
+          throw new BusinessLogicException(
+            'INSUFFICIENT_STOCK',
+            'INSUFFICIENT_STOCK',
+            409,
+            { remaining }
+          );
+        }
+
+        await db.stockMovement.create({
+          data: {
+            productId: params.productId,
+            lotId: null,
+            movementType: 'STOCK_OUT',
+            quantity: -remaining,
+            cost: null,
+            price: params.price ?? null,
+            reason: params.reason ?? 'NEGATIVE_STOCK',
+            orderId: params.orderId ?? null,
+            shiftId: params.shiftId ?? null,
+            createdBy: params.createdBy,
+            createdAt: new Date(),
+          },
+        });
       }
 
       for (const allocation of allocations) {

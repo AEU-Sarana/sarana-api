@@ -140,7 +140,7 @@ export class DashboardService {
         receiptNumber: true,
         totalAmount: true,
         createdAt: true,
-        seller: { select: { fullName: true } },
+        user: { select: { fullName: true } },
       },
     });
 
@@ -160,7 +160,7 @@ export class DashboardService {
       type: 'order',
       order_id: order.orderId,
       receipt_number: order.receiptNumber,
-      seller_name: order.seller.fullName,
+      seller_name: order.user.fullName,
       total_amount: Number(order.totalAmount),
       created_at: order.createdAt,
     }));

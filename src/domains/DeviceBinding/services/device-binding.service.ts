@@ -51,7 +51,7 @@ export class DeviceBindingService {
             fullName: true,
           },
         },
-        approver: {
+        approvedByUser: {
           select: {
             userId: true,
             fullName: true,
@@ -106,7 +106,7 @@ export class DeviceBindingService {
             fullName: true,
           },
         },
-        approver: {
+        approvedByUser: {
           select: {
             userId: true,
             fullName: true,
@@ -135,7 +135,7 @@ export class DeviceBindingService {
       device_name: binding.deviceName,
       status: binding.status as DeviceStatus,
       approved_by: binding.approvedBy,
-      approved_by_name: binding.approver?.fullName || null,
+  approved_by_name: binding.approvedByUser?.fullName || null,
       approved_at: binding.approvedAt,
       created_at: binding.createdAt,
       updated_at: binding.updatedAt,

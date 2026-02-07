@@ -46,7 +46,7 @@ export class OrderService {
       take: limit,
       orderBy: { orderDate: 'desc' },
       include: {
-        seller: {
+        user: {
           select: {
             userId: true,
             fullName: true,
@@ -69,7 +69,7 @@ export class OrderService {
         receipt_number: o.receiptNumber,
         shift_id: o.shiftId,
         seller_id: o.sellerId,
-        seller_name: o.seller?.fullName || null,
+  seller_name: o.user?.fullName || null,
         order_date: o.orderDate,
         total_amount: Number(o.totalAmount),
         discount_amount: Number(o.discountAmount),
@@ -100,13 +100,13 @@ export class OrderService {
     const order = await prisma.order.findUnique({
       where: { orderId },
       include: {
-        seller: {
+        user: {
           select: {
             userId: true,
             fullName: true,
           },
         },
-        orderItems: {
+        order_items: {
           include: {
             product: {
               select: {
@@ -142,14 +142,14 @@ export class OrderService {
       receipt_number: order.receiptNumber,
       shift_id: order.shiftId,
       seller_id: order.sellerId,
-      seller_name: order.seller?.fullName || null,
+  seller_name: order.user?.fullName || null,
       order_date: order.orderDate,
       total_amount: Number(order.totalAmount),
       discount_amount: Number(order.discountAmount),
       tax_amount: Number(order.taxAmount),
       service_fee: Number(order.serviceFee),
       payment_method: order.paymentMethod,
-      items: order.orderItems.map((item) => ({
+      items: order.order_items.map((item) => ({
         order_item_id: item.orderItemId,
         product_id: item.productId,
         product_name: item.product?.productName || null,

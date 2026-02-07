@@ -19,6 +19,7 @@ export interface ProductResponse {
     description: string | null;
     image_path: string | null;
     low_stock_threshold: number | null;
+    has_expiry?: boolean;
     stock_quantity: number;
     status: ProductStatus;
     created_at: Date;

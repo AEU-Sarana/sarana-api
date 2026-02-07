@@ -43,9 +43,9 @@ export class TelegramAdminWebhookService {
       return { enqueued: false };
     }
 
-    const pendingStockIn = getStockInPending(chatId);
-    const pendingStockAdjust = getStockAdjustPending(chatId);
-    const pendingStockHistory = getStockHistoryPending(chatId);
+    const pendingStockIn = getStockInPending(chatId, telegramUserId);
+    const pendingStockAdjust = getStockAdjustPending(chatId, telegramUserId);
+    const pendingStockHistory = getStockHistoryPending(chatId, telegramUserId);
     const pendingState = pendingStockIn
       ? 'WAIT_STOCK_IN_BLOCK'
       : pendingStockAdjust
@@ -91,13 +91,13 @@ export class TelegramAdminWebhookService {
         const trimmed = text.trim();
         if (trimmed.toLowerCase() === '/cancel') {
           if (pendingStockIn) {
-            clearStockInPending(chatId);
+            clearStockInPending(chatId, telegramUserId);
           }
           if (pendingStockAdjust) {
-            clearStockAdjustPending(chatId);
+            clearStockAdjustPending(chatId, telegramUserId);
           }
           if (pendingStockHistory) {
-            clearStockHistoryPending(chatId);
+            clearStockHistoryPending(chatId, telegramUserId);
           }
           const menuKey = getMenuStateKey(chatId, telegramUserId);
           resetStack(menuKey);

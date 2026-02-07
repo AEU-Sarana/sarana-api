@@ -148,6 +148,7 @@ export class ProductService {
         description: p.description,
         image_path: this.normalizeImageUrl(p.imagePath),
         low_stock_threshold: p.lowStockThreshold,
+        has_expiry: p.hasExpiry,
         stock_quantity: p.stock?.quantity || 0,
         status: (p.status as any) as ProductStatus,
         created_at: p.createdAt,
@@ -172,7 +173,7 @@ export class ProductService {
     const product = await prisma.product.findUnique({
       where: { productId },
       include: {
-        stock: true, // Include stock relation to get quantity
+        stock: true, 
       },
     });
 
@@ -197,6 +198,7 @@ export class ProductService {
       description: product.description,
       image_path: this.normalizeImageUrl(product.imagePath),
       low_stock_threshold: product.lowStockThreshold,
+      has_expiry: product.hasExpiry,
       stock_quantity: product.stock?.quantity || 0,
       status: (product.status as any) as ProductStatus,
       created_at: product.createdAt,
@@ -206,7 +208,7 @@ export class ProductService {
 
   /**
    * Get product details by product code
-   */
+  */
   static async getProductByCode(
     productCode: string,
     currentUserId: number
@@ -239,6 +241,7 @@ export class ProductService {
       description: product.description,
       image_path: this.normalizeImageUrl(product.imagePath),
       low_stock_threshold: product.lowStockThreshold,
+      has_expiry: product.hasExpiry,
       stock_quantity: product.stock?.quantity || 0,
       status: (product.status as any) as ProductStatus,
       created_at: product.createdAt,
@@ -352,7 +355,7 @@ export class ProductService {
         quantity: 0,
       });
 
-      // Return product with stock relation
+      //Return product with stock relation
       return await tx.product.findUnique({
         where: { productId: newProduct.productId },
         include: {
@@ -394,6 +397,7 @@ export class ProductService {
       description: product.description,
       image_path: this.normalizeImageUrl(product.imagePath),
       low_stock_threshold: product.lowStockThreshold,
+      has_expiry: product.hasExpiry,
       stock_quantity: product.stock?.quantity || 0,
       status: (product.status as any) as ProductStatus,
       created_at: product.createdAt,
@@ -542,6 +546,7 @@ export class ProductService {
       description: updated.description,
       image_path: this.normalizeImageUrl(updated.imagePath),
       low_stock_threshold: updated.lowStockThreshold,
+      has_expiry: updated.hasExpiry,
       stock_quantity: updated.stock?.quantity || 0,
       status: (updated.status as any) as ProductStatus,
       created_at: updated.createdAt,

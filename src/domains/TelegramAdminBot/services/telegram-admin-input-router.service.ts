@@ -1,5 +1,6 @@
 import {
   getPendingKey,
+  getUserPendingKey,
   pendingIncomeRanges,
   pendingReportRanges,
   pendingSlowProductsRanges,
@@ -23,6 +24,7 @@ export class TelegramAdminInputRouterService {
   ): Promise<TelegramAdminCallbackResult | null> {
     if (!text) return null;
     const pendingKey = getPendingKey(chatId);
+    const userPendingKey = getUserPendingKey(chatId, telegramUserId);
 
     logger.info('Telegram admin input router start', {
       chatId,
@@ -71,7 +73,7 @@ export class TelegramAdminInputRouterService {
       return result ?? null;
     }
 
-    const pendingStockIn = getStockInPending(chatId);
+    const pendingStockIn = getStockInPending(chatId, telegramUserId);
     if (pendingStockIn) {
       if (pendingStockIn.telegramUserId !== telegramUserId) {
         return {
@@ -88,7 +90,7 @@ export class TelegramAdminInputRouterService {
       );
     }
 
-    const pendingStockAdjust = getStockAdjustPending(chatId);
+    const pendingStockAdjust = getStockAdjustPending(chatId, telegramUserId);
     if (pendingStockAdjust) {
       if (pendingStockAdjust.telegramUserId !== telegramUserId) {
         return {
@@ -105,7 +107,7 @@ export class TelegramAdminInputRouterService {
       );
     }
 
-    if (pendingStockHistoryQueries.has(pendingKey)) {
+    if (pendingStockHistoryQueries.has(userPendingKey)) {
       try {
         const normalized = text.trim();
         let query = normalized;
@@ -133,7 +135,7 @@ export class TelegramAdminInputRouterService {
           };
         }
         if (products.length === 1) {
-          clearStockHistoryPending(chatId);
+          clearStockHistoryPending(chatId, telegramUserId);
           return TelegramAdminStockService.buildStockHistoryPreview(products[0].productId, 20);
         }
         return {

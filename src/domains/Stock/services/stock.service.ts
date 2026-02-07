@@ -84,6 +84,7 @@ export class StockService {
           product_id: newStock.productId,
           product_code: newStock.product.productCode,
           product_name: newStock.product.productName,
+          has_expiry: newStock.product.hasExpiry,
           image_path: ProductService.normalizeImageUrl(newStock.product.imagePath),
           barcode: newStock.product.barcode,
           category: newStock.product.category,
@@ -124,7 +125,8 @@ export class StockService {
         product_id: stock.productId,
         product_code: stock.product.productCode,
         product_name: stock.product.productName,
-          image_path: ProductService.normalizeImageUrl(stock.product.imagePath),
+        has_expiry: stock.product.hasExpiry,
+        image_path: ProductService.normalizeImageUrl(stock.product.imagePath),
         barcode: stock.product.barcode,
         category: stock.product.category,
         quantity: stock.quantity,
@@ -319,7 +321,7 @@ export class StockService {
       throw new ValidationException('Expiry date is required for this product');
     }
 
-    const { updatedStock, movement } = await prisma.$transaction(async (tx) => {
+    const { updatedStock, movement, stockId, stockBefore } = await prisma.$transaction(async (tx) => {
       // Get or create stock record
       let stock = await tx.stock.findUnique({
         where: { productId: product_id },
@@ -380,20 +382,25 @@ export class StockService {
         });
       }
 
-      return { updatedStock, movement };
+      return {
+        updatedStock,
+        movement,
+        stockId: stock.stockId,
+        stockBefore: stock.quantity,
+      };
     });
 
     await auditLogService.createAuditLog({
       userId: currentUserId,
       action: 'STOCK_IN',
       resource: 'Stock',
-      entityId: stock.stockId,
+      entityId: stockId,
       details: {
         productId: product_id,
         quantity: quantity,
         cost: cost,
         supplier: supplier,
-        stockBefore: stock.quantity,
+        stockBefore,
         stockAfter: updatedStock.quantity,
       },
     });
@@ -690,7 +697,7 @@ export class StockService {
     shiftId: number,
     currentUserId: number,
     tx?: PrismaTransaction,
-    options?: { allowExpired?: boolean; reason?: string }
+    options?: { allowExpired?: boolean; allowNegative?: boolean; reason?: string }
   ): Promise<void> {
     const execute = async (db: PrismaTransaction) => {
       const stock = await db.stock.findUnique({
@@ -710,6 +717,7 @@ export class StockService {
           shiftId,
           createdBy: currentUserId,
           allowExpired: options?.allowExpired,
+          allowNegative: options?.allowNegative,
           reason: options?.reason,
         },
         db

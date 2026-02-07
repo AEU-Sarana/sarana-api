@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import type { StringValue } from 'ms';
 
 dotenv.config();
 
@@ -21,6 +22,13 @@ export const env = {
   JWT_ACCESS_TOKEN_EXPIRY: process.env.JWT_ACCESS_TOKEN_EXPIRY || '24h',
   JWT_REFRESH_TOKEN_EXPIRY: process.env.JWT_REFRESH_TOKEN_EXPIRY || '7d',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
+
+  // ===== JWT V2 =====
+   JWT_V2_ACCESS_TOKEN_EXPIRY: (process.env.JWT_V2_ACCESS_TOKEN_EXPIRY || '10m') as StringValue,
+  JWT_V2_REFRESH_ABSOLUTE_DAYS: parseInt(process.env.JWT_V2_REFRESH_ABSOLUTE_DAYS || '30',10),
+  JWT_V2_REFRESH_IDLE_DAYS: parseInt(process.env.JWT_V2_REFRESH_IDLE_DAYS || '7',10),
+  JWT_ISSUER: process.env.JWT_ISSUER || 'stock-pos-api',
+  JWT_AUDIENCE: process.env.JWT_AUDIENCE || 'stock-pos-mobile',
 
 
   //Encryption

@@ -170,6 +170,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
       callbackData,
       processingMessageId,
       adminUserId,
+      telegramUserId,
     });
     if (stockHistoryHandled) return stockHistoryHandled;
 
@@ -507,7 +508,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
       }
     }
 
-    const pendingStockHistory = getStockHistoryPending(chatId);
+    const pendingStockHistory = getStockHistoryPending(chatId, telegramUserId);
     if (pendingStockHistory && processingMessageId) {
       if (pendingStockHistory.telegramUserId !== telegramUserId) {
         return TelegramService.editMessageByChatId(
@@ -520,7 +521,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
 
       const trimmed = text.trim();
       if (trimmed.toLowerCase() === '/cancel') {
-        clearStockHistoryPending(chatId);
+        clearStockHistoryPending(chatId, telegramUserId);
         await TelegramService.editMessageByChatId(
           chatId,
           processingMessageId,
@@ -552,7 +553,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
       }
 
       if (products.length === 1) {
-        clearStockHistoryPending(chatId);
+        clearStockHistoryPending(chatId, telegramUserId);
         const tPreviewStart = Date.now();
         const preview = await TelegramAdminStockService.buildStockHistoryPreview(
           products[0].productId,
@@ -582,7 +583,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
       );
     }
 
-    const pendingStockIn = getStockInPending(chatId);
+    const pendingStockIn = getStockInPending(chatId, telegramUserId);
     if (pendingStockIn && processingMessageId) {
       if (pendingStockIn.telegramUserId !== telegramUserId) {
         return TelegramService.editMessageByChatId(
@@ -595,7 +596,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
 
       const trimmed = text.trim();
       if (trimmed.toLowerCase() === '/cancel') {
-        clearStockInPending(chatId);
+        clearStockInPending(chatId, telegramUserId);
         await TelegramService.editMessageByChatId(
           chatId,
           processingMessageId,
@@ -804,8 +805,9 @@ async function handleStockHistoryCallback(params: {
   callbackData: string;
   processingMessageId: number;
   adminUserId: number;
+  telegramUserId: number;
 }) {
-  const { chatId, callbackData, processingMessageId, adminUserId } = params;
+  const { chatId, callbackData, processingMessageId, adminUserId, telegramUserId } = params;
 
   if (isStockHistorySelectCallback(callbackData)) {
     const productId = Number(callbackData.replace('STOCK_HISTORY_SELECT:', ''));
@@ -817,7 +819,7 @@ async function handleStockHistoryCallback(params: {
         'Markdown'
       );
     }
-    clearStockHistoryPending(chatId);
+    clearStockHistoryPending(chatId, telegramUserId);
     const tPreviewStart = Date.now();
     const preview = await TelegramAdminStockService.buildStockHistoryPreview(productId, 20);
     const tPreviewMs = Date.now() - tPreviewStart;

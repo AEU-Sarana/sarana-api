@@ -64,7 +64,7 @@ export class StockMovementService {
             imagePath: true,
           },
         },
-        creator: {
+        user: {
           select: {
             userId: true,
             username: true,
@@ -93,7 +93,7 @@ export class StockMovementService {
         cost: m.cost ? Number(m.cost) : null,
         supplier: m.supplier,
         image_path: m.product.imagePath,
-        created_by: m.createdBy,
+  created_by: m.createdBy,
         created_at: m.createdAt,
       })),
       pagination: {

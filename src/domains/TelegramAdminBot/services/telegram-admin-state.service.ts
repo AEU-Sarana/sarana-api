@@ -30,6 +30,10 @@ export function getPendingKey(chatId: number) {
   return `${chatId}`;
 }
 
+export function getUserPendingKey(chatId: number, telegramUserId: number) {
+  return `${chatId}:${telegramUserId}`;
+}
+
 export function clearAllRangePending(pendingKey: string) {
   pendingReportRanges.delete(pendingKey);
   pendingTopProductsRanges.delete(pendingKey);
@@ -38,33 +42,33 @@ export function clearAllRangePending(pendingKey: string) {
 }
 
 export function setStockHistoryPending(chatId: number, telegramUserId: number) {
-  pendingStockHistoryQueries.set(getPendingKey(chatId), {
+  pendingStockHistoryQueries.set(getUserPendingKey(chatId, telegramUserId), {
     telegramUserId,
     startedAt: Date.now(),
   });
 }
 
-export function clearStockHistoryPending(chatId: number) {
-  pendingStockHistoryQueries.delete(getPendingKey(chatId));
+export function clearStockHistoryPending(chatId: number, telegramUserId: number) {
+  pendingStockHistoryQueries.delete(getUserPendingKey(chatId, telegramUserId));
 }
 
-export function getStockHistoryPending(chatId: number) {
-  return pendingStockHistoryQueries.get(getPendingKey(chatId));
+export function getStockHistoryPending(chatId: number, telegramUserId: number) {
+  return pendingStockHistoryQueries.get(getUserPendingKey(chatId, telegramUserId));
 }
 
 export function setStockInPending(chatId: number, telegramUserId: number) {
-  pendingStockInBlocks.set(getPendingKey(chatId), {
+  pendingStockInBlocks.set(getUserPendingKey(chatId, telegramUserId), {
     telegramUserId,
     startedAt: Date.now(),
   });
 }
 
-export function clearStockInPending(chatId: number) {
-  pendingStockInBlocks.delete(getPendingKey(chatId));
+export function clearStockInPending(chatId: number, telegramUserId: number) {
+  pendingStockInBlocks.delete(getUserPendingKey(chatId, telegramUserId));
 }
 
-export function getStockInPending(chatId: number) {
-  return pendingStockInBlocks.get(getPendingKey(chatId));
+export function getStockInPending(chatId: number, telegramUserId: number) {
+  return pendingStockInBlocks.get(getUserPendingKey(chatId, telegramUserId));
 }
 
 export function saveStockInDraft(draft: StockInDraft) {
@@ -80,18 +84,18 @@ export function clearStockInDraft(draftId: string) {
 }
 
 export function setStockAdjustPending(chatId: number, telegramUserId: number) {
-  pendingStockAdjustBlocks.set(getPendingKey(chatId), {
+  pendingStockAdjustBlocks.set(getUserPendingKey(chatId, telegramUserId), {
     telegramUserId,
     startedAt: Date.now(),
   });
 }
 
-export function clearStockAdjustPending(chatId: number) {
-  pendingStockAdjustBlocks.delete(getPendingKey(chatId));
+export function clearStockAdjustPending(chatId: number, telegramUserId: number) {
+  pendingStockAdjustBlocks.delete(getUserPendingKey(chatId, telegramUserId));
 }
 
-export function getStockAdjustPending(chatId: number) {
-  return pendingStockAdjustBlocks.get(getPendingKey(chatId));
+export function getStockAdjustPending(chatId: number, telegramUserId: number) {
+  return pendingStockAdjustBlocks.get(getUserPendingKey(chatId, telegramUserId));
 }
 
 export function saveStockAdjustDraft(draft: StockAdjustDraft) {
