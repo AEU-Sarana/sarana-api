@@ -62,6 +62,15 @@
       when: enable_ssl | default(true) | bool
 
   post_tasks:
+    - name: Clean up unused Docker images
+      shell: docker image prune -a --force
+      register: prune_output
+      changed_when: true
+
+    - name: Display image cleanup results
+      debug:
+        msg: "{{ prune_output.stdout_lines }}"
+
     - name: Final deployment status
       debug:
         msg:
