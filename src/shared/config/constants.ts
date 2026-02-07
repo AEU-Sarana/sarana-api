@@ -36,7 +36,7 @@ export const APP_CONSTANTS = {
   AUTH_RATE_LIMIT_MAX_REQUESTS: 5,
 
   // Timezone
-  TIMEZONE: 'America/New_York', // US Eastern Time (UTC-5)
+  TIMEZONE: 'Asia/Phnom_Penh', // Cambodia Time (UTC+7)
 } as const;
 
 /**

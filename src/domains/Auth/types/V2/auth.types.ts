@@ -44,9 +44,9 @@ export interface MeResponse {
 }
 
 export interface AccessTokenPayload {
-  user_id: number;
+  userId: number;
   role: 'ADMIN' | 'SELLER';
-  device_id?: string;
+  deviceId?: string;
   jti: string;
   iat?: number;
   exp?: number;

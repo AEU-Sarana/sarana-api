@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import jwt, { type Secret } from 'jsonwebtoken';
 import { env } from '@src/shared/config/env';
-import { AccessTokenPayload } from '@src/domains/Auth/types/V2/au​th.types';
+import { AccessTokenPayload } from '@src/domains/Auth/types/V2/auth.types';
 
 export class TokenService {
   static generateAccessToken(payload: {
@@ -10,15 +10,15 @@ export class TokenService {
     deviceId?: string;
   }): string {
     const claims: AccessTokenPayload = {
-      user_id: payload.userId,
+      userId: payload.userId,
       role: payload.role,
-      device_id: payload.deviceId,
+      deviceId: payload.deviceId,
       jti: crypto.randomUUID(),
       iat: Math.floor(Date.now() / 1000),
     };
 
     return jwt.sign(claims, env.JWT_SECRET as Secret, {
-       expiresIn: env.JWT_V2_ACCESS_TOKEN_EXPIRY,
+      expiresIn: env.JWT_V2_ACCESS_TOKEN_EXPIRY,
       issuer: env.JWT_ISSUER,
       audience: env.JWT_AUDIENCE,
       subject: String(payload.userId),

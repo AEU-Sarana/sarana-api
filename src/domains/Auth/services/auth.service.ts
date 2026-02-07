@@ -4,10 +4,10 @@ import { TokenService } from './token.service';
 import { tokenBlacklistService } from './token-blacklist.service';
 import prisma from '@src/database/client';
 import { UserRole, UserStatus } from '@src/domains/Auth/enums';
-import { 
-  LoginRequest, 
-  LoginResponse, 
-  RefreshTokenRequest, 
+import {
+  LoginRequest,
+  LoginResponse,
+  RefreshTokenRequest,
   RefreshTokenResponse,
   ChangePasswordRequest,
   ResetPasswordRequest,
@@ -379,7 +379,7 @@ export class AuthService {
   }
 
   /**
-   *​Change user PIN
+   * Change user PIN
   */
   static async changePIN(
     currentUserId: number,
