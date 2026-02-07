@@ -184,12 +184,14 @@ export function parseClientDateTime(
 
 export function formatDateTimeInTimezone(
   value: Date | string,
-  timezone: string = APP_CONSTANTS.TIMEZONE
+  timezone: string = APP_CONSTANTS.TIMEZONE,
+  options?: { hour12?: boolean }
 ): string {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) {
     throw new Error('Invalid Date provided for formatting');
   }
+  const hour12 = options?.hour12 ?? false;
 
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
@@ -199,7 +201,7 @@ export function formatDateTimeInTimezone(
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    hour12: true,
+    hour12,
   }).formatToParts(date);
 
   const partMap = new Map(parts.map((part) => [part.type, part.value]));
@@ -211,9 +213,16 @@ export function formatDateTimeInTimezone(
   const second = partMap.get('second');
   const dayPeriod = partMap.get('dayPeriod');
 
-  if (!year || !month || !day || !hour || !minute || !second || !dayPeriod) {
+  if (!year || !month || !day || !hour || !minute || !second) {
     return date.toISOString();
   }
 
-  return `${year}-${month}-${day} ${hour}:${minute}:${second} ${dayPeriod}`;
+  if (hour12) {
+    if (!dayPeriod) {
+      return date.toISOString();
+    }
+    return `${year}-${month}-${day} ${hour}:${minute}:${second} ${dayPeriod}`;
+  }
+
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }

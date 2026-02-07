@@ -194,8 +194,8 @@ model Shift {
   shiftId          Int             @id @default(autoincrement()) @map("shift_id")
   sellerId         Int             @map("seller_id")
   shiftDate        DateTime        @map("shift_date") @db.Date
-  startTime        DateTime        @map("start_time") @db.Timestamp(6)
-  endTime          DateTime?       @map("end_time") @db.Timestamp(6)
+  startTime        DateTime        @map("start_time") @db.Timestamptz(6)
+  endTime          DateTime?       @map("end_time") @db.Timestamptz(6)
   openingCash      Decimal         @map("opening_cash") @db.Decimal(10, 2)
   expectedCash     Decimal?        @map("expected_cash") @db.Decimal(10, 2)
   actualCash       Decimal?        @map("actual_cash") @db.Decimal(10, 2)
@@ -204,13 +204,13 @@ model Shift {
   totalSalesCount  Int             @default(0) @map("total_sales_count")
   totalSalesAmount Decimal         @default(0) @map("total_sales_amount") @db.Decimal(10, 2)
   stockVersion     Int?            @map("stock_version")
-  lastSyncTime     DateTime?       @map("last_sync_time") @db.Timestamp(6)
+  lastSyncTime     DateTime?       @map("last_sync_time") @db.Timestamptz(6)
   reportSentStatus String          @default("PENDING") @map("report_sent_status") @db.VarChar(20)
   status           String          @default("CLOSED") @db.VarChar(20)
   closeMode        String          @default("NORMAL") @map("close_mode") @db.VarChar(20)
   forceCloseReason String?         @map("force_close_reason")
-  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt        DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   orders           Order[]
   seller           User            @relation(fields: [sellerId], references: [userId], onDelete: NoAction, onUpdate: NoAction)
   stockMovements   StockMovement[]

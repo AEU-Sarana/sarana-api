@@ -1,16 +1,17 @@
 import { DailySalesReportResponse } from '@src/domains/Report/types/report.types';
 import { GetShiftResponse } from '@src/domains/Shift/types/shift.types';
+import { formatDateTimeInTimezone } from '@src/shared/utils/date-utils';
+import { APP_CONSTANTS } from '@src/shared/config/constants';
 
-const TELEGRAM_TIMEZONE = 'Asia/Phnom_Penh';
+const TELEGRAM_TIMEZONE = APP_CONSTANTS.TIMEZONE;
+
+const TIME_PORTION_REGEX = /^\d{4}-\d{2}-\d{2} (\d{2}):(\d{2}):\d{2} (AM|PM)$/;
 
 const formatTime = (date: Date | string | null): string => {
   if (!date) return '-';
-  return new Date(date).toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-    timeZone: TELEGRAM_TIMEZONE,
-  });
+  const formatted = formatDateTimeInTimezone(date, TELEGRAM_TIMEZONE, { hour12: true });
+  const match = TIME_PORTION_REGEX.exec(formatted);
+  return match ? `${match[1]}:${match[2]} ${match[3]}` : formatted;
 };
 
 const calculateDuration = (start: Date | string, end: Date | string | null): number => {
@@ -32,7 +33,7 @@ export function buildDailyReportMessage(
 ): string {
   const shortOverText = formatShortOver(shift);
   return `
-📊 *របាយការណ៍លក់ប្រចាំថ្ងៃ*
+📊 *របាយការណ៍លក់ប្រចាំវេន*
 
 📅 កាលបរិច្ឆេទ: ${report.date}
 👤 អ្នកលក់: ${shift.seller_name ?? '-'}
@@ -49,11 +50,11 @@ export function buildDailyReportMessage(
 • ខ្វះ/លើស៖ ${shortOverText}
 
 ⏰ *ព័ត៌មានវេនការងារ*
-• ម៉ោងចាប់ផ្តើម៖ ${formatTime((shift as { start_time_local?: string }).start_time_local ?? shift.start_time)}
-• ម៉ោងបញ្ចប់៖ ${formatTime((shift as { end_time_local?: string | null }).end_time_local ?? shift.end_time)}
+• ម៉ោងចាប់ផ្តើម៖ ${formatTime(shift.start_time)}
+• ម៉ោងបញ្ចប់៖ ${formatTime(shift.end_time)}
 • រយៈពេលសរុប៖ ${calculateDuration(
-  (shift as { start_time_local?: string }).start_time_local ?? shift.start_time,
-  (shift as { end_time_local?: string | null }).end_time_local ?? shift.end_time
-)} ម៉ោង
+    shift.start_time,
+    shift.end_time
+  )} ម៉ោង
 `.trim();
 }

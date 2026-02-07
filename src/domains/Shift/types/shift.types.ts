@@ -90,7 +90,7 @@ export interface CloseShiftRequest {
     pagination: { page: number; limit: number; total: number; totalPages: number };
   }
   
-  export interface GetShiftResponse {
+export interface GetShiftResponse {
     shift_id: number;
     seller_id: number;
     seller_name: string | null;

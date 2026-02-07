@@ -48,7 +48,7 @@ export const buildOrderSyncMessage = (input: OrderSyncMessageInput): string => {
     `Receipt: ${input.receipt_number}`,
     `Order UUID: ${input.order_uuid}`,
     input.order_id ? `Order ID: ${input.order_id}` : null,
-    `Date: ${formatDateTimeInTimezone(input.order_date)}`,
+    `Date: ${formatDateTimeInTimezone(input.order_date, undefined, { hour12: true })}`,
     `Shift ID: ${input.shift_id}`,
     `Seller: ${sellerLine}`,
     `Payment: ${input.payment_method}`,

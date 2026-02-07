@@ -8,10 +8,6 @@ export const closeShiftValidator = [
     .isInt({ min: 0 })
     .withMessage('pending_orders_count must be a non-negative integer')
     .toInt(),
-  body('last_order_sync_at')
-    .optional()
-    .isISO8601()
-    .withMessage('last_order_sync_at must be a valid ISO8601 timestamp'),
   body('close_mode')
     .optional()
     .isIn(['NORMAL', 'FORCED'])
