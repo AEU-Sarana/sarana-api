@@ -12,9 +12,6 @@ docker_image_tag: latest
 docker_registry: ""
 dockerfile_path: "{{ app_directory }}/Dockerfile"
 
-# Docker network
-docker_network_name: "{{ app_name }}-network"
-
 # Deployment strategy
 force_recreate: false
 pull_images: true

@@ -52,7 +52,6 @@ docker_image_name: "{{ app_name }}-app"
 docker_image_tag: latest
 docker_registry: ""  # Override in group_vars for production
 docker_container_name: "{{ app_name }}-app"
-docker_network_name: "{{ app_name }}-network"
 docker_compose_version: "v2.24.5"
 
 # Docker deployment strategy

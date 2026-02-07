@@ -33,7 +33,6 @@ app_host: 0.0.0.0
 docker_image_name: stock-pos-app
 docker_image_tag: latest
 docker_container_name: stock-pos-app
-docker_network_name: stock-pos-network
 docker_registry: "{{ vault_docker_registry_url }}"
 docker_registry_username: "{{ vault_docker_registry_username }}"
 docker_registry_password: "{{ vault_docker_registry_password }}"
