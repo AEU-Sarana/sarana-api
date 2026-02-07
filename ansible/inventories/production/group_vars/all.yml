@@ -62,6 +62,10 @@ postgres_db: "{{ vault_prod_postgres_db }}"
 postgres_password: "{{ vault_prod_postgres_password | string }}"
 postgres_external_port: 5433
 
+# Database Timezone Configuration (Asia/Phnom_Penh for Cambodia)
+db_timezone: Asia/Phnom_Penh
+system_timezone: Asia/Phnom_Penh
+
 # Variables used by app-deploy env template (all from vault via postgres_* or literal)
 db_user: "{{ postgres_user }}"
 db_password: "{{ postgres_password | string }}"
@@ -104,8 +108,8 @@ nginx_internal_port: 8080  # Container nginx port
 
 # ===== DOMAIN & SSL CONFIGURATION =====
 domain: techey.tech
-subdomain: saraphy
-app_domain: "{{ subdomain }}.{{ domain }}"  # saraphy.techey.tech
+subdomain: familypos
+app_domain: "{{ subdomain }}.{{ domain }}"  # familypos.techey.tech
 enable_ssl: true
 letsencrypt_email: admin@{{ domain }}
 letsencrypt_staging: false  # Set to true for first test run

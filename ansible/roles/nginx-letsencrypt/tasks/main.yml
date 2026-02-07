@@ -26,13 +26,6 @@
     mode: '0755'
   become: yes
 
-- name: Ensure Nginx is running
-  systemd:
-    name: nginx
-    state: started
-    enabled: yes
-  become: yes
-
 - name: Backup existing Nginx configuration
   shell: |
     if [ -f "{{ nginx_config_path }}/{{ nginx_site_name }}" ]; then
@@ -54,11 +47,22 @@
     mode: '0644'
   become: yes
   when: not letsencrypt_cert.stat.exists
-  notify: reload nginx
 
-- name: Flush handlers to reload Nginx before certbot
-  meta: flush_handlers
+- name: Enable site by creating symlink (temporary config)
+  file:
+    src: "{{ nginx_config_path }}/{{ nginx_site_name }}"
+    dest: "{{ nginx_enabled_path }}/{{ nginx_site_name }}"
+    state: link
+    force: yes
+  become: yes
   when: not letsencrypt_cert.stat.exists
+
+- name: Ensure Nginx is running
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes
+  become: yes
 
 - name: Obtain Let's Encrypt certificate
   command: >
@@ -72,6 +76,7 @@
     creates: "/etc/letsencrypt/live/{{ nginx_domain }}/fullchain.pem"
   become: yes
   register: certbot_result
+  when: not letsencrypt_cert.stat.exists
 
 - name: Display certbot result
   debug:
@@ -86,14 +91,17 @@
     backup: yes
   become: yes
   notify: test and reload nginx
+  when: letsencrypt_cert.stat.exists
 
-- name: Enable site by creating symlink
+- name: Enable site by creating symlink (production config)
   file:
     src: "{{ nginx_config_path }}/{{ nginx_site_name }}"
     dest: "{{ nginx_enabled_path }}/{{ nginx_site_name }}"
     state: link
+    force: yes
   become: yes
   notify: test and reload nginx
+  when: letsencrypt_cert.stat.exists
 
 - name: Setup automatic certificate renewal
   cron:

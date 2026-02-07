@@ -117,6 +117,8 @@ db_name: stock_pos
 db_port: 5432
 db_host: localhost
 postgres_port: 5432
+db_timezone: Asia/Phnom_Penh
+system_timezone: Asia/Phnom_Penh
 
 # ===== REDIS DEFAULTS =====
 # Override in environment-specific group_vars with actual hosts

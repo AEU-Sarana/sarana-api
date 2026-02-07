@@ -9,8 +9,13 @@ services:
       POSTGRES_USER: ${DB_USER:-stockpos}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-stockpos}
       POSTGRES_DB: ${DB_NAME:-stock_pos}
+      PGTZ: ${DB_TIMEZONE:-UTC}
+      TZ: ${SYSTEM_TIMEZONE:-UTC}
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ./docker/postgres/init-timezone.sql:/docker-entrypoint-initdb.d/01-timezone.sql
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-stockpos}"]
