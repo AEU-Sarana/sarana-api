@@ -18,7 +18,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - stock-pos-network
+      - internal-network
 
   # Redis for Bull Queue (optional, if you use it)
   redis:
@@ -35,7 +35,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - stock-pos-network
+      - internal-network
 
 
   # Minio for object storage
@@ -58,7 +58,7 @@ services:
       retries: 3
     restart: unless-stopped
     networks:
-      - stock-pos-network
+      - internal-network
 
 
   nginx:
@@ -81,7 +81,7 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - stock-pos-network
+      - internal-network
     profiles:
       - dev
 
@@ -93,5 +93,7 @@ volumes:
   redis-data:
 
 networks:
-  stock-pos-network:
+  internal-network:
+    driver: bridge
+  external-network:
     driver: bridge

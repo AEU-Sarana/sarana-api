@@ -57,7 +57,23 @@
     - role: app-deploy
       tags: ['app', 'deploy']
 
+    # Host nginx conflicts with Docker nginx (both need ports 80/443)
+    # Since we're using Docker nginx + Cloudflare, host nginx is disabled
+    # Certificate already manually generated at /etc/letsencrypt/live/familypos.techey.tech/
+    #- role: nginx-letsencrypt
+    #  tags: ['nginx', 'ssl', 'letsencrypt']
+    #  when: enable_ssl | default(true) | bool
+
   post_tasks:
+    - name: Clean up unused Docker images
+      shell: docker image prune -a --force
+      register: prune_output
+      changed_when: true
+
+    - name: Display image cleanup results
+      debug:
+        msg: "{{ prune_output.stdout_lines }}"
+
     - name: Final deployment status
       debug:
         msg:
@@ -65,7 +81,9 @@
           - "Deployment completed successfully!"
           - "Application: {{ app_name }}"
           - "Server: {{ inventory_hostname }}"
-          - "Access URL: http://{{ ansible_host }}:{{ nginx_http_port | default(nginx_http_port_custom) | default(8081) }}"
+          - "HTTP Access: http://{{ ansible_host }}"
+          - "HTTPS Access: https://{{ subdomain }}.{{ domain }}"
+          - "Container Nginx Port: {{ nginx_internal_port | default(8080) }}"
           - "======================================"
 
     - name: Verify all services are running
