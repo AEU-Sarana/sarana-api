@@ -127,3 +127,102 @@ export function isToday(date: Date | string): boolean {
   const today = new Date();
   return formatDate(dateObj) === formatDate(today);
 }
+
+const TIMEZONE_OFFSET_HOURS: Record<string, number> = {
+  'Asia/Phnom_Penh': 7,
+};
+
+const TIMEZONE_AWARE_ISO_REGEX = /(Z|[+-]\d{2}:\d{2})$/i;
+const LOCAL_DATETIME_REGEX =
+  /^(\d{4})-(\d{2})-(\d{2})(?:[ T])(\d{2}):(\d{2})(?::(\d{2}))?(?:\.(\d{1,3}))?$/;
+
+export function parseClientDateTime(
+  value: string,
+  timezone: string = APP_CONSTANTS.TIMEZONE
+): Date {
+  const input = value.trim();
+  if (!input) {
+    throw new Error('Date value is required');
+  }
+
+  if (TIMEZONE_AWARE_ISO_REGEX.test(input)) {
+    const parsed = new Date(input);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+
+  const localMatch = LOCAL_DATETIME_REGEX.exec(input);
+  if (localMatch) {
+    const tzOffsetHours = TIMEZONE_OFFSET_HOURS[timezone];
+    if (tzOffsetHours === undefined) {
+      throw new Error(`Unsupported timezone: ${timezone}`);
+    }
+
+    const year = Number(localMatch[1]);
+    const month = Number(localMatch[2]);
+    const day = Number(localMatch[3]);
+    const hour = Number(localMatch[4]);
+    const minute = Number(localMatch[5]);
+    const second = localMatch[6] ? Number(localMatch[6]) : 0;
+    const millisecond = localMatch[7] ? Number(localMatch[7].padEnd(3, '0')) : 0;
+
+    return new Date(
+      Date.UTC(year, month - 1, day, hour - tzOffsetHours, minute, second, millisecond)
+    );
+  }
+
+  const fallback = new Date(input);
+  if (!Number.isNaN(fallback.getTime())) {
+    return fallback;
+  }
+
+  throw new Error(
+    `Invalid datetime format: "${value}". Expected ISO8601 or YYYY-MM-DD HH:mm[:ss][.SSS].`
+  );
+}
+
+export function formatDateTimeInTimezone(
+  value: Date | string,
+  timezone: string = APP_CONSTANTS.TIMEZONE,
+  options?: { hour12?: boolean }
+): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error('Invalid Date provided for formatting');
+  }
+  const hour12 = options?.hour12 ?? false;
+
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12,
+  }).formatToParts(date);
+
+  const partMap = new Map(parts.map((part) => [part.type, part.value]));
+  const year = partMap.get('year');
+  const month = partMap.get('month');
+  const day = partMap.get('day');
+  const hour = partMap.get('hour');
+  const minute = partMap.get('minute');
+  const second = partMap.get('second');
+  const dayPeriod = partMap.get('dayPeriod');
+
+  if (!year || !month || !day || !hour || !minute || !second) {
+    return date.toISOString();
+  }
+
+  if (hour12) {
+    if (!dayPeriod) {
+      return date.toISOString();
+    }
+    return `${year}-${month}-${day} ${hour}:${minute}:${second} ${dayPeriod}`;
+  }
+
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+}

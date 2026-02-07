@@ -1,4 +1,5 @@
-const DEFAULT_TIMEZONE = 'Asia/Phnom_Penh';
+const DEFAULT_TIMEZONE =
+  Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
 const isoUtcDateTimeRegex =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;

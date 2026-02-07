@@ -2,67 +2,67 @@
  * Application constants
  */
 export const APP_CONSTANTS = {
-    // Pagination
-    DEFAULT_PAGE: 1,
-    DEFAULT_LIMIT: 10,
-    MAX_LIMIT: 100,
-  
-    // Product
-    MAX_PRODUCTS: 50, // Phase 1 limit
-    MIN_PRODUCT_PRICE: 0,
-    MAX_PRODUCT_PRICE: 999999.99,
-  
-    // Stock
-    MIN_STOCK_QUANTITY: 0,
-    MAX_STOCK_QUANTITY: 999999,
-  
-    // Order
-    MIN_ORDER_AMOUNT: 0,
-    MAX_ORDER_AMOUNT: 999999.99,
-  
-    // File upload
-    MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
-    ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/webp'],
-  
-    // Password/PIN
-    MIN_PASSWORD_LENGTH: 4,
-    MAX_PASSWORD_LENGTH: 128,
-    MIN_PIN_LENGTH: 4,
-    MAX_PIN_LENGTH: 6,
-  
-    // Rate limiting
-    RATE_LIMIT_WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-    RATE_LIMIT_MAX_REQUESTS: 100,
-    AUTH_RATE_LIMIT_MAX_REQUESTS: 5,
-  
-    // Timezone
-    TIMEZONE: 'Asia/Phnom_Penh', // Phnom Penh timezone (UTC+7)
-  } as const;
-  
-  /**
-   * Error codes
-   */
-  export const ERROR_CODES = {
-    // Auth
-    AUTH_TOKEN_REQUIRED: 'AUTH_TOKEN_REQUIRED',
-    AUTH_TOKEN_INVALID: 'AUTH_TOKEN_INVALID',
-    AUTH_TOKEN_EXPIRED: 'AUTH_TOKEN_EXPIRED',
-    
-    // Validation
-    VALIDATION_ERROR: 'VALIDATION_ERROR',
-    INVALID_INPUT: 'INVALID_INPUT',
-    
-    // Business logic
-    BUSINESS_LOGIC_ERROR: 'BUSINESS_LOGIC_ERROR',
-    RESOURCE_NOT_FOUND: 'RESOURCE_NOT_FOUND',
-    RESOURCE_ALREADY_EXISTS: 'RESOURCE_ALREADY_EXISTS',
-    
-    // Permission
-    INSUFFICIENT_PERMISSIONS: 'INSUFFICIENT_PERMISSIONS',
-    
-    // Server
-    INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
-    DATABASE_ERROR: 'DATABASE_ERROR',
-  } as const;
-  
-  export type ErrorCode = typeof ERROR_CODES[keyof typeof ERROR_CODES];
+  // Pagination
+  DEFAULT_PAGE: 1,
+  DEFAULT_LIMIT: 10,
+  MAX_LIMIT: 100,
+
+  // Product
+  MAX_PRODUCTS: 50, // Phase 1 limit
+  MIN_PRODUCT_PRICE: 0,
+  MAX_PRODUCT_PRICE: 999999.99,
+
+  // Stock
+  MIN_STOCK_QUANTITY: 0,
+  MAX_STOCK_QUANTITY: 999999,
+
+  // Order
+  MIN_ORDER_AMOUNT: 0,
+  MAX_ORDER_AMOUNT: 999999.99,
+
+  // File upload
+  MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
+  ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/webp'],
+
+  // Password/PIN
+  MIN_PASSWORD_LENGTH: 4,
+  MAX_PASSWORD_LENGTH: 128,
+  MIN_PIN_LENGTH: 4,
+  MAX_PIN_LENGTH: 6,
+
+  // Rate limiting
+  RATE_LIMIT_WINDOW_MS: 15 * 60 * 1000, // 15 minutes
+  RATE_LIMIT_MAX_REQUESTS: 100,
+  AUTH_RATE_LIMIT_MAX_REQUESTS: 5,
+
+  // Timezone
+  TIMEZONE: 'America/New_York', // US Eastern Time (UTC-5)
+} as const;
+
+/**
+ * Error codes
+ */
+export const ERROR_CODES = {
+  // Auth
+  AUTH_TOKEN_REQUIRED: 'AUTH_TOKEN_REQUIRED',
+  AUTH_TOKEN_INVALID: 'AUTH_TOKEN_INVALID',
+  AUTH_TOKEN_EXPIRED: 'AUTH_TOKEN_EXPIRED',
+
+  // Validation
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  INVALID_INPUT: 'INVALID_INPUT',
+
+  // Business logic
+  BUSINESS_LOGIC_ERROR: 'BUSINESS_LOGIC_ERROR',
+  RESOURCE_NOT_FOUND: 'RESOURCE_NOT_FOUND',
+  RESOURCE_ALREADY_EXISTS: 'RESOURCE_ALREADY_EXISTS',
+
+  // Permission
+  INSUFFICIENT_PERMISSIONS: 'INSUFFICIENT_PERMISSIONS',
+
+  // Server
+  INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
+  DATABASE_ERROR: 'DATABASE_ERROR',
+} as const;
+
+export type ErrorCode = typeof ERROR_CODES[keyof typeof ERROR_CODES];

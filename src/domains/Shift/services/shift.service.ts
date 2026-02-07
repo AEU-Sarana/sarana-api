@@ -144,6 +144,7 @@ export class ShiftService {
     if (!shift) throw new ValidationException('Shift not found');
 
     const pendingOrdersCount = request.pending_orders_count;
+    const closedAt = new Date();
     const closeMode = request.close_mode ?? (request.force_close ? 'FORCED' : 'NORMAL');
     const forceClose = closeMode === 'FORCED';
     const forceCloseReason = request.force_close_reason?.toString().trim() || '';
@@ -194,7 +195,7 @@ export class ShiftService {
     const updated = await prisma.shift.update({
       where: { shiftId },
       data: {
-        endTime: new Date(),
+        endTime: closedAt,
         actualCash,
         expectedCash,
         shortAmount,

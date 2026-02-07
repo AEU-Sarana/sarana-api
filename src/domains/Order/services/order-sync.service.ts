@@ -6,9 +6,14 @@ import {
   GetSyncStatusRequest,
   GetSyncStatusResponse,
 } from '@src/domains/Order/types/order.types';
-import { ValidationException, BusinessLogicException } from '@src/shared/exceptions';
+import { ValidationException } from '@src/shared/exceptions';
 import { logger } from '@src/shared/utils/logger';
 import { auditLogService } from '@src/shared/services/audit-log.service';
+import { TelegramAdminOrderNotifyService } from '@src/domains/TelegramAdminBot/services/telegram-admin-order-notify.service';
+import { parseClientDateTime } from '@src/shared/utils/date-utils';
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
 
 export class OrderSyncService {
   /**
@@ -41,6 +46,15 @@ export class OrderSyncService {
     // Process each order in transaction
     for (const orderData of orders) {
       try {
+        let orderDate: Date;
+        try {
+          orderDate = parseClientDateTime(orderData.order_date);
+        } catch {
+          throw new ValidationException(
+            'Invalid order_date. Expected ISO8601 (with timezone) or YYYY-MM-DD HH:mm in Asia/Phnom_Penh.'
+          );
+        }
+
         const result = await prisma.$transaction(async (tx) => {
           const productIds = Array.from(
             new Set(orderData.items.map((item) => item.product_id))
@@ -80,7 +94,7 @@ export class OrderSyncService {
                 receiptNumber: orderData.receipt_number,
                 shiftId: orderData.shift_id,
                 sellerId: orderData.seller_id || currentUserId,
-                orderDate: new Date(orderData.order_date),
+                orderDate,
                 totalAmount: orderData.total_amount,
                 discountAmount: orderData.discount_amount || 0,
                 taxAmount: orderData.tax_amount || 0,
@@ -136,7 +150,7 @@ export class OrderSyncService {
                 receiptNumber: orderData.receipt_number,
                 shiftId: orderData.shift_id,
                 sellerId: orderData.seller_id || currentUserId,
-                orderDate: new Date(orderData.order_date),
+                orderDate,
                 totalAmount: orderData.total_amount,
                 discountAmount: orderData.discount_amount || 0,
                 taxAmount: orderData.tax_amount || 0,
@@ -205,14 +219,32 @@ export class OrderSyncService {
           entityId: result.order_id || 0,
           details: { order_uuid: orderData.order_uuid, status: result.status },
         });
-      } catch (error: any) {
-        logger.error('Order sync error', { error: error.message, order_uuid: orderData.order_uuid });
+
+        if (result.status === 'synced' || result.status === 'updated') {
+          setImmediate(() => {
+            TelegramAdminOrderNotifyService.notifyOrderSyncSuccess({
+              order: orderData,
+              status: result.status,
+              orderId: result.order_id || undefined,
+              fallbackSellerId: currentUserId,
+              orderDate,
+            }).catch((notifyError: unknown) => {
+              logger.error('Telegram admin notify error', {
+                error: notifyError instanceof Error ? notifyError.message : String(notifyError),
+                order_uuid: orderData.order_uuid,
+              });
+            });
+          });
+        }
+      } catch (error: unknown) {
+        const errorMessage = getErrorMessage(error);
+        logger.error('Order sync error', { error: errorMessage, order_uuid: orderData.order_uuid });
         failedCount++;
         results.push({
           order_uuid: orderData.order_uuid,
           order_id: null,
           status: 'failed',
-          error: error.message,
+          error: errorMessage,
         });
       }
     }

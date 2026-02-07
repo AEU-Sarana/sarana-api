@@ -67,8 +67,9 @@ const migrationRollbackOrder = [
   'telegram/202601180000011_create_telegram_admin_messages_table',
   'telegram/202601180000010_create_telegram_admin_links_table',
   'telegram/20260118000009_create_telegram_config_table',
-  'stock/20260118000007_create_stock_movements_table',
-  'stock/20260118000008_create_stock_lots_table',
+  'stock/20260205000009_add_stock_movements_product_created_at_index',
+  'stock/20260118000008_create_stock_movements_table',
+  'stock/20260118000007_create_stock_lots_table',
   'stock/20260118000006_create_stocks_table',
   'order/20260118000005_create_order_items_table',
   'order/20260118000004_create_orders_table',
@@ -99,15 +100,15 @@ function extractTableName(sql) {
   // Match CREATE TABLE statements
   const createMatch = sql.match(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?(\w+)/i);
   if (createMatch) return createMatch[1];
-  
+
   // Match DROP TABLE statements
   const dropMatch = sql.match(/DROP TABLE\s+(?:IF EXISTS\s+)?(\w+)/i);
   if (dropMatch) return dropMatch[1];
-  
+
   // Match ALTER TABLE RENAME TO
   const renameMatch = sql.match(/ALTER TABLE\s+(\w+)\s+RENAME TO\s+(\w+)/i);
   if (renameMatch) return renameMatch[2]; // Return target table name
-  
+
   return null;
 }
 
@@ -116,8 +117,8 @@ function extractTableName(sql) {
 ================================ */
 async function rollbackMigrations(client, count = null) {
   console.log('⏪ Rolling back migrations...\n');
-  
-  const migrationsToRollback = count 
+
+  const migrationsToRollback = count
     ? migrationRollbackOrder.slice(0, count)
     : migrationRollbackOrder;
 
@@ -131,7 +132,7 @@ async function rollbackMigrations(client, count = null) {
     // Check for rollback.sql file first
     const rollbackPath = path.join(migrationDir, 'rollback.sql');
     const migrationPath_full = path.join(migrationDir, 'migration.sql');
-    
+
     const name = migrationPath.split('/').pop();
     let sql = null;
     let isRollbackFile = false;
@@ -208,7 +209,7 @@ function generateRollbackSQL(migrationSql) {
     const sourceTable = renameMatch[1];
     const targetTable = renameMatch[2];
     rollbackStatements.push(`ALTER TABLE ${targetTable} RENAME TO ${sourceTable};`);
-    
+
     // Also reverse index renames if present
     const indexRenameMatches = sql.matchAll(/ALTER INDEX\s+(\w+)\s+RENAME TO\s+(\w+)/gi);
     for (const match of indexRenameMatches) {
@@ -258,7 +259,7 @@ async function rollbackDomain(client, domain) {
 
     const rollbackPath = path.join(migrationDir, 'rollback.sql');
     const migrationPath_full = path.join(migrationDir, 'migration.sql');
-    
+
     const name = migrationPath.split('/').pop();
     let sql = null;
 
