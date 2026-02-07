@@ -54,6 +54,7 @@ const domainConfig = {
 const migrationOrder = [
   'auth/20260118000001_create_users_table',
   'product/20260118000002_create_products_table',
+  'product/20260206000015_add_products_has_expiry_column',
   'shift/20260118000003_create_shifts_table',
   'order/20260118000004_create_orders_table',
   'order/20260118000005_create_order_items_table',
