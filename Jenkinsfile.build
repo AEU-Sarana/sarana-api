@@ -1,3 +1,16 @@
+def notifyTelegram(String message) {
+    if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) {
+        echo "Telegram not configured (TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID missing). Skipping notification."
+        return
+    }
+    sh """
+        curl -s -X POST https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage \
+            -d chat_id=${env.TELEGRAM_CHAT_ID} \
+            -d text='${message}' \
+            -d parse_mode=HTML > /dev/null
+    """
+}
+
 pipeline {
     agent any
 
@@ -9,6 +22,9 @@ pipeline {
         APP_NAME = 'stock-pos-server'
         VERSION = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
         DOCKER_IMAGE = "${REGISTRY}/${GITHUB_USERNAME.toLowerCase()}/${APP_NAME}"
+        // Telegram Bot notification
+        TELEGRAM_BOT_TOKEN = '8469597174:AAHkhd345CvQaEMPLveGMuaIOdbtF-789BM'  // set your bot token
+        TELEGRAM_CHAT_ID = '-5118246928'    // set your chat/user id
     }
 
     triggers {
@@ -256,6 +272,7 @@ pipeline {
                     echo "=== Deploying to app server with Ansible ==="
                     echo "Target: app_servers (89.167.6.46)"
                     echo "Current branch: ${env.GIT_BRANCH ?: env.BRANCH_NAME}"
+                    notifyTelegram("🚀 <b>Deploy started</b>\n• <b>App:</b> ${APP_NAME}\n• <b>Env:</b> production\n• <b>Branch:</b> ${env.GIT_BRANCH ?: env.BRANCH_NAME}\n• <b>Build:</b> #${BUILD_NUMBER}\n• <b>Version:</b> ${VERSION}\n• <b>Jenkins:</b> <a href=\"${env.BUILD_URL}\">Open Build</a>")
                     
                     withCredentials([
                         string(credentialsId: 'ansible-vault-password', variable: 'VAULT_PASS')
@@ -315,7 +332,19 @@ pipeline {
                         }
                     }
                 }
-}
+            }
+            post {
+                success {
+                    script {
+                        notifyTelegram("✅ <b>Deploy success</b>\n• <b>App:</b> ${APP_NAME}\n• <b>Env:</b> production\n• <b>Build:</b> #${BUILD_NUMBER}\n• <b>Version:</b> ${VERSION}\n• <b>URL:</b> https://familypos.techey.tech\n• <b>Jenkins:</b> <a href=\"${env.BUILD_URL}\">Open Build</a>")
+                    }
+                }
+                failure {
+                    script {
+                        notifyTelegram("❌ <b>Deploy failed</b>\n• <b>App:</b> ${APP_NAME}\n• <b>Env:</b> production\n• <b>Build:</b> #${BUILD_NUMBER}\n• <b>Version:</b> ${VERSION}\n• <b>Jenkins:</b> <a href=\"${env.BUILD_URL}\">Open Build</a>\n• <b>Action:</b> Check console log")
+                    }
+                }
+            }
         }
     }
 
