@@ -1,0 +1,116 @@
+---
+- name: Install Nginx and certbot packages
+  apt:
+    name:
+      - nginx
+      - certbot
+      - python3-certbot-nginx
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Create sites-available and sites-enabled directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  become: yes
+  loop:
+    - "{{ nginx_config_path }}"
+    - "{{ nginx_enabled_path }}"
+
+- name: Create webroot directory for Let's Encrypt
+  file:
+    path: /var/www/html
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Ensure Nginx is running
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Backup existing Nginx configuration
+  shell: |
+    if [ -f "{{ nginx_config_path }}/{{ nginx_site_name }}" ]; then
+      cp "{{ nginx_config_path }}/{{ nginx_site_name }}" \
+         "{{ nginx_config_path }}/{{ nginx_site_name }}.backup.$(date +%Y%m%d_%H%M%S)"
+    fi
+  become: yes
+
+- name: Check if SSL certificate already exists
+  stat:
+    path: "/etc/letsencrypt/live/{{ nginx_domain }}/fullchain.pem"
+  register: letsencrypt_cert
+  become: yes
+
+- name: Create temporary HTTP-only Nginx config for certificate verification
+  template:
+    src: nginx-http-only.conf.j2
+    dest: "{{ nginx_config_path }}/{{ nginx_site_name }}"
+    mode: '0644'
+  become: yes
+  when: not letsencrypt_cert.stat.exists
+  notify: reload nginx
+
+- name: Flush handlers to reload Nginx before certbot
+  meta: flush_handlers
+  when: not letsencrypt_cert.stat.exists
+
+- name: Obtain Let's Encrypt certificate
+  command: >
+    certbot certonly --nginx
+    -d {{ nginx_domain }}
+    --non-interactive
+    --agree-tos
+    --email {{ letsencrypt_email }}
+    {{ '--staging' if letsencrypt_staging else '' }}
+  args:
+    creates: "/etc/letsencrypt/live/{{ nginx_domain }}/fullchain.pem"
+  become: yes
+  register: certbot_result
+
+- name: Display certbot result
+  debug:
+    var: certbot_result.stdout_lines
+  when: certbot_result.changed
+
+- name: Deploy production Nginx configuration with SSL
+  template:
+    src: nginx-site-ssl.conf.j2
+    dest: "{{ nginx_config_path }}/{{ nginx_site_name }}"
+    mode: '0644'
+    backup: yes
+  become: yes
+  notify: test and reload nginx
+
+- name: Enable site by creating symlink
+  file:
+    src: "{{ nginx_config_path }}/{{ nginx_site_name }}"
+    dest: "{{ nginx_enabled_path }}/{{ nginx_site_name }}"
+    state: link
+  become: yes
+  notify: test and reload nginx
+
+- name: Setup automatic certificate renewal
+  cron:
+    name: "Renew Let's Encrypt certificates"
+    minute: "0"
+    hour: "3"
+    job: "certbot renew --quiet --post-hook 'systemctl reload nginx'"
+    user: root
+  become: yes
+  when: certbot_auto_renew
+
+- name: Test Nginx configuration
+  command: nginx -t
+  become: yes
+  changed_when: false
+  register: nginx_test
+
+- name: Display Nginx test result
+  debug:
+    var: nginx_test.stderr_lines

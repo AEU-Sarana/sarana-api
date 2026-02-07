@@ -57,6 +57,10 @@
     - role: app-deploy
       tags: ['app', 'deploy']
 
+    - role: nginx-letsencrypt
+      tags: ['nginx', 'ssl', 'letsencrypt']
+      when: enable_ssl | default(true) | bool
+
   post_tasks:
     - name: Final deployment status
       debug:
@@ -65,7 +69,9 @@
           - "Deployment completed successfully!"
           - "Application: {{ app_name }}"
           - "Server: {{ inventory_hostname }}"
-          - "Access URL: http://{{ ansible_host }}:{{ nginx_http_port | default(nginx_http_port_custom) | default(8081) }}"
+          - "HTTP Access: http://{{ ansible_host }}"
+          - "HTTPS Access: https://{{ subdomain }}.{{ domain }}"
+          - "Container Nginx Port: {{ nginx_internal_port | default(8080) }}"
           - "======================================"
 
     - name: Verify all services are running

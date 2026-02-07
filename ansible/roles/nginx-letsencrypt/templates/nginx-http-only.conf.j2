@@ -1,0 +1,23 @@
+# Temporary HTTP-only configuration for Let's Encrypt certificate verification
+# This file is used during initial SSL certificate acquisition
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ nginx_domain }};
+
+    # Let's Encrypt ACME challenge
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+        allow all;
+    }
+
+    # Redirect all other requests to HTTPS (after certificate is obtained)
+    location / {
+        return 301 https://$server_name$request_uri;
+    }
+
+    # Logs
+    access_log /var/log/nginx/{{ app_name }}_http_access.log;
+    error_log /var/log/nginx/{{ app_name }}_http_error.log;
+}

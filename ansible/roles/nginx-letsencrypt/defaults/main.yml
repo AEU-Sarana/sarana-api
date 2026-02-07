@@ -1,0 +1,20 @@
+---
+# Default variables for nginx-letsencrypt role
+
+# Nginx configuration
+nginx_config_path: /etc/nginx/sites-available
+nginx_enabled_path: /etc/nginx/sites-enabled
+nginx_site_name: "{{ app_name }}"
+
+# Domain and SSL configuration
+nginx_domain: "{{ subdomain }}.{{ domain }}"
+letsencrypt_email: "admin@{{ domain }}"
+letsencrypt_staging: false  # Set to true for testing
+certbot_auto_renew: true
+
+# Backend configuration (container nginx)
+backend_host: "127.0.0.1"
+backend_port: "{{ nginx_internal_port | default(8080) }}"
+
+# Rate limiting
+rate_limit_enabled: true

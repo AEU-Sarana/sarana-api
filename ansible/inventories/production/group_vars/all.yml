@@ -100,10 +100,26 @@ nginx_http_port: 80
 nginx_https_port: 443
 nginx_http_port_custom: 8081
 nginx_https_port_custom: 8443
+nginx_internal_port: 8080  # Container nginx port
+
+# ===== DOMAIN & SSL CONFIGURATION =====
+domain: techey.tech
+subdomain: saraphy
+app_domain: "{{ subdomain }}.{{ domain }}"  # saraphy.techey.tech
+enable_ssl: true
+letsencrypt_email: admin@{{ domain }}
+letsencrypt_staging: false  # Set to true for first test run
+certbot_auto_renew: true
+
+# ===== NGINX SSL PATHS =====
+nginx_config_path: /etc/nginx/sites-available
+nginx_enabled_path: /etc/nginx/sites-enabled
+nginx_site_name: "{{ app_name }}"
+nginx_domain: "{{ app_domain }}"
 
 # ===== CORS & SECURITY =====
-allowed_origins: "http://localhost:3000,http://localhost:8080,http://89.167.6.46,http://89.167.6.46:3000,http://89.167.6.46:8081,https://89.167.6.46,https://yourdomain.com"
-cors_origin: "https://yourdomain.com"
+allowed_origins: "http://localhost:3000,http://localhost:8080,http://89.167.6.46,http://89.167.6.46:3000,http://89.167.6.46:8081,https://89.167.6.46,https://{{ app_domain }}"
+cors_origin: "https://{{ app_domain }}"
 
 # ===== LOGGING =====
 log_level: info
