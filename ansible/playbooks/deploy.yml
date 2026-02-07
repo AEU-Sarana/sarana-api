@@ -57,9 +57,14 @@
     - role: app-deploy
       tags: ['app', 'deploy']
 
-    - role: nginx-letsencrypt
-      tags: ['nginx', 'ssl', 'letsencrypt']
-      when: enable_ssl | default(true) | bool
+    # NOTE: Skipping nginx-letsencrypt role because:
+    # - Docker nginx container handles HTTP/HTTPS on ports 80/443
+    # - Cloudflare proxy handles HTTPS termination
+    # - No need for host-level Let's Encrypt certificate
+    # Uncomment if you need to use host-level nginx instead of Docker
+    #- role: nginx-letsencrypt
+    #  tags: ['nginx', 'ssl', 'letsencrypt']
+    #  when: enable_ssl | default(true) | bool
 
   post_tasks:
     - name: Final deployment status
