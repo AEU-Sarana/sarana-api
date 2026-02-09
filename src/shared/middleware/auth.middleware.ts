@@ -66,25 +66,41 @@ export async function authenticateToken(
       return;
     }
 
-    // Basic runtime validation of decoded token payload to avoid calling
-    // downstream services with undefined user IDs (which leads to runtime
-    // Prisma errors). We expect the token to include a numeric `userId`.
-    const maybePayload = decoded as Partial<UserPayload> | null;
-    if (!maybePayload || typeof maybePayload.userId !== 'number') {
-      res.status(403).json({
-        success: false,
-        message: 'Invalid token payload',
-        code: 'AUTH_TOKEN_INVALID_PAYLOAD',
-      });
-      return;
-    }
+    
+      const maybePayload = decoded as any | null;
+      let userId: number | undefined;
+      if (maybePayload) {
+        if (typeof maybePayload.userId === 'number') userId = maybePayload.userId;
+        else if (typeof maybePayload.userId === 'string' && /^[0-9]+$/.test(maybePayload.userId))
+          userId = parseInt(maybePayload.userId, 10);
+        else if (typeof maybePayload.user_id === 'number') userId = maybePayload.user_id;
+        else if (typeof maybePayload.user_id === 'string' && /^[0-9]+$/.test(maybePayload.user_id))
+          userId = parseInt(maybePayload.user_id, 10);
+        else if (typeof maybePayload.sub === 'string' && /^[0-9]+$/.test(maybePayload.sub)) {
+          userId = parseInt(maybePayload.sub, 10);
+        }
+      }
 
-    req.user = {
-      userId: maybePayload.userId,
-      username: maybePayload.username ?? '',
-      role: maybePayload.role as any,
-      deviceId: maybePayload.deviceId,
-    } as UserPayload;
+      if (!userId || typeof userId !== 'number') {
+        res.status(403).json({
+          success: false,
+          message: 'Invalid token payload',
+          code: 'AUTH_TOKEN_INVALID_PAYLOAD',
+        });
+        return;
+      }
+
+      // Normalise other fields (username/role/deviceId) from both styles.
+      const username = maybePayload.username ?? maybePayload.user_name ?? '';
+      const role = (maybePayload.role ?? maybePayload.role) as any;
+      const deviceId = maybePayload.deviceId ?? maybePayload.device_id;
+
+      req.user = {
+        userId,
+        username,
+        role,
+        deviceId,
+      } as UserPayload;
 
     next();
   });
