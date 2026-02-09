@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import jwt, { type Secret } from 'jsonwebtoken';
 import { env } from '@src/shared/config/env';
+import ms from 'ms';
 import { AccessTokenPayload } from '@src/domains/Auth/types/V2/au​th.types';
 
 export class TokenService {
@@ -18,7 +19,7 @@ export class TokenService {
     };
 
     return jwt.sign(claims, env.JWT_SECRET as Secret, {
-       expiresIn: env.JWT_V2_ACCESS_TOKEN_EXPIRY,
+      expiresIn: env.JWT_V2_ACCESS_TOKEN_EXPIRY,
       issuer: env.JWT_ISSUER,
       audience: env.JWT_AUDIENCE,
       subject: String(payload.userId),
@@ -33,7 +34,14 @@ export class TokenService {
     return crypto.createHash('sha256').update(raw).digest('hex');
   }
 
-  static getAccessTokenTtlSeconds(): number {
-    return 600; // template: parse env in real implementation
+   static getAccessTokenTtlSeconds(): number {
+    const expiry = env.JWT_V2_ACCESS_TOKEN_EXPIRY; // e.g. "10m", "24h"
+
+    const milliseconds = ms(expiry);
+    if (!milliseconds || milliseconds <= 0) {
+      throw new Error(`Invalid JWT_V2_ACCESS_TOKEN_EXPIRY value: ${expiry}`);
+    }
+
+    return Math.floor(milliseconds / 1000);
   }
 }

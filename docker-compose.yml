@@ -7,6 +7,9 @@ services:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_DB: ${DB_NAME:-stock_pos}
+      TZ: Asia/Phnom_Penh
+      PGTZ: Asia/Phnom_Penh
+    command: ["postgres", "-c", "timezone=Asia/Phnom_Penh"]
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
