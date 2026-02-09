@@ -88,6 +88,15 @@ export class AuthController {
         return;
       }
 
+      if (typeof user.userId !== 'number') {
+        res.status(401).json({
+          success: false,
+          message: 'Unauthorized',
+          code: 'UNAUTHORIZED',
+        });
+        return;
+      }
+
       const userData = await AuthService.getCurrentUser(user.userId);
 
       res.status(200).json({

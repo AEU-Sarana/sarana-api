@@ -66,7 +66,26 @@ export async function authenticateToken(
       return;
     }
 
-    req.user = decoded as UserPayload;
+    // Basic runtime validation of decoded token payload to avoid calling
+    // downstream services with undefined user IDs (which leads to runtime
+    // Prisma errors). We expect the token to include a numeric `userId`.
+    const maybePayload = decoded as Partial<UserPayload> | null;
+    if (!maybePayload || typeof maybePayload.userId !== 'number') {
+      res.status(403).json({
+        success: false,
+        message: 'Invalid token payload',
+        code: 'AUTH_TOKEN_INVALID_PAYLOAD',
+      });
+      return;
+    }
+
+    req.user = {
+      userId: maybePayload.userId,
+      username: maybePayload.username ?? '',
+      role: maybePayload.role as any,
+      deviceId: maybePayload.deviceId,
+    } as UserPayload;
+
     next();
   });
 }
