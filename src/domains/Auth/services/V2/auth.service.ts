@@ -8,14 +8,9 @@ type Tx = Prisma.TransactionClient;
 import { AuthErrorCode } from '../../enums/V2/auth-error-codes';
 import { TokenService } from './token.servi​ce';
 import { RefreshTokenRepository } from '../../repository/V2/refresh-token.repository';
+import { addDaysToDate, toPhnomPenhISOString } from '@src/shared/utils/date-utils';
 
 const repo = new RefreshTokenRepository();
-
-function addDays(base: Date, days: number): Date {
-  const d = new Date(base);
-  d.setDate(d.getDate() + days);
-  return d;
-}
 
 export class AuthService {
   async login(input: {
@@ -46,8 +41,8 @@ export class AuthService {
     const absoluteDays = Math.min(Math.max(env.JWT_V2_REFRESH_ABSOLUTE_DAYS || 30, 7), 30);
     const idleDays = Math.min(Math.max(env.JWT_V2_REFRESH_IDLE_DAYS || 7, 1), 14);
 
-    const absoluteExpiresAt = addDays(now, absoluteDays);
-    const idleExpiresAt = addDays(now, idleDays);
+  const absoluteExpiresAt = addDaysToDate(now, absoluteDays);
+  const idleExpiresAt = addDaysToDate(now, idleDays);
 
     const tokenFamilyId = crypto.randomUUID();
     const refreshRaw = TokenService.generateOpaqueRefreshToken();
@@ -74,9 +69,9 @@ export class AuthService {
       token: accessToken,
       refresh_token: refreshRaw,
       token_type: 'Bearer',
-      expires_in_seconds: TokenService.getAccessTokenTtlSeconds(),
-      idle_expires_at: idleExpiresAt.toISOString(),
-      absolute_expires_at: absoluteExpiresAt.toISOString(),
+  expires_in_seconds: TokenService.getAccessTokenTtlSeconds(),
+  idle_expires_at: toPhnomPenhISOString(idleExpiresAt),
+  absolute_expires_at: toPhnomPenhISOString(absoluteExpiresAt),
       user: {
         user_id: user.userId,
         username: user.username,
@@ -124,7 +119,7 @@ export class AuthService {
     }
 
     const idleDays = Math.min(Math.max(env.JWT_V2_REFRESH_IDLE_DAYS || 7, 1), 14);
-    const nextIdleExpiresAt = addDays(now, idleDays);
+  const nextIdleExpiresAt = addDaysToDate(now, idleDays);
     const newRefreshRaw = TokenService.generateOpaqueRefreshToken();
     const newRefreshHash = TokenService.hashRefreshToken(newRefreshRaw);
 
@@ -154,8 +149,8 @@ export class AuthService {
       refresh_token: newRefreshRaw,
       token_type: 'Bearer',
       expires_in_seconds: TokenService.getAccessTokenTtlSeconds(),
-      idle_expires_at: nextIdleExpiresAt.toISOString(),
-      absolute_expires_at: session.absoluteExpiresAt.toISOString(),
+  idle_expires_at: toPhnomPenhISOString(nextIdleExpiresAt),
+  absolute_expires_at: toPhnomPenhISOString(session.absoluteExpiresAt),
     };
   }
 

@@ -1,11 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+import { env } from '@src/shared/config/env';
 import { Role } from '@src/shared/config/permissions';
 import { tokenBlacklistService } from '@src/domains/Auth/services/token-blacklist.service';
 
 export interface UserPayload {
   userId: number;
-  username: string;
+  username?: string;
   role: Role;
   deviceId?: string;
 }
@@ -14,94 +15,139 @@ declare global {
   namespace Express {
     interface Request {
       user?: UserPayload;
+      clientIp?: string;
     }
   }
 }
 
-export async function authenticateToken(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; 
+/* ---------------- Helper functions ---------------- */
+
+function parseAuthorizationHeader(header?: string): { scheme?: string; token?: string } {
+  if (!header || typeof header !== 'string') return {};
+  const parts = header.trim().split(/\s+/);
+  if (parts.length === 0) return {};
+  if (parts.length === 1) return { token: parts[0] };
+  const scheme = parts[0];
+  const token = parts.slice(1).join(' ');
+  return { scheme, token };
+}
+
+function parseNumericUserId(payload: Record<string, any>): number | null {
+  const candidates = ['userId', 'user_id', 'sub'];
+  for (const key of candidates) {
+    const v = payload[key];
+    if (v === undefined || v === null) continue;
+    if (typeof v === 'number' && Number.isInteger(v)) return v;
+    if (typeof v === 'string' && /^[0-9]+$/.test(v)) return parseInt(v, 10);
+  }
+  return null;
+}
+
+function isValidRole(role: any): role is Role {
+  return Object.values(Role).includes(role);
+}
+
+/* ---------------- Middleware ---------------- */
+
+export async function authenticateToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const authHeader = req.headers['authorization'] as string | undefined;
+  const { scheme, token } = parseAuthorizationHeader(authHeader);
 
   if (!token) {
-    res.status(401).json({
-      success: false,
-      message: 'Access token required',
-      code: 'AUTH_TOKEN_REQUIRED',
-    });
+    res.status(401).json({ success: false, message: 'Access token required', code: 'AUTH_TOKEN_REQUIRED' });
     return;
   }
 
-  // Check if token is blacklisted (logout)
-  const isBlacklisted = await tokenBlacklistService.isTokenBlacklisted(token);
-  if (isBlacklisted) {
-    res.status(403).json({
-      success: false,
-      message: 'Token has been revoked',
-      code: 'AUTH_TOKEN_REVOKED',
-    });
+  if (scheme && scheme.toLowerCase() !== 'bearer') {
+    res.status(401).json({ success: false, message: 'Authorization scheme must be Bearer', code: 'AUTH_TOKEN_BAD_SCHEME' });
     return;
   }
 
-  const JWT_SECRET = process.env.JWT_SECRET;
+  const JWT_SECRET = env.JWT_SECRET;
   if (!JWT_SECRET) {
-    res.status(500).json({
-      success: false,
-      message: 'Server configuration error',
-      code: 'JWT_SECRET_MISSING',
-    });
+    res.status(500).json({ success: false, message: 'Server configuration error', code: 'JWT_SECRET_MISSING' });
     return;
   }
 
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
-    if (err) {
-      res.status(403).json({
-        success: false,
-        message: 'Invalid or expired token',
-        code: 'AUTH_TOKEN_INVALID',
-      });
+  const expectedIssuer = env.JWT_ISSUER;
+  const expectedAudience = env.JWT_AUDIENCE;
+
+  let decoded: JwtPayload | string;
+  try {
+    const verifyOptions: jwt.VerifyOptions = {};
+    if (expectedIssuer) verifyOptions.issuer = expectedIssuer;
+    if (expectedAudience) verifyOptions.audience = expectedAudience;
+
+    decoded = jwt.verify(token, JWT_SECRET as jwt.Secret, verifyOptions);
+  } catch (err: any) {
+    if (err instanceof jwt.TokenExpiredError) {
+      res.status(403).json({ success: false, message: 'Token expired', code: 'AUTH_TOKEN_EXPIRED' });
       return;
     }
+    if (err instanceof jwt.JsonWebTokenError) {
+      res.status(403).json({ success: false, message: 'Invalid or expired token', code: 'AUTH_TOKEN_INVALID' });
+      return;
+    }
+    res.status(403).json({ success: false, message: 'Invalid token', code: 'AUTH_TOKEN_INVALID' });
+    return;
+  }
 
-    
-      const maybePayload = decoded as any | null;
-      let userId: number | undefined;
-      if (maybePayload) {
-        if (typeof maybePayload.userId === 'number') userId = maybePayload.userId;
-        else if (typeof maybePayload.userId === 'string' && /^[0-9]+$/.test(maybePayload.userId))
-          userId = parseInt(maybePayload.userId, 10);
-        else if (typeof maybePayload.user_id === 'number') userId = maybePayload.user_id;
-        else if (typeof maybePayload.user_id === 'string' && /^[0-9]+$/.test(maybePayload.user_id))
-          userId = parseInt(maybePayload.user_id, 10);
-        else if (typeof maybePayload.sub === 'string' && /^[0-9]+$/.test(maybePayload.sub)) {
-          userId = parseInt(maybePayload.sub, 10);
-        }
-      }
+  if (typeof decoded === 'string' || !decoded) {
+    res.status(403).json({ success: false, message: 'Invalid token payload', code: 'AUTH_TOKEN_INVALID_PAYLOAD' });
+    return;
+  }
 
-      if (!userId || typeof userId !== 'number') {
-        res.status(403).json({
-          success: false,
-          message: 'Invalid token payload',
-          code: 'AUTH_TOKEN_INVALID_PAYLOAD',
-        });
-        return;
-      }
+  const payload = decoded as JwtPayload & Record<string, any>;
 
-      // Normalise other fields (username/role/deviceId) from both styles.
-      const username = maybePayload.username ?? maybePayload.user_name ?? '';
-      const role = (maybePayload.role ?? maybePayload.role) as any;
-      const deviceId = maybePayload.deviceId ?? maybePayload.device_id;
+  const userId = parseNumericUserId(payload);
+  if (userId === null) {
+    res.status(403).json({ success: false, message: 'Invalid token payload: user id missing', code: 'AUTH_TOKEN_INVALID_PAYLOAD' });
+    return;
+  }
 
-      req.user = {
-        userId,
-        username,
-        role,
-        deviceId,
-      } as UserPayload;
+  const roleValue = payload.role;
+  if (!isValidRole(roleValue)) {
+    res.status(403).json({ success: false, message: 'Invalid token payload: role missing or invalid', code: 'AUTH_TOKEN_INVALID_ROLE' });
+    return;
+  }
 
-    next();
-  });
+  const jti = payload.jti;
+  if (!jti || typeof jti !== 'string') {
+    res.status(403).json({ success: false, message: 'Invalid token payload: jti required for revocation', code: 'AUTH_TOKEN_MISSING_JTI' });
+    return;
+  }
+
+  try {
+    let isRevoked = false;
+    const maybeIsJtiFn = (tokenBlacklistService as any).isJtiBlacklisted;
+    if (typeof maybeIsJtiFn === 'function') {
+      isRevoked = await (tokenBlacklistService as any).isJtiBlacklisted(jti);
+    } else if (typeof (tokenBlacklistService as any).isTokenBlacklisted === 'function') {
+      isRevoked = await (tokenBlacklistService as any).isTokenBlacklisted(token);
+    } else {
+      isRevoked = false;
+    }
+
+    if (isRevoked) {
+      res.status(403).json({ success: false, message: 'Token has been revoked', code: 'AUTH_TOKEN_REVOKED' });
+      return;
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Token revocation check failed', code: 'AUTH_REVOCATION_CHECK_FAILED' });
+    return;
+  }
+
+  const username = (payload.username as string) ?? (payload.user_name as string) ?? undefined;
+  const deviceId = (payload.deviceId as string) ?? (payload.device_id as string) ?? undefined;
+
+  req.user = {
+    userId,
+    username,
+    role: roleValue as Role,
+    deviceId,
+  };
+
+  req.clientIp = req.ip;
+
+  next();
 }
