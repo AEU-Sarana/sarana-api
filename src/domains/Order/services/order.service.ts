@@ -7,6 +7,7 @@ import {
 import { ValidationException, BusinessLogicException } from '@src/shared/exceptions';
 import { logger } from '@src/shared/utils/logger';
 import { auditLogService } from '@src/shared/services/audit-log.service';
+import { ReceiptLinkStatus } from '@src/domains/Receipt/enums/V1/receipt-link-status.enum';
 
 export class OrderService {
   /**
@@ -52,6 +53,15 @@ export class OrderService {
             fullName: true,
           },
         },
+        receipt_links: {
+          select: {
+            receiptLinkId: true,
+            linkStatus: true,
+            expiresAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
       },
     });
 
@@ -63,21 +73,27 @@ export class OrderService {
     });
 
     return {
-      orders: orders.map((o) => ({
-        order_id: o.orderId,
-        order_uuid: o.orderUuid,
-        receipt_number: o.receiptNumber,
-        shift_id: o.shiftId,
-        seller_id: o.sellerId,
-  seller_name: o.user?.fullName || null,
-        order_date: o.orderDate,
-        total_amount: Number(o.totalAmount),
-        discount_amount: Number(o.discountAmount),
-        tax_amount: Number(o.taxAmount),
-        service_fee: Number(o.serviceFee),
-        payment_method: o.paymentMethod,
-        created_at: o.createdAt,
-      })),
+      orders: orders.map((o) => {
+        const latestReceiptLink = o.receipt_links[0] || null;
+        
+        return {
+          order_id: o.orderId,
+          order_uuid: o.orderUuid,
+          receipt_number: o.receiptNumber,
+          shift_id: o.shiftId,
+          seller_id: o.sellerId,
+          seller_name: o.user?.fullName || null,
+          order_date: o.orderDate,
+          total_amount: Number(o.totalAmount),
+          discount_amount: Number(o.discountAmount),
+          tax_amount: Number(o.taxAmount),
+          service_fee: Number(o.serviceFee),
+          payment_method: o.paymentMethod,
+          has_receipt_link: !!latestReceiptLink,
+          receipt_link_status: latestReceiptLink?.linkStatus || null,
+          created_at: o.createdAt,
+        };
+      }),
       pagination: {
         page,
         limit,
@@ -117,6 +133,16 @@ export class OrderService {
             },
           },
         },
+        receipt_links: {
+          select: {
+            receiptLinkId: true,
+            linkStatus: true,
+            expiresAt: true,
+            code: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
       },
     });
 
@@ -136,19 +162,23 @@ export class OrderService {
       entityId: orderId,
     });
 
+    const latestReceiptLink = order.receipt_links[0] || null;
+
     return {
       order_id: order.orderId,
       order_uuid: order.orderUuid,
       receipt_number: order.receiptNumber,
       shift_id: order.shiftId,
       seller_id: order.sellerId,
-  seller_name: order.user?.fullName || null,
+      seller_name: order.user?.fullName || null,
       order_date: order.orderDate,
       total_amount: Number(order.totalAmount),
       discount_amount: Number(order.discountAmount),
       tax_amount: Number(order.taxAmount),
       service_fee: Number(order.serviceFee),
       payment_method: order.paymentMethod,
+      has_receipt_link: !!latestReceiptLink,
+      receipt_link_status: latestReceiptLink?.linkStatus || null,
       items: order.order_items.map((item) => ({
         order_item_id: item.orderItemId,
         product_id: item.productId,

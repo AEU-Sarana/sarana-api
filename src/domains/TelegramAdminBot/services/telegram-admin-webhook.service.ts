@@ -2,6 +2,9 @@ import { TelegramAdminParserService } from '@src/domains/TelegramAdminBot/servic
 import { TelegramAdminInputRouterService } from '@src/domains/TelegramAdminBot/services/telegram-admin-input-router.service';
 import { TelegramAdminLinksService } from '@src/domains/TelegramAdminBot/services/telegram-admin-links.service';
 import { TelegramService } from '@src/domains/Telegram/services/telegram.service';
+import { TelegramBotService } from '@src/domains/Telegram/services/telegram-bot.service';
+import { ReceiptLinkService } from '@src/domains/Receipt/services/V1/receipt-link.service';
+import { ReceiptImageService } from '@src/domains/Receipt/services/V1/receipt-image.service';
 import { logger } from '@src/shared/utils/logger';
 import { TelegramWebhookPayload } from '@src/domains/TelegramAdminBot/types/telegram-admin-bot.types';
 import { telegramAdminQueue, redisConnection } from '@src/domains/TelegramAdminBot/jobs/telegram-admin.queue';
@@ -178,9 +181,21 @@ export class TelegramAdminWebhookService {
     const command = TelegramAdminParserService.toCommand(text);
     const isLightCommand =
       command.type === 'START' ||
+      command.type === 'RECEIPT_START' ||
       command.type === 'PRODUCT_LOOKUP' ||
       command.type === 'STOCK_WRITE' ||
       text.startsWith('/link');
+
+    // Handle receipt start command directly (customer clicking /start <code>)
+    if (command.type === 'RECEIPT_START') {
+      return this.handleReceiptStart(
+        chatId,
+        String(telegramUserId),
+        String(chatId),
+        update.message?.from?.username,
+        command.code
+      );
+    }
 
     let processingMessageId: number | undefined;
     if (!isLightCommand) {
@@ -266,5 +281,72 @@ export class TelegramAdminWebhookService {
 
     await telegramAdminQueue.add('HANDLE_CALLBACK', payload);
     return { enqueued: true };
+  }
+
+  /**
+   * Handle customer clicking /start <code> to claim receipt
+   * Generates JPG image, uploads to R2, and sends via Telegram
+   */
+  static async handleReceiptStart(
+    chatId: number | string,
+    telegramUserId: string,
+    telegramChatId: string,
+    telegramUsername: string | undefined,
+    code: string
+  ): Promise<{ enqueued: false }> {
+    try {
+      logger.info('Handling receipt start command', { chatId, code });
+
+      // Step 1: Claim the receipt using the code
+      const claim = await ReceiptLinkService.claimReceipt({
+        code,
+        telegram_user_id: telegramUserId,
+        telegram_chat_id: telegramChatId,
+        telegram_username: telegramUsername,
+      });
+
+      // Step 2: Generate receipt JPG image and upload to R2
+      const receiptImage = await ReceiptImageService.generateReceiptJpg(claim.order_id);
+
+      // Step 3: Get Telegram bot token
+      const telegramConfig = await TelegramService.getTelegramConfig();
+      if (!telegramConfig) {
+        throw new Error('Telegram not configured');
+      }
+
+      // Step 4: Send the receipt image as a document to the customer
+      await TelegramBotService.sendDocument(
+        telegramConfig.bot_token,
+        String(chatId),
+        receiptImage.url,
+        `🧾 Receipt #${claim.receipt_number}`
+      );
+
+      logger.info('Receipt sent successfully', { chatId, orderId: claim.order_id, url: receiptImage.url });
+      return { enqueued: false };
+    } catch (error: any) {
+      logger.error('Failed to handle receipt start', {
+        error: error.message,
+        chatId,
+        code,
+      });
+
+      // Send error message to customer
+      let errorMessage = '❌ Failed to retrieve receipt. Please try again.';
+      if (error.message === 'Invalid receipt code') {
+        errorMessage = '❌ Invalid receipt code.';
+      } else if (error.message === 'This receipt code was already used') {
+        errorMessage = '⚠️ This receipt has already been claimed.';
+      } else if (error.message === 'This receipt code is no longer active') {
+        errorMessage = '⚠️ This receipt link is no longer active.';
+      } else if (error.message === 'Receipt code has expired') {
+        errorMessage = '⚠️ This receipt has expired.';
+      } else if (error.message === 'Telegram not configured') {
+        errorMessage = '⚠️ Bot is not configured. Please contact support.';
+      }
+
+      await TelegramService.sendMessageByChatId(chatId, errorMessage, 'Markdown');
+      return { enqueued: false };
+    }
   }
 }

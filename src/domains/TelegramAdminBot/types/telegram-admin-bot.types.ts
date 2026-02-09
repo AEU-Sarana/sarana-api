@@ -11,6 +11,7 @@ export interface TelegramAdminBotConfig {
 
 export type TelegramAdminCommand =
   | { type: 'START' }
+  | { type: 'RECEIPT_START'; code: string }
   | { type: 'REPORT'; date: string }
   | { type: 'LOWSTOCK' }
   | { type: 'SHIFT_SUMMARY' }

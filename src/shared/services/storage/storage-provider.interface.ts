@@ -24,6 +24,16 @@ export interface IStorageProvider {
   ): Promise<FileUploadResult>;
 
   /**
+   * Upload a buffer to storage (useful for generated files like PDFs, images)
+   */
+  uploadBuffer(
+    buffer: Buffer,
+    filename: string,
+    contentType: string,
+    folder?: string
+  ): Promise<FileUploadResult>;
+
+  /**
    * Delete a file from storage
    */
   delete(key: string): Promise<void>;

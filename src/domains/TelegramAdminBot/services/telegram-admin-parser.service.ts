@@ -17,7 +17,14 @@ export class TelegramAdminParserService {
     if (!text) return { type: 'UNKNOWN' };
     const parts = text.trim().split(/\s+/).filter(Boolean);
     const command = (parts[0] || '').split('@')[0];
-    if (command === '/start') return { type: 'START' };
+    // Extract code from /start command (e.g., /start WeRetS0eRl95ATWobPWX0AlYYFuOrFNU)
+    if (command === '/start') {
+      const code = parts[1];
+      if (code) {
+        return { type: 'RECEIPT_START', code };
+      }
+      return { type: 'START' };
+    }
     if (command === '/report') return { type: 'REPORT', date: new Date().toISOString().slice(0, 10) };
     if (command === '/lowstock' || command === '/low_stock') return { type: 'LOWSTOCK' };
     if (command === '/shift_summary') return { type: 'SHIFT_SUMMARY' };

@@ -30,7 +30,7 @@ export class FileStorageService {
    * @param folder - Optional folder/path in storage (e.g., 'products', 'users/avatars')
    * @param options - Upload options (filename, contentType, metadata, etc.)
    * @returns File upload result with URL
-  */
+   */
   async uploadFile(
     file: Express.Multer.File,
     folder?: string,
@@ -71,7 +71,7 @@ export class FileStorageService {
    * Save uploaded file (backward compatibility)
    * 
    * @deprecated Use uploadFile instead
-  */
+   */
   async saveFile(
     file: Express.Multer.File,
     subfolder?: string
@@ -80,10 +80,29 @@ export class FileStorageService {
   }
 
   /**
+   * Upload a buffer directly to storage (useful for generated files like PDFs, images)
+   */
+  async uploadBuffer(
+    buffer: Buffer,
+    filename: string,
+    contentType: string,
+    folder?: string
+  ): Promise<FileUploadResult> {
+    try {
+      const result = await this.storageProvider.uploadBuffer(buffer, filename, contentType, folder);
+      logger.info(`Buffer uploaded: ${result.key} -> ${result.url}`);
+      return result;
+    } catch (error) {
+      logger.error('Buffer upload failed:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Delete file from storage
    * 
    * @param key - Object key/path in storage (returned from uploadFile)
-  */
+   */
   async deleteFile(key: string): Promise<void> {
     try {
       await this.storageProvider.delete(key);
@@ -99,7 +118,7 @@ export class FileStorageService {
    * 
    * @param key - Object key/path in storage
    * @returns Public URL to access the file
-  */
+   */
   getFileUrl(key: string): string {
     return this.storageProvider.getPublicUrl(key);
   }
@@ -109,7 +128,7 @@ export class FileStorageService {
    * 
    * @param key - Object key/path in storage
    * @returns True if file exists
-  */
+   */
   async fileExists(key: string): Promise<boolean> {
     return this.storageProvider.exists(key);
   }
@@ -119,7 +138,7 @@ export class FileStorageService {
    * 
    * @param key - Object key/path in storage
    * @returns File metadata or null if not found
-  */
+   */
   async getFileMetadata(key: string) {
     return this.storageProvider.getMetadata(key);
   }
@@ -131,7 +150,7 @@ export class FileStorageService {
    * 
    * @param url - Public URL of the file
    * @returns Storage key (path in storage) or null if extraction fails
-  */
+   */
   extractKeyFromUrl(url: string): string | null {
     try {
       const urlObj = new URL(url);

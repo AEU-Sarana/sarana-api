@@ -1,5 +1,7 @@
 import  prisma  from '@src/database/client';
 import { ValidationException } from '@src/shared/exceptions';
+import sharp from 'sharp';
+import path from 'path';
 
 export class ReceiptRenderService {
   static async renderReceiptText(orderId: number): Promise<string> {

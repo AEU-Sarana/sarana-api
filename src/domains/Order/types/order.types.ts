@@ -55,6 +55,8 @@ export interface SyncOrdersRequest {
     tax_amount: number;
     service_fee: number;
     payment_method: string;
+    has_receipt_link: boolean;
+    receipt_link_status: string | null;
     created_at: Date;
   }
   

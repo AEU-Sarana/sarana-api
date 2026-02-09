@@ -4,6 +4,8 @@ import { ValidationException, BusinessLogicException } from '@src/shared/excepti
 import { auditLogService } from '@src/shared/services/audit-log.service';
 import { logger } from '@src/shared/utils/logger';
 import { ReceiptLinkStatus } from '@src/domains/Receipt/enums/V1/receipt-link-status.enum';
+import { TelegramService } from '@src/domains/Telegram/services/telegram.service';
+import { TelegramBotService } from '@src/domains/Telegram/services/telegram-bot.service';
 
 const DEFAULT_EXPIRE_MINUTES = 20;
 
@@ -72,7 +74,17 @@ export class ReceiptLinkService {
       details: { order_id: orderId, expires_at: expiresAt },
     });
 
-    const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'your_bot';
+    // Get bot username from Telegram config
+    let botUsername = '';
+    try {
+      const telegramConfig = await TelegramService.getTelegramConfig();
+      if (telegramConfig) {
+        const botInfo = await TelegramBotService.getMe(telegramConfig.bot_token);
+        botUsername = botInfo.username;
+      }
+    } catch (error) {
+      logger.warn('Failed to fetch bot username from Telegram, using fallback', { error });
+    }
 
     return {
       receipt_link_id: result.receiptLinkId,
