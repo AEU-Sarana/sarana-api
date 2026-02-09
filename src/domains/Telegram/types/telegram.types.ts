@@ -53,29 +53,37 @@ export interface SendReportResponse {
     sent: boolean;
     message_id: number;
     sent_at: string;
-    report: TelegramDailyReportResponse;
+    report?: TelegramDailyReportResponse;
+    shift?: {
+        shift_id: number;
+        seller_id: number;
+        seller_name: string | null;
+        shift_date: string;
+        total_sales_amount: number;
+        total_sales_count: number;
+    };
 }
-  
+
 // Telegram Bot API Types
 export interface TelegramMessageResponse {
     success: boolean;
     messageId: number;
     sentAt: Date;
 }
-  
+
 export interface TelegramBotInfo {
     id: number;
     is_bot: boolean;
     first_name: string;
     username: string;
 }
-  
+
 export class TelegramAPIError extends Error {
     constructor(
-      public errorCode: number,
-      public description: string
+        public errorCode: number,
+        public description: string
     ) {
-      super(`Telegram API Error ${errorCode}: ${description}`);
-      this.name = 'TelegramAPIError';
+        super(`Telegram API Error ${errorCode}: ${description}`);
+        this.name = 'TelegramAPIError';
     }
 }

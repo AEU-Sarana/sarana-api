@@ -1,6 +1,7 @@
 export interface DailySalesReportRequest {
-  date: string; 
-  seller_id?: number; 
+  date: string;
+  seller_id?: number;
+  bypass_cache?: boolean;
 }
 
 export interface TopProduct {

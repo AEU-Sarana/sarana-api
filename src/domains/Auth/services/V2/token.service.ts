@@ -11,9 +11,9 @@ export class TokenService {
     deviceId?: string;
   }): string {
     const claims: AccessTokenPayload = {
-      user_id: payload.userId,
+      userId: payload.userId,
       role: payload.role,
-      device_id: payload.deviceId,
+      deviceId: payload.deviceId,
       jti: crypto.randomUUID(),
       iat: Math.floor(Date.now() / 1000),
     };

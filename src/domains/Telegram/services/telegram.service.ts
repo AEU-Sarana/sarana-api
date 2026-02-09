@@ -58,10 +58,10 @@ export class TelegramService {
   ): Promise<TelegramConfigResponse> {
     // Encrypt bot token before storing
     const encryptedToken = encrypt(config.bot_token, process.env.ENCRYPTION_KEY!);
-    
+
     // Check if config exists
     const existingConfig = await prisma.telegramConfig.findFirst();
-    
+
     if (existingConfig) {
       // Update existing config
       const updated = await prisma.telegramConfig.update({
@@ -74,7 +74,7 @@ export class TelegramService {
           updatedAt: new Date()
         }
       });
-      
+
       const response = {
         config_id: updated.configId,
         is_active: updated.isActive,
@@ -99,7 +99,7 @@ export class TelegramService {
           updatedBy: userId
         }
       });
-      
+
       const response = {
         config_id: created.configId,
         is_active: created.isActive,
@@ -115,7 +115,7 @@ export class TelegramService {
       return response;
     }
   }
-  
+
   /**
    * Get Telegram configuration
    */
@@ -123,14 +123,14 @@ export class TelegramService {
     const config = await prisma.telegramConfig.findFirst({
       where: { isActive: true }
     });
-    
+
     if (!config) {
       return null;
     }
-    
+
     // Decrypt bot token
     const decryptedToken = decrypt(config.botToken, process.env.ENCRYPTION_KEY!);
-    
+
     return {
       config_id: config.configId,
       bot_token: decryptedToken,
@@ -345,7 +345,7 @@ export class TelegramService {
       throw new TelegramAPIError(0, error.message);
     }
   }
-  
+
   /**
    * Test Telegram connection
    */
@@ -359,22 +359,22 @@ export class TelegramService {
       ? await this.getTelegramConfig()
       : { bot_token: botToken!, group_chat_id: groupChatId! };
     const storedConfig = useStoredConfig ? (config as TelegramConfig) : null;
-    
+
     if (!config) {
       throw new Error('Telegram not configured');
     }
-    
+
     try {
       // Test bot token
       await TelegramBotService.getMe(config.bot_token);
-      
+
       // Send test message
       const result = await TelegramBotService.sendMessage(
         config.bot_token,
         config.group_chat_id,
         'Telegram integration test successful!'
       );
-      
+
       // Update last test time and status
       if (storedConfig) {
         await prisma.telegramConfig.updateMany({
@@ -385,7 +385,7 @@ export class TelegramService {
           }
         });
       }
-      
+
       return {
         status: 'SUCCESS',
         message: 'Test message sent successfully'
@@ -401,7 +401,7 @@ export class TelegramService {
           }
         });
       }
-      
+
       throw error;
     }
   }
@@ -419,23 +419,16 @@ export class TelegramService {
     if (!config || !config.is_active) {
       throw new Error('Telegram not configured or disabled');
     }
-    
+
     // 2. Get shift data
     const shift = await ShiftService.getShift(shiftId, currentUserId, currentUserRole);
     if (!shift) {
       throw new Error('Shift not found');
     }
-    
-    // 3. Generate daily report
-    const report = await ReportService.getDailyReport(
-      { date: shift.shift_date, seller_id: shift.seller_id },
-      currentUserId,
-      currentUserRole
-    );
-    
-    // 4. Format report for Telegram
-    const message = await this.formatDailyReportForTelegram(report, shift);
-    
+
+    // 3. Format report for Telegram
+    const message = await this.formatDailyReportForTelegram(shift);
+
     // 5. Send to Telegram
     try {
       const result = await TelegramBotService.sendMessage(
@@ -444,26 +437,21 @@ export class TelegramService {
         message,
         'Markdown'
       );
-      
+
       // 6. Update shift report status
       await this.updateShiftReportStatus(shiftId, 'SENT');
-      
+
       const response = {
         sent: true,
         message_id: result.messageId,
         sent_at: result.sentAt.toISOString(),
-        report: {
-          date: report.date,
-          total_sales: report.total_sales,
-          total_orders: report.total_orders,
-          total_shifts: report.total_shifts,
-          average_order_value: report.average_order_value,
-          currency: report.currency,
-          shifts: report.shifts_breakdown,
-          top_products: report.top_products,
-          low_stock_items: report.low_stock_items,
-          summary: report.summary,
-          metadata: report.metadata,
+        shift: {
+          shift_id: shift.shift_id,
+          seller_id: shift.seller_id,
+          seller_name: shift.seller_name,
+          shift_date: shift.shift_date,
+          total_sales_amount: shift.total_sales_amount,
+          total_sales_count: shift.total_sales_count,
         },
       };
       eventBus.emit('telegram.report-sent', {
@@ -508,7 +496,8 @@ export class TelegramService {
    */
   static async sendDailyAggregateReport(
     date: string,
-    currentUserId: number
+    currentUserId: number,
+    bypassCache: boolean = false
   ): Promise<SendReportResponse> {
     const config = await this.getTelegramConfig();
     if (!config || !config.is_active) {
@@ -516,7 +505,7 @@ export class TelegramService {
     }
 
     const report = await ReportService.getDailyReport(
-      { date },
+      { date, bypass_cache: bypassCache },
       currentUserId,
       Role.ADMIN
     );
@@ -572,28 +561,28 @@ export class TelegramService {
         ផលិតផលលក់ដាច់: topProductsRows.length
           ? topProductsRows
           : [
-              {
-                លេខផលិតផល: '',
-                ឈ្មោះផលិតផល: '',
-                កូដផលិតផល: '',
-                បរិមាណលក់: '',
-                ចំណូល: '',
-                តម្លៃមធ្យម: '',
-              },
-            ],
+            {
+              លេខផលិតផល: '',
+              ឈ្មោះផលិតផល: '',
+              កូដផលិតផល: '',
+              បរិមាណលក់: '',
+              ចំណូល: '',
+              តម្លៃមធ្យម: '',
+            },
+          ],
         ទំនិញស្តុកទាប: lowStockRows.length
           ? lowStockRows
           : [
-              {
-                លេខផលិតផល: '',
-                ឈ្មោះផលិតផល: '',
-                កូដផលិតផល: '',
-                ស្តុកបច្ចុប្បន្ន: '',
-                ខ្ពស់បំផុតស្តុកទាប: '',
-                ស្ថានភាព: '',
-                កែប្រែចុងក្រោយ: '',
-              },
-            ],
+            {
+              លេខផលិតផល: '',
+              ឈ្មោះផលិតផល: '',
+              កូដផលិតផល: '',
+              ស្តុកបច្ចុប្បន្ន: '',
+              ខ្ពស់បំផុតស្តុកទាប: '',
+              ស្ថានភាព: '',
+              កែប្រែចុងក្រោយ: '',
+            },
+          ],
       },
       fileName
     );
@@ -643,17 +632,16 @@ export class TelegramService {
 
     return response;
   }
-  
+
   /**
    * Format daily report for Telegram
    */
   static async formatDailyReportForTelegram(
-    report: DailySalesReportResponse,
     shift: GetShiftResponse
   ): Promise<string> {
-    return buildDailyReportMessage(report, shift);
+    return buildDailyReportMessage(shift);
   }
-  
+
   /**
    * Resend failed report
    */
@@ -667,11 +655,11 @@ export class TelegramService {
     if (!shift) {
       throw new Error('Shift not found');
     }
-    
+
     if (shift.report_sent_status === 'SENT') {
       throw new Error('Report already sent');
     }
-    
+
     // Resend report
     return await this.sendDailyReport(shiftId, currentUserId, currentUserRole);
   }
@@ -687,7 +675,7 @@ export class TelegramService {
     if (!config || !config.is_active) {
       throw new Error('Telegram not configured or disabled');
     }
- 
+
     await TelegramBotService.sendMessage(config.bot_token, config.group_chat_id, message, parseMode);
   }
 
@@ -700,17 +688,17 @@ export class TelegramService {
     if (!config || !config.is_active) {
       return; // Silently fail if not configured
     }
-    
+
     // 2. Get product and stock
     const product = await ProductService.getProduct(productId, 0);
     const stockResponse = await StockService.getStock({ product_id: productId }, 0);
-    
+
     if (!product || !('stock_id' in stockResponse)) {
       return;
     }
-    
+
     const stock = stockResponse;
-    
+
     // 3. Check if stock is low
     if (product.low_stock_threshold == null) {
       return; // No threshold configured
@@ -718,16 +706,16 @@ export class TelegramService {
     if (stock.quantity > product.low_stock_threshold) {
       return; // Not low stock
     }
-    
+
     // 4. Check if alert already sent (deduplication)
     const alertKey = `${productId}_${stock.quantity}`;
     if (this.sentAlerts.has(alertKey)) {
       return; // Already sent
     }
-    
+
     // 5. Format alert message
     const message = await this.formatLowStockAlertForTelegram(product, stock);
-    
+
     // 6. Send to Telegram
     try {
       await TelegramBotService.sendMessage(
@@ -735,7 +723,7 @@ export class TelegramService {
         config.group_chat_id,
         message
       );
-      
+
       // 7. Mark as sent (expires after 24 hours)
       this.sentAlerts.set(alertKey, Date.now());
       setTimeout(() => {
@@ -813,7 +801,7 @@ export class TelegramService {
       }
     }
   }
-  
+
   /**
    * Format low stock alert for Telegram
    */
@@ -822,7 +810,7 @@ export class TelegramService {
     stock: GetStockByProductResponse
   ): Promise<string> {
     const status = stock.quantity === 0 ? 'អស់ពីស្តុក' : 'ជិតអស់ពីស្តុក';
-    
+
     return `⚠️ *ការជូនដំណឹង: ទំនិញជិតអស់ពីស្តុក*
 
             ឈ្មោះទំនិញ៖ ${product.product_name}

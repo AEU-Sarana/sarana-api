@@ -1,4 +1,3 @@
-import { DailySalesReportResponse } from '@src/domains/Report/types/report.types';
 import { GetShiftResponse } from '@src/domains/Shift/types/shift.types';
 import { formatDateTimeInTimezone } from '@src/shared/utils/date-utils';
 import { APP_CONSTANTS } from '@src/shared/config/constants';
@@ -23,29 +22,41 @@ const calculateDuration = (start: Date | string, end: Date | string | null): num
 };
 
 const formatShortOver = (shift: GetShiftResponse): string => {
-  const shortOver = (shift.actual_cash ?? 0) - (shift.expected_cash ?? 0);
-  return shortOver >= 0 ? `+$${shortOver.toFixed(2)}` : `-$${Math.abs(shortOver).toFixed(2)}`;
+  const short = shift.short_amount ?? 0;
+  const over = shift.over_amount ?? 0;
+
+  if (over > 0) return `លើស $${over.toFixed(2)}`;
+  if (short > 0) return `ខ្វះ -$${short.toFixed(2)}`;
+  return '$0.00';
 };
 
 export function buildDailyReportMessage(
-  report: DailySalesReportResponse,
   shift: GetShiftResponse
 ): string {
   const shortOverText = formatShortOver(shift);
+  const totalSales = shift.total_sales_amount ?? 0;
+  const openingCash = shift.opening_cash ?? 0;
+  const expectedCash = shift.expected_cash ?? (openingCash + totalSales);
+
+  const average_order_value = shift.total_sales_count > 0
+    ? totalSales / shift.total_sales_count
+    : 0;
+
   return `
 📊 *របាយការណ៍លក់ប្រចាំវេន*
 
-📅 កាលបរិច្ឆេទ: ${report.date}
+📅 កាលបរិច្ឆេទ: ${shift.shift_date}
 👤 អ្នកលក់: ${shift.seller_name ?? '-'}
 
 💰 *សេចក្តីសង្ខេបការលក់*
-• ការបញ្ជាទិញសរុប៖ ${report.total_orders}
-• ចំនួនទឹកប្រាក់សរុប៖ $${report.total_sales.toLocaleString()}
-• មធ្យមភាគក្នុងការកម្មង់៖ $${report.average_order_value.toFixed(2)}
+• ការបញ្ជាទិញសរុប៖ ${shift.total_sales_count}
+• ចំនួនទឹកប្រាក់សរុប៖ $${totalSales.toLocaleString()}
+• មធ្យមភាគក្នុងការកម្មង់៖ $${average_order_value.toFixed(2)}
 
 💵 *ស្ថានភាពសាច់ប្រាក់*
-• សាច់ប្រាក់បើកដំណើរ៖ $${shift.opening_cash.toFixed(2)}
-• សាច់ប្រាក់រំពឹងទុក៖ $${(shift.expected_cash ?? 0).toFixed(2)}
+• សាច់ប្រាក់បើកដំណើរ៖ $${openingCash.toFixed(2)}
+• សរុបទឹកប្រាក់លក់៖ $${totalSales.toFixed(2)}
+• សាច់ប្រាក់រំពឹងទុក៖ $${expectedCash.toFixed(2)}
 • សាច់ប្រាក់ជាក់ស្តែង៖ $${(shift.actual_cash ?? 0).toFixed(2)}
 • ខ្វះ/លើស៖ ${shortOverText}
 

@@ -12,7 +12,7 @@ export const PHNOM_PENH_TIMEZONE = APP_CONSTANTS.TIMEZONE;
  */
 export function formatDateInPhnomPenh(date: Date | string, formatStr: string = 'yyyy-MM-dd HH:mm:ss'): string {
   const dateObj = typeof date === 'string' ? parseISO(date) : date;
-  
+
   // Convert to Phnom Penh timezone
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: APP_CONSTANTS.TIMEZONE,
@@ -44,14 +44,13 @@ export function formatDateInPhnomPenh(date: Date | string, formatStr: string = '
 }
 
 /**
- * Convert date to Phnom Penh timezone ISO string
+ * Convert date to ISO string in specified timezone
 */
-export function toPhnomPenhISOString(date: Date | string): string {
+export function toISOStringWithTimezone(date: Date | string, timezone: string = APP_CONSTANTS.TIMEZONE): string {
   const dateObj = typeof date === 'string' ? parseISO(date) : date;
-  
-  // Get the date components in Phnom Penh timezone
+
   const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: APP_CONSTANTS.TIMEZONE,
+    timeZone: timezone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -62,15 +61,41 @@ export function toPhnomPenhISOString(date: Date | string): string {
   });
 
   const parts = formatter.formatToParts(dateObj);
-  const year = parts.find(p => p.type === 'year')?.value;
-  const month = parts.find(p => p.type === 'month')?.value;
-  const day = parts.find(p => p.type === 'day')?.value;
-  const hour = parts.find(p => p.type === 'hour')?.value;
-  const minute = parts.find(p => p.type === 'minute')?.value;
-  const second = parts.find(p => p.type === 'second')?.value;
+  const partMap = new Map(parts.map(p => [p.type, p.value]));
 
-  // Return ISO format string with Phnom Penh timezone offset
-  return `${year}-${month}-${day}T${hour}:${minute}:${second}+07:00`;
+  const year = partMap.get('year');
+  const month = partMap.get('month');
+  const day = partMap.get('day');
+  const hour = partMap.get('hour');
+  const minute = partMap.get('minute');
+  const second = partMap.get('second');
+
+  // To get the offset, we can use the difference between the formatted date and the UTC date
+  // but a simpler way for fixed offsets is to just use the formatter or a manual map for common ones.
+  // For now, since we only really support Asia/Phnom_Penh (+07:00), we can keep it simple or implement a helper.
+  let offset = '+00:00';
+  if (timezone === 'Asia/Phnom_Penh') {
+    offset = '+07:00';
+  } else {
+    // Basic dynamic offset calculation for other timezones
+    const tzDate = new Date(dateObj.toLocaleString('en-US', { timeZone: timezone }));
+    const utcDate = new Date(dateObj.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const diffMinutes = Math.round((tzDate.getTime() - utcDate.getTime()) / 60000);
+    const absMinutes = Math.abs(diffMinutes);
+    const hours = Math.floor(absMinutes / 60).toString().padStart(2, '0');
+    const minutes = (absMinutes % 60).toString().padStart(2, '0');
+    offset = (diffMinutes >= 0 ? '+' : '-') + hours + ':' + minutes;
+  }
+
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}${offset}`;
+}
+
+/**
+ * Convert date to Phnom Penh timezone ISO string
+ * @deprecated Use toISOStringWithTimezone instead
+*/
+export function toPhnomPenhISOString(date: Date | string): string {
+  return toISOStringWithTimezone(date, 'Asia/Phnom_Penh');
 }
 
 /**
@@ -128,13 +153,18 @@ export function isToday(date: Date | string): boolean {
   return formatDate(dateObj) === formatDate(today);
 }
 
-const TIMEZONE_OFFSET_HOURS: Record<string, number> = {
-  'Asia/Phnom_Penh': 7,
-};
-
 const TIMEZONE_AWARE_ISO_REGEX = /(Z|[+-]\d{2}:\d{2})$/i;
 const LOCAL_DATETIME_REGEX =
   /^(\d{4})-(\d{2})-(\d{2})(?:[ T])(\d{2}):(\d{2})(?::(\d{2}))?(?:\.(\d{1,3}))?$/;
+
+/**
+ * Get offset in minutes for a timezone at a specific date
+ */
+function getTimezoneOffsetMinutes(timezone: string, date: Date = new Date()): number {
+  const tzDate = new Date(date.toLocaleString('en-US', { timeZone: timezone }));
+  const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
+  return Math.round((tzDate.getTime() - utcDate.getTime()) / 60000);
+}
 
 export function parseClientDateTime(
   value: string,
@@ -154,10 +184,7 @@ export function parseClientDateTime(
 
   const localMatch = LOCAL_DATETIME_REGEX.exec(input);
   if (localMatch) {
-    const tzOffsetHours = TIMEZONE_OFFSET_HOURS[timezone];
-    if (tzOffsetHours === undefined) {
-      throw new Error(`Unsupported timezone: ${timezone}`);
-    }
+    const tzOffsetMinutes = getTimezoneOffsetMinutes(timezone);
 
     const year = Number(localMatch[1]);
     const month = Number(localMatch[2]);
@@ -167,8 +194,9 @@ export function parseClientDateTime(
     const second = localMatch[6] ? Number(localMatch[6]) : 0;
     const millisecond = localMatch[7] ? Number(localMatch[7].padEnd(3, '0')) : 0;
 
+    // Adjusted logic to use offset in minutes
     return new Date(
-      Date.UTC(year, month - 1, day, hour - tzOffsetHours, minute, second, millisecond)
+      Date.UTC(year, month - 1, day, hour, minute - tzOffsetMinutes, second, millisecond)
     );
   }
 

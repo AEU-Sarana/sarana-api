@@ -28,7 +28,7 @@ function getNowInTimezone(timeZone: string): { date: string; time: string } {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-    hour12: false,
+    hourCycle: 'h23',
   });
 
   const parts = formatter.formatToParts(now);
@@ -89,7 +89,7 @@ async function runOnce(): Promise<void> {
     if (now.time < settings.time) return;
 
     const senderUserId = await resolveSenderUserId(settings.updatedBy);
-    await TelegramService.sendDailyAggregateReport(now.date, senderUserId);
+    await TelegramService.sendDailyAggregateReport(now.date, senderUserId, true);
     lastSentDate = now.date;
 
     logger.info('Telegram daily report sent', {

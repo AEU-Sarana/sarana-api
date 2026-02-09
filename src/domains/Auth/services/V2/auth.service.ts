@@ -1,12 +1,12 @@
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import type { Prisma } from '@src/database/generated';
-import  prisma  from '@src/database/client';
+import prisma from '@src/database/client';
 import { env } from '@src/shared/config/env';
 type Tx = Prisma.TransactionClient;
 
 import { AuthErrorCode } from '../../enums/V2/auth-error-codes';
-import { TokenService } from './token.servi​ce';
+import { TokenService } from './token.service';
 import { RefreshTokenRepository } from '../../repository/V2/refresh-token.repository';
 import { addDaysToDate, toPhnomPenhISOString } from '@src/shared/utils/date-utils';
 
@@ -124,18 +124,18 @@ export class AuthService {
     const newRefreshHash = TokenService.hashRefreshToken(newRefreshRaw);
 
     await prisma.$transaction(async (tx) => {
-    await repo.rotateToken(tx, {
-      currentSessionId: session.id,
-      userId: session.userId,
-      newRefreshTokenHash: newRefreshHash,
-      tokenFamilyId: session.tokenFamilyId,
-      absoluteExpiresAt: session.absoluteExpiresAt,
-      nextIdleExpiresAt,
-      deviceId: session.deviceId ?? null,
-      ipAddress: input.ip ?? null,
-      userAgent: input.user_agent ?? null,
+      await repo.rotateToken(tx, {
+        currentSessionId: session.id,
+        userId: session.userId,
+        newRefreshTokenHash: newRefreshHash,
+        tokenFamilyId: session.tokenFamilyId,
+        absoluteExpiresAt: session.absoluteExpiresAt,
+        nextIdleExpiresAt,
+        deviceId: session.deviceId ?? null,
+        ipAddress: input.ip ?? null,
+        userAgent: input.user_agent ?? null,
+      });
     });
-  });
 
 
     const accessToken = TokenService.generateAccessToken({

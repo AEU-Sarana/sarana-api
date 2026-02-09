@@ -34,13 +34,19 @@ export class ReportService {
 
       // Cache check
       const cacheKey = `daily_report:${date}:${effectiveSellerId || 'all'}`;
-      const cached = await ReportCacheService.getCached(cacheKey);
-      if (cached) return cached;
+      if (!request.bypass_cache) {
+        const cached = await ReportCacheService.getCached(cacheKey);
+        if (cached) return cached;
+      }
 
-      // Aggregate total sales, total orders
-      const startOfDay = new Date(`${date}T00:00:00Z`);
-      const endOfDay = new Date(`${date}T23:59:59Z`);
-      
+      // 1. Calculate the UTC range for the given day in Phnom Penh time
+      // The day is "date" (YYYY-MM-DD) in Asia/Phnom_Penh.
+      // 2026-02-10 in PP starts at 2026-02-10 00:00:00+07:00, which is 2026-02-09 17:00:00Z
+      // 2026-02-10 in PP ends at 2026-02-10 23:59:59+07:00, which is 2026-02-10 16:59:59Z
+
+      const startOfDay = new Date(`${date}T00:00:00+07:00`);
+      const endOfDay = new Date(`${date}T23:59:59.999+07:00`);
+
       // Validate date is valid
       if (isNaN(startOfDay.getTime()) || isNaN(endOfDay.getTime())) {
         throw new ValidationException('Invalid date provided');
@@ -605,11 +611,11 @@ export class ReportService {
         summary: {
           total_products: stocks.length,
           low_stock_count: stock_report.filter(i => i.status === 'low_stock').length,
-        out_of_stock_count: stock_report.filter(i => i.status === 'out_of_stock').length,
-        negative_stock_count: stock_report.filter(i => i.status === 'negative').length,
-      },
-      stock_report
-    };
+          out_of_stock_count: stock_report.filter(i => i.status === 'out_of_stock').length,
+          negative_stock_count: stock_report.filter(i => i.status === 'negative').length,
+        },
+        stock_report
+      };
 
       // Emit event
       eventBus.emit('reports.generated', {
