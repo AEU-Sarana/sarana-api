@@ -24,7 +24,7 @@ pipeline {
         DOCKER_IMAGE = "${REGISTRY}/${GITHUB_USERNAME.toLowerCase()}/${APP_NAME}"
         // Telegram Bot notification
         TELEGRAM_BOT_TOKEN = '8469597174:AAHkhd345CvQaEMPLveGMuaIOdbtF-789BM'  // set your bot token
-        TELEGRAM_CHAT_ID = '-5118246928'    // set your chat/user id
+        TELEGRAM_CHAT_ID = '-5118246928'    // set your chat/user idd
     }
 
     triggers {
