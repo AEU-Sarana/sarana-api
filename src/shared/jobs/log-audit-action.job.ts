@@ -6,7 +6,7 @@ export interface AuditLogJobData {
   userId: number;
   action: string;
   resource: string;
-  resourceId?: number;
+  entityId?: number;
   details?: Record<string, any>;
   ipAddress?: string;
   userAgent?: string;

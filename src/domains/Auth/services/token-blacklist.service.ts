@@ -1,11 +1,9 @@
 import { env } from '@src/shared/config/env';
 import { logger } from '@src/shared/utils/logger';
 
-// Simple in-memory blacklist (for development)
-// For production, use Redis
+
 class TokenBlacklistService {
   private blacklist: Set<string> = new Set();
-  // Separate set for blacklisted jti values (preferred for access token revocation)
   private jtiBlacklist: Set<string> = new Set();
 
   /**

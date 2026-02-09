@@ -35,7 +35,7 @@ export class TokenService {
   }
 
    static getAccessTokenTtlSeconds(): number {
-    const expiry = env.JWT_V2_ACCESS_TOKEN_EXPIRY; // e.g. "10m", "24h"
+    const expiry = env.JWT_V2_ACCESS_TOKEN_EXPIRY; 
 
     const milliseconds = ms(expiry);
     if (!milliseconds || milliseconds <= 0) {
