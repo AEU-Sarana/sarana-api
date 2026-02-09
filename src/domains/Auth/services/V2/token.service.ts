@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import jwt, { type Secret } from 'jsonwebtoken';
 import { env } from '@src/shared/config/env';
 import ms from 'ms';
-import { AccessTokenPayload } from '@src/domains/Auth/types/V2/au​th.types';
+import { AccessTokenPayload } from '../../types/V2/auth.types';
 
 export class TokenService {
   static generateAccessToken(payload: {
