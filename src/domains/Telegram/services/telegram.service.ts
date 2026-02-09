@@ -496,7 +496,8 @@ export class TelegramService {
    */
   static async sendDailyAggregateReport(
     date: string,
-    currentUserId: number
+    currentUserId: number,
+    bypassCache: boolean = false
   ): Promise<SendReportResponse> {
     const config = await this.getTelegramConfig();
     if (!config || !config.is_active) {
@@ -504,7 +505,7 @@ export class TelegramService {
     }
 
     const report = await ReportService.getDailyReport(
-      { date },
+      { date, bypass_cache: bypassCache },
       currentUserId,
       Role.ADMIN
     );
