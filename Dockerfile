@@ -1,6 +1,14 @@
 # Use Node.js LTS version
 FROM node:20-alpine AS base
 
+# ✅ Install timezone data + set default timezone for OS tools (date)
+RUN apk add --no-cache tzdata \
+  && cp /usr/share/zoneinfo/Asia/Phnom_Penh /etc/localtime \
+  && echo "Asia/Phnom_Penh" > /etc/timezone
+
+# ✅ Ensure Node picks it up too
+ENV TZ=Asia/Phnom_Penh
+
 # Install pnpm globally
 RUN npm install -g pnpm@10.15.1
 

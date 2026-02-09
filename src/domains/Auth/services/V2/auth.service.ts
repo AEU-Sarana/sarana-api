@@ -69,9 +69,9 @@ export class AuthService {
       token: accessToken,
       refresh_token: refreshRaw,
       token_type: 'Bearer',
-  expires_in_seconds: TokenService.getAccessTokenTtlSeconds(),
-  idle_expires_at: toPhnomPenhISOString(idleExpiresAt),
-  absolute_expires_at: toPhnomPenhISOString(absoluteExpiresAt),
+      expires_in_seconds: TokenService.getAccessTokenTtlSeconds(),
+      idle_expires_at: toPhnomPenhISOString(idleExpiresAt),
+      absolute_expires_at: toPhnomPenhISOString(absoluteExpiresAt),
       user: {
         user_id: user.userId,
         username: user.username,

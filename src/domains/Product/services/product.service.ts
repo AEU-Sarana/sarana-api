@@ -41,6 +41,21 @@ export class ProductService {
 
     
     if (imagePath.includes('/storage/')) {
+      try {
+        const parsed = new URL(imagePath);
+        const storageIndex = parsed.pathname.indexOf('/storage/');
+        if (storageIndex !== -1) {
+          const storagePath = parsed.pathname.substring(storageIndex); 
+          let baseUrl = env.API_BASE_URL || env.APP_URL;
+          if (baseUrl) {
+            baseUrl = baseUrl.replace(/\/$/, '');
+            return `${baseUrl}${storagePath}`;
+          }
+        }
+      } catch (err) {
+        logger.warn('Failed to parse image URL for normalization', { imagePath, error: err });
+      }
+
       return imagePath;
     }
 

@@ -38,6 +38,7 @@ export const env = {
   // Redis (✅ internal defaults for Docker)
   REDIS_HOST: process.env.REDIS_HOST || 'redis',
   REDIS_PORT: int('REDIS_PORT', 6379),
+  REDIS_PASSWORD: process.env.REDIS_PASSWORD || undefined,
   REDIS_URL: process.env.REDIS_URL || `redis://${process.env.REDIS_HOST || 'redis'}:${process.env.REDIS_PORT || '6379'}`,
 
   // JWT
@@ -49,7 +50,7 @@ export const env = {
   JWT_REFRESH_TOKEN_EXPIRY: (process.env.JWT_REFRESH_TOKEN_EXPIRY || '7d') as StringValue,
 
   // JWT V2
-  JWT_V2_ACCESS_TOKEN_EXPIRY: (process.env.JWT_V2_ACCESS_TOKEN_EXPIRY || '1m') as StringValue,
+  JWT_V2_ACCESS_TOKEN_EXPIRY: (process.env.JWT_V2_ACCESS_TOKEN_EXPIRY || '1000m') as StringValue,
   JWT_V2_REFRESH_ABSOLUTE_DAYS: int('JWT_V2_REFRESH_ABSOLUTE_DAYS', 30),
   JWT_V2_REFRESH_IDLE_DAYS: int('JWT_V2_REFRESH_IDLE_DAYS', 7),
   JWT_ISSUER: process.env.JWT_ISSUER || 'stock-pos-api',

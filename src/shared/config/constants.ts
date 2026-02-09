@@ -21,7 +21,7 @@ export const APP_CONSTANTS = {
   MAX_ORDER_AMOUNT: 999999.99,
 
   // File upload
-  MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
+  MAX_FILE_SIZE: 10 * 1024 * 1024, 
   ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/webp'],
 
   // Password/PIN
@@ -31,12 +31,12 @@ export const APP_CONSTANTS = {
   MAX_PIN_LENGTH: 6,
 
   // Rate limiting
-  RATE_LIMIT_WINDOW_MS: 15 * 60 * 1000, // 15 minutes
+  RATE_LIMIT_WINDOW_MS: 15 * 60 * 1000, 
   RATE_LIMIT_MAX_REQUESTS: 100,
   AUTH_RATE_LIMIT_MAX_REQUESTS: 5,
 
   // Timezone
-  TIMEZONE: 'America/New_York', // US Eastern Time (UTC-5)
+  TIMEZONE: 'Asia/Phnom_Penh', 
 } as const;
 
 /**

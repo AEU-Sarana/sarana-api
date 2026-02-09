@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { addLocalDateTimeFields } from '@src/shared/utils/timezone';
+import { convertDatesToPhnomPenh } from '@src/shared/utils/timezone';
 
 const SHOULD_SKIP_CLOSE_SHIFT_REGEX = /\/shifts\/[^/]+\/close\/?$/;
 
@@ -24,7 +24,7 @@ export function responseTimezoneMiddleware(
     if (shouldSkipTimezoneTransform(req)) {
       return originalJson(body);
     }
-    const transformed = addLocalDateTimeFields(body);
+    const transformed = convertDatesToPhnomPenh(body);
     return originalJson(transformed);
   }) as Response['json'];
 
