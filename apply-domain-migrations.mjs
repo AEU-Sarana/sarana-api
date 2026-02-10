@@ -35,7 +35,6 @@ const domainConfig = {
     tables: ['device_bindings'],
   },
   setting: {
-    // ✅ FIX: app_settings (not "settings")
     tables: ['app_settings', 'receipt_settings'],
   },
   shared: {

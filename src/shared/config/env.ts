@@ -59,6 +59,8 @@ export const env = {
   // Encryption
   ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
 
+  TELEGRAM_WEBHOOK_SECRET : process.env.TELEGRAM_WEBHOOK_SECRET,
+
   // Password
   BCRYPT_SALT_ROUNDS: int('BCRYPT_SALT_ROUNDS', 12),
 

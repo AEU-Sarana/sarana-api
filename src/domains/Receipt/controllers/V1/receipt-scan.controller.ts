@@ -6,6 +6,7 @@ import { ReceiptDeliveryService } from '@src/domains/Receipt/services/V1/receipt
 import { TelegramService } from '@src/domains/Telegram/services/telegram.service';
 import { TelegramBotService } from '@src/domains/Telegram/services/telegram-bot.service';
 import { sanitizeForLog } from '@src/shared/utils/security.utils';
+import { getReceiptScanQueue } from '@src/domains/Receipt/queues/receipt-scan.queue';
 
 export class ReceiptScanController {
     /**
@@ -51,44 +52,24 @@ export class ReceiptScanController {
             }) : null;
 
             if (link && link.telegramChatId) {
-                // Security Check: If the link is already marked as USED by someone else, we should be careful.
-                // But since this is an auto-send to the owner, it's generally okay. 
-                // However, let's mark it USED if it's still PENDING.
+                const queue = getReceiptScanQueue();
+                await queue.add('send-receipt', {
+                    orderId,
+                    receiptLinkId: receiptLink.receiptLinkId,
+                    receiptCode: receiptLink.code,
+                    telegramChatId: link.telegramChatId.toString(),
+                    telegramUserId: link.telegramUserId ? link.telegramUserId.toString() : null,
+                    linkStatus: receiptLink.linkStatus
+                });
 
-                try {
-                    const delivery = await ReceiptDeliveryService.sendReceiptIdempotent(
-                        orderId,
-                        link.telegramChatId
-                    );
-
-                    if (receiptLink.linkStatus === 'PENDING') {
-                        await prisma.receiptLink.update({
-                            where: { receiptLinkId: receiptLink.receiptLinkId },
-                            data: {
-                                linkStatus: 'USED',
-                                usedAt: new Date(),
-                                telegramChatId: link.telegramChatId,
-                                telegramUserId: link.telegramUserId
-                            }
-                        });
-                    }
-
-                    return res.json({
-                        linked: true,
-                        sent: true,
-                        alreadySent: delivery.alreadySent,
-                        note: delivery.alreadySent ? 'This receipt was already sent to your Telegram.' : undefined
-                    });
-                } catch (error: any) {
-                    if (error.message === 'BOT_BLOCKED') {
-                        return res.json({ linked: true, sent: false, error: 'BOT_BLOCKED' });
-                    }
-                    throw error;
-                }
+                return res.json({
+                    linked: true,
+                    sent: true,
+                    sentNow: false,
+                    alreadySent: false,
+                    queued: true
+                });
             }
-
-            // 4. Not linked -> Generate deep link
-            // If no customer yet (no device_id provided), we might need a temporary customer or just fail
             if (!customer) {
                 // Fallback: create an anonymous customer for this scan
                 customer = await prisma.customer.create({

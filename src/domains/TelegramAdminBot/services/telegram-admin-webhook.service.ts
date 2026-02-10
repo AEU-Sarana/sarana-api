@@ -308,8 +308,8 @@ export class TelegramAdminWebhookService {
       // Step 1: Validate the receipt code
       const validation = await ReceiptLinkService.validateReceiptCode(code);
 
-      // Step 2: Generate receipt JPG image and upload to R2
-      const receiptImage = await ReceiptImageService.generateReceiptJpg(validation.order_id);
+      // Step 2: Generate receipt JPG image buffer (no upload)
+      const receiptImage = await ReceiptImageService.generateReceiptJpgBuffer(validation.order_id);
 
       // Step 3: Get Telegram bot token
       const telegramConfig = await TelegramService.getTelegramConfig();
@@ -318,11 +318,12 @@ export class TelegramAdminWebhookService {
       }
 
       // Step 4: Send the receipt image
-      await TelegramBotService.sendDocument(
+      await TelegramBotService.sendPhoto(
         telegramConfig.bot_token,
         String(chatId),
-        receiptImage.url,
-        `🧾 Receipt #${validation.receipt_number}`
+        receiptImage.buffer,
+        `🧾 Receipt #${validation.receipt_number}`,
+        receiptImage.filename
       );
 
       // Step 5: Mark the receipt as used

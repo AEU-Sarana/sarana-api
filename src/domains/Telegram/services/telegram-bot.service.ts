@@ -109,19 +109,16 @@ export class TelegramBotService {
       const isUrl = typeof photoPathOrBuffer === 'string' && /^https?:\/\//i.test(photoPathOrBuffer);
       const isBuffer = Buffer.isBuffer(photoPathOrBuffer);
 
-      let photo;
       if (isUrl) {
-        photo = photoPathOrBuffer;
+        form.append('photo', photoPathOrBuffer as string);
       } else if (isBuffer) {
-        photo = {
-          value: photoPathOrBuffer,
-          options: { filename, contentType: 'image/jpeg' }
-        };
+        form.append('photo', photoPathOrBuffer as Buffer, {
+          filename,
+          contentType: 'image/jpeg',
+        });
       } else {
-        photo = fs.createReadStream(photoPathOrBuffer as string);
+        form.append('photo', fs.createReadStream(photoPathOrBuffer as string));
       }
-
-      form.append('photo', photo as any);
 
       const response = await axios.post(
         `${this.BASE_URL}${botToken}/sendPhoto`,
@@ -137,6 +134,33 @@ export class TelegramBotService {
         messageId: response.data.result.message_id,
         sentAt: new Date(response.data.result.date * 1000),
       };
+    } catch (error: any) {
+      if (error.response) {
+        throw new TelegramAPIError(
+          error.response.data.error_code,
+          error.response.data.description
+        );
+      }
+      throw new TelegramAPIError(0, error.message);
+    }
+  }
+
+  /**
+   * Register or update webhook for the bot
+   */
+  static async setWebhook(
+    botToken: string,
+    webhookUrl: string,
+    secretToken?: string
+  ): Promise<void> {
+    try {
+      const body: Record<string, string> = { url: webhookUrl };
+      if (secretToken) {
+        body.secret_token = secretToken;
+      }
+      await axios.post(`${this.BASE_URL}${botToken}/setWebhook`, body, {
+        timeout: 20000,
+      });
     } catch (error: any) {
       if (error.response) {
         throw new TelegramAPIError(

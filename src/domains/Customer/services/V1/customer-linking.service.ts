@@ -99,17 +99,22 @@ export class CustomerLinkingService {
             if (storedToken.receiptCode) {
                 try {
                     let orderId: number | null = null;
+                    let linkId: number | null = null;
                     const rLink = await prisma.receiptLink.findUnique({
                         where: { code: storedToken.receiptCode },
-                        select: { orderId: true }
+                        select: { orderId: true, receiptLinkId: true }
                     });
 
                     if (rLink) {
                         orderId = rLink.orderId;
+                        linkId = rLink.receiptLinkId;
                     }
 
                     if (orderId) {
-                        await ReceiptDeliveryService.sendReceiptIdempotent(orderId, BigInt(telegramChatId));
+                        await ReceiptDeliveryService.sendReceiptIdempotent(orderId, BigInt(telegramChatId), {
+                            receiptLinkId: linkId ?? undefined,
+                            receiptCode: storedToken.receiptCode
+                        });
                     }
                 } catch (err: any) {
                     logger.error('Failed to auto-send receipt after linking', { error: err.message });

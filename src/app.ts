@@ -9,6 +9,7 @@ import { errorMiddleware } from '@src/shared/middleware/error.middleware';
 import { registerStockEventListeners } from '@src/domains/Stock/events/stock.listeners';
 import { registerReportEventListeners } from '@src/domains/Report/events/report.listeners';
 import { registerReportExportProcessor } from '@src/domains/Report/queues/report-export.processor';
+import { registerReceiptScanProcessor } from '@src/domains/Receipt/queues/receipt-scan.processor';
 import { registerTelegramEventListeners } from './domains/Telegram/events/telegram.listeners';
 import { startTelegramDailyReportScheduler } from '@src/domains/Telegram/jobs/telegram-daily-report.scheduler';
 import { auditMutationMiddleware } from '@src/shared/middleware/audit-mutation.middleware';
@@ -26,6 +27,13 @@ try {
   registerReportExportProcessor();
 } catch (error) {
   console.error('Failed to register report export processor:', error);
+}
+
+// Register receipt scan worker
+try {
+  registerReceiptScanProcessor();
+} catch (error) {
+  console.error('Failed to register receipt scan processor:', error);
 }
 
 // Register Telegram admin worker

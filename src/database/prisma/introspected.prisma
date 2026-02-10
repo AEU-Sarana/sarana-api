@@ -148,19 +148,20 @@ model products {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model receipt_links {
-  receipt_link_id   Int       @id @default(autoincrement())
-  order_id          Int
-  code              String    @unique(map: "idx_receipt_links_code") @db.VarChar(100)
-  link_status       String    @default("PENDING") @db.VarChar(20)
-  expires_at        DateTime  @db.Timestamp(6)
-  used_at           DateTime? @db.Timestamp(6)
-  telegram_user_id  BigInt?
-  telegram_chat_id  BigInt?
-  telegram_username String?   @db.VarChar(255)
-  created_by        Int
-  created_at        DateTime  @default(now()) @db.Timestamp(6)
-  users             users     @relation(fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  orders            orders    @relation(fields: [order_id], references: [order_id], onDelete: NoAction, onUpdate: NoAction)
+  receipt_link_id    Int                  @id @default(autoincrement())
+  order_id           Int
+  code               String               @unique(map: "idx_receipt_links_code") @db.VarChar(100)
+  link_status        String               @default("PENDING") @db.VarChar(20)
+  expires_at         DateTime             @db.Timestamp(6)
+  used_at            DateTime?            @db.Timestamp(6)
+  telegram_user_id   BigInt?
+  telegram_chat_id   BigInt?
+  telegram_username  String?              @db.VarChar(255)
+  created_by         Int
+  created_at         DateTime             @default(now()) @db.Timestamp(6)
+  receipt_deliveries receipt_deliveries[]
+  users              users                @relation(fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  orders             orders               @relation(fields: [order_id], references: [order_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([created_at], map: "idx_receipt_links_created_at")
   @@index([expires_at], map: "idx_receipt_links_expires_at")
@@ -419,14 +420,26 @@ model customers {
 }
 
 model receipt_deliveries {
-  id               Int      @id @default(autoincrement())
-  order_id         Int
-  telegram_chat_id BigInt
-  status           String   @db.VarChar(20)
-  sent_at          DateTime @default(now()) @db.Timestamp(6)
-  orders           orders   @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: NoAction)
+  id                  Int            @id @default(autoincrement())
+  order_id            Int
+  telegram_chat_id    BigInt
+  status              String         @db.VarChar(20)
+  sent_at             DateTime?      @db.Timestamp(6)
+  receipt_link_id     Int?
+  receipt_code        String?        @db.VarChar(255)
+  telegram_message_id BigInt?
+  error_code          Int?
+  error_message       String?        @db.VarChar(500)
+  last_attempt_at     DateTime       @default(now()) @db.Timestamp(6)
+  created_at          DateTime       @default(now()) @db.Timestamp(6)
+  updated_at          DateTime       @default(now()) @db.Timestamp(6)
+  orders              orders         @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: NoAction)
+  receipt_links       receipt_links? @relation(fields: [receipt_link_id], references: [receipt_link_id], onUpdate: NoAction)
 
-  @@unique([order_id, telegram_chat_id])
+  @@unique([receipt_link_id, telegram_chat_id], map: "uq_receipt_deliveries_link_chat")
+  @@index([telegram_chat_id], map: "idx_receipt_deliveries_telegram_chat_id")
+  @@index([receipt_link_id], map: "idx_receipt_deliveries_link_id")
+  @@index([receipt_link_id, telegram_chat_id], map: "idx_receipt_deliveries_link_chat")
 }
 
 model customer_linking_tokens {

@@ -2,6 +2,7 @@ import prisma from '@src/database/client';
 import axios from 'axios';
 import { encrypt, decrypt } from '@src/shared/utils/encryption';
 import { logger } from '@src/shared/utils/logger';
+import { env } from '@src/shared/config/env';
 import { ReportService } from '@src/domains/Report/services/report.service';
 import { ReportExportService } from '@src/domains/Report/services/report-export.service';
 import { ShiftService } from '@src/domains/Shift/services/shift.service';
@@ -49,6 +50,43 @@ export class TelegramService {
     });
   }
 
+  private static buildTelegramAdminWebhookUrl(): string | null {
+    const baseUrl = env.API_BASE_URL || env.APP_URL;
+    if (!baseUrl) {
+      return null;
+    }
+    const trimmedBase = baseUrl.replace(/\/+$/, '');
+    return `${trimmedBase}/api/v1/telegram-admin-bot/webhook`;
+  }
+
+  private static async registerAdminWebhook(botToken: string, isActive: boolean): Promise<void> {
+    if (!isActive) {
+      return;
+    }
+
+    const webhookUrl = this.buildTelegramAdminWebhookUrl();
+    if (!webhookUrl) {
+      logger.warn(
+        'Skipping automatic Telegram webhook registration because API_BASE_URL or APP_URL is not configured'
+      );
+      return;
+    }
+
+    try {
+      await TelegramBotService.setWebhook(
+        botToken,
+        webhookUrl,
+        process.env.TELEGRAM_WEBHOOK_SECRET
+      );
+      logger.info('Telegram admin webhook registered automatically', { webhookUrl });
+    } catch (error: any) {
+      logger.warn('Failed to register Telegram webhook automatically', {
+        webhookUrl,
+        error: error.message,
+      });
+    }
+  }
+
   /**
    * Configure Telegram bot
    */
@@ -87,6 +125,7 @@ export class TelegramService {
         updated_by: userId,
         updated_at: updated.updatedAt,
       });
+      await this.registerAdminWebhook(config.bot_token, updated.isActive);
       return response;
     } else {
       // Create new config
@@ -112,6 +151,7 @@ export class TelegramService {
         updated_by: userId,
         updated_at: created.updatedAt,
       });
+      await this.registerAdminWebhook(config.bot_token, created.isActive);
       return response;
     }
   }

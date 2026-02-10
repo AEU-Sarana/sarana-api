@@ -41,9 +41,19 @@ const prisma = new PrismaClient({ adapter }).$extends({
 });
 
 // Graceful shutdown
-process.on('beforeExit', async () => {
+const closePool = async () => {
   await prisma.$disconnect();
-  await pool.end();
-});
+  try {
+    await pool.end();
+  } catch (error: any) {
+    if (!error.message?.includes('Called end on pool more than once')) {
+      throw error;
+    }
+  }
+};
+
+process.on('beforeExit', closePool);
+
+export { closePool as closeDatabase };
 
 export default prisma;
