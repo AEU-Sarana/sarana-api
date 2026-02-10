@@ -52,17 +52,17 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
      * ULTRA-SHARP 4K CONFIGURATION
      */
     const scale = 4;
-    const baseWidth = 600; // Increased width for better table proportions
+    const baseWidth = 600; 
     const padding = 50;
     const contentWidth = baseWidth - (padding * 2);
 
     // Segment Heights (Dynamic)
-    const logoHeight = data.isLogoEnabled ? 130 : 0;
+    const logoHeight = data.isLogoEnabled ? 300 : 0;
     const headerHeight = 180 + logoHeight;
     const tableHeaderHeight = 50;
-    const itemLineHeight = 60; // Taller for better legibility
+    const itemLineHeight = 60; 
     const totalsAreaHeight = 150;
-    const footerAreaHeight = 200; // Large footer area to prevent any cutoff
+    const footerAreaHeight = 200;
     const bottomMargin = 100;
 
     const itemsSectionHeight = data.orderItems.length * itemLineHeight;
@@ -94,7 +94,7 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
     if (data.isLogoEnabled && data.logoPath) {
         try {
             const logo = await loadImage(data.logoPath);
-            const logoW = 100;
+            const logoW = 260;
             const logoH = (logo.height / logo.width) * logoW;
             ctx.drawImage(logo, (baseWidth - logoW) / 2, currentY, logoW, logoH);
             currentY += logoH + 25;
@@ -105,7 +105,7 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
 
     // 3. STORE INFO
     ctx.textAlign = 'center';
-    setFont(30, 'bold');
+    setFont(24, 'bold');
     ctx.fillStyle = '#000000';
     ctx.fillText(data.storeName || 'Name', baseWidth / 2, currentY);
     currentY += 50;
@@ -145,14 +145,6 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
         hour: '2-digit', minute: '2-digit', hour12: false,
         timeZone: 'Asia/Phnom_Penh'
     }).format(new Date(data.orderDate));
-
-    // Explicit tracing for Telegram vs Database mismatch
-    console.log('[ReceiptRenderer] DATE_TRACE:', {
-        raw: data.orderDate,
-        iso: new Date(data.orderDate).toISOString(),
-        rendered: dateStr,
-        tz: 'Asia/Phnom_Penh'
-    });
 
     ctx.fillText(dateStr, baseWidth - padding, currentY);
     currentY += 55;
@@ -222,11 +214,12 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
     // 6. TOTALS (Grand)
     currentY += 50;
     ctx.textAlign = 'left';
-    setFont(26, 'bold');
+    setFont(22, 'bold');
     ctx.fillStyle = '#000000';
     ctx.fillText('តម្លៃសរុប (GRAND TOTAL)', padding, currentY);
 
     ctx.textAlign = 'right';
+    ctx.fillStyle = '#1f8f3a';
     ctx.fillText(`$${data.totalAmount.toFixed(2)}`, baseWidth - padding, currentY);
     currentY += 90;
 

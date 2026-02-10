@@ -33,13 +33,6 @@ export class ReceiptImageService {
 
     if (!order) throw new ValidationException('Order not found');
 
-    console.log('[ReceiptImageService] Generating receipt for order:', {
-      orderId,
-      receiptNumber: order.receiptNumber,
-      dbOrderDate: order.orderDate,
-      serializedDate: order.orderDate.toISOString()
-    });
-
     const { renderReceiptToPng } = await import('./receipt-canvas.renderer.js');
     const receiptData: ReceiptData = {
       storeName: settings?.storeName || 'Name',
