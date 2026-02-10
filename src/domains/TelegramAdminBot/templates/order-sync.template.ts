@@ -24,6 +24,11 @@ type OrderSyncMessageInput = {
   status: 'synced' | 'updated';
   order_id?: number;
   items: OrderSyncItem[];
+  // Optional extra fields for richer UI
+  received_amount?: number;
+  change_amount?: number;
+  start_time?: Date;
+  end_time?: Date;
 };
 
 const formatMoney = (value?: number) => {
@@ -32,38 +37,44 @@ const formatMoney = (value?: number) => {
 };
 
 export const buildOrderSyncMessage = (input: OrderSyncMessageInput): string => {
-  const statusEmoji = input.status === 'synced' ? '✅' : '🔄';
-  const sellerLine = input.seller_name
-    ? `${input.seller_name} (ID: \`${input.seller_id}\`)`
-    : `ID: \`${input.seller_id}\``;
+  const sellerText = input.seller_name
+    ? `${input.seller_name} (ID: ${input.seller_id})`
+    : `${input.seller_id}`;
 
   const itemsText = input.items
     .map((item) => {
-      const name = item.product_name || `Product ${item.product_id}`;
-      return `🔹 *${name}*\n    └ ${item.quantity} x $${formatMoney(item.unit_price)} = *$${formatMoney(item.subtotal)}*`;
+      const name = item.product_name || `ទំនិញ ${item.product_id}`;
+      return [
+        `• ឈ្មោះទំនិញ: ${name}`,
+        `• ចំនួននៃទំនិញ: ${item.quantity}`,
+        `• តម្លៃរាយ: $${formatMoney(item.unit_price)}`,
+        `• តម្លៃសរុប: $${formatMoney(item.subtotal)}`,
+      ].join('\n');
     })
-    .join('\n');
+    .join('\n\n');
 
   const lines = [
-    `${statusEmoji} *ORDER SYNC ${input.status.toUpperCase()}*`,
-    `━━━━━━━━━━━━━━━━━━━━`,
-    `📄 *Receipt:* \`${input.receipt_number}\``,
-    input.order_id ? `🆔 *Order ID:* \`${input.order_id}\`` : null,
-    `📅 *Date:* ${formatDateTimeInTimezone(input.order_date, undefined, { hour12: true })}`,
-    `👤 *Seller:* ${sellerLine}`,
-    `🏢 *Shift ID:* \`${input.shift_id}\``,
-    `━━━━━━━━━━━━━━━━━━━━`,
-    `🛍️ *Items:*`,
-    itemsText || '  - (no items)',
-    `━━━━━━━━━━━━━━━━━━━━`,
-    `💳 *Payment:* ${input.payment_method.toUpperCase()}`,
-    input.discount_amount ? `🏷️ *Discount:* -$${formatMoney(input.discount_amount)}` : null,
-    input.service_fee ? `⚙️ *Fee:* $${formatMoney(input.service_fee)}` : null,
-    input.tax_amount ? `🏦 *Tax:* $${formatMoney(input.tax_amount)}` : null,
-    `💰 *TOTAL:* *$${formatMoney(input.total_amount)}*`,
-    `━━━━━━━━━━━━━━━━━━━━`,
-    `🗝️ \`${input.order_uuid}\``,
+    `*Sync នៃការកម្មង់*`,
+    '',
+    `📅 កាលបរិច្ឆេទ: ${formatDateTimeInTimezone(input.order_date, undefined, { hour12: true })}`,
+    '',
+    `🧾 *វិក្កយបត្រលក់ទំនិញ*`,
+    `• លេខវិក្កយបត្រ: \`${input.receipt_number}\``,
+    input.order_id ? `• លេខសម្គាល់កម្មង់: \`${input.order_id}\`` : null,
+    '',
+    `🛍️ *ព័ត៌មានទំនិញ*`,
+    itemsText || '• (គ្មានទំនិញ)',
+    '',
+    `👤 *ព័ត៌មានអ្នកលក់*`,
+    `• អ្នកលក់: ${sellerText}`,
+    '',
+    `💵 *ព័ត៌មានការទូទាត់*`,
+    `• ការទូទាត់: ${input.payment_method === 'CASH' ? 'សាច់ប្រាក់' : input.payment_method}`,
+    `• សេវាកម្ម: ${input.service_fee ? `$${formatMoney(input.service_fee)}` : ''}`,
+    `• ពន្ធ: ${input.tax_amount ? `$${formatMoney(input.tax_amount)}` : ''}`,
+    `• បញ្ចុះតម្លៃ: ${input.discount_amount ? `$${formatMoney(input.discount_amount)}` : ''}`,
+    `• ចំនួនទឹកប្រាក់សរុប: *$${formatMoney(input.total_amount)}*`,
   ];
 
-  return lines.filter(Boolean).join('\n');
+  return lines.filter((line) => line !== null).join('\n');
 };
