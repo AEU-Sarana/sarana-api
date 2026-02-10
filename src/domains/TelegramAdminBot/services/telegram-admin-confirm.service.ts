@@ -1,5 +1,6 @@
 import { TelegramService } from '@src/domains/Telegram/services/telegram.service';
 import { TelegramAdminReportService } from './telegram-admin-report.service';
+import prisma from '@src/database/client';
 
 export class TelegramAdminConfirmService {
   static buildConfirmPrompt(action: string) {
@@ -29,7 +30,11 @@ export class TelegramAdminConfirmService {
       return TelegramAdminReportService.sendReportByRange(chatId, 'today', adminUserId);
     }
     if (action === 'UNLINK_BOT') {
-      return TelegramService.sendMessageByChatId(chatId, 'Bot unlinked', 'Markdown');
+      await prisma.telegramAdminLink.updateMany({
+        where: { chatId: BigInt(chatId), status: 'ACTIVE' },
+        data: { status: 'REVOKED', revokedAt: new Date() }
+      });
+      return TelegramService.sendMessageByChatId(chatId, 'Bot ត្រូវបានផ្ដាច់ការភ្ជាប់ជោគជ័យ។', 'Markdown');
     }
   }
 }

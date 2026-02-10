@@ -13,6 +13,7 @@ import {
 import {
   DEFAULT_EXPIRES_MINUTES,
   pendingLinks,
+  linkAttempts,
 } from './telegram-admin-state.service';
 
 export class TelegramAdminLinkService {
@@ -76,6 +77,18 @@ export class TelegramAdminLinkService {
     text: string,
     telegramUsername?: string
   ) {
+    const attemptKey = `link:${telegramUserId}`;
+    const attempts = linkAttempts.get(attemptKey) || { count: 0, lastAttempt: 0 };
+
+    // Block if more than 5 attempts in 30 minutes
+    if (attempts.count >= 5 && Date.now() - attempts.lastAttempt < 30 * 60 * 1000) {
+      return TelegramService.sendMessageByChatId(
+        chatId,
+        'អ្នកបានព្យាយាមច្រើនដងពេកហើយ។\nសូមរង់ចាំ ៣០ នាទីទៀត ទើបអាចព្យាយាមម្ដងទៀតបានបាទ។',
+        'Markdown'
+      );
+    }
+
     const parts = text.trim().split(/\s+/);
     const code = parts[1];
     if (!code) {
@@ -88,12 +101,20 @@ export class TelegramAdminLinkService {
 
     const pending = this.consumeLinkCode(code);
     if (!pending) {
+      // Record failed attempt
+      attempts.count += 1;
+      attempts.lastAttempt = Date.now();
+      linkAttempts.set(attemptKey, attempts);
+
       return TelegramService.sendMessageByChatId(
         chatId,
-        'កូដមិនត្រឹមត្រូវ រឹ ផុតកំណត់',
+        'កូដមិនត្រឹមត្រូវ ឬ ផុតកំណត់',
         'Markdown'
       );
     }
+
+    // Reset attempts on success
+    linkAttempts.delete(attemptKey);
 
     if (pending.telegramUserId && pending.telegramUserId !== telegramUserId) {
       return TelegramService.sendMessageByChatId(

@@ -12,7 +12,7 @@ export class TelegramController {
       const { bot_token, group_chat_id, is_active } = req.body;
       const user = req.user as UserPayload;
       const userId = user.userId;
-      
+
       const response: TelegramConfigResponse = await TelegramService.configureTelegram(
         { bot_token, group_chat_id, is_active },
         userId
@@ -28,7 +28,7 @@ export class TelegramController {
           error: sendError.message,
         });
       }
-      
+
       res.json({
         success: true,
         data: response,
@@ -44,17 +44,17 @@ export class TelegramController {
       );
     }
   }
-  
+
   // POST /api/v1/telegram/test
   static async testConnection(req: Request, res: Response): Promise<void> {
     try {
       const { bot_token, group_chat_id } = req.body;
-      
+
       const response: TestConnectionResponse = await TelegramService.testConnection(
         bot_token,
         group_chat_id
       );
-      
+
       res.json({
         success: true,
         data: response,
@@ -70,7 +70,7 @@ export class TelegramController {
       );
     }
   }
- 
+
   // POST /api/v1/telegram/send-test-message
   static async sendTestMessage(req: Request, res: Response): Promise<void> {
     try {
@@ -93,7 +93,7 @@ export class TelegramController {
       );
     }
   }
-  
+
   // POST /api/v1/telegram/send-report
   static async sendReport(req: Request, res: Response): Promise<void> {
     try {
@@ -103,7 +103,7 @@ export class TelegramController {
         today,
         user.userId
       );
-      
+
       res.json({
         success: true,
         data: response,
@@ -119,19 +119,19 @@ export class TelegramController {
       );
     }
   }
-  
+
   // POST /api/v1/telegram/resend-report
   static async resendReport(req: Request, res: Response): Promise<void> {
     try {
       const { shift_id } = req.body;
       const user = req.user as UserPayload;
-      
+
       const response: SendReportResponse = await TelegramService.resendReport(
         shift_id,
         user.userId,
         user.role
       );
-      
+
       res.json({
         success: true,
         data: response,
@@ -143,6 +143,32 @@ export class TelegramController {
         'Failed to resend report to Telegram',
         'TELEGRAM_RESEND_ERROR',
         500,
+        { reason: error.message }
+      );
+    }
+  }
+
+  // POST /api/v1/telegram/setup-webhook
+  static async setupWebhook(req: Request, res: Response): Promise<void> {
+    try {
+      const { webhook_url } = req.body;
+
+      if (!webhook_url) {
+        throw new BusinessLogicException('webhook_url is required', 'VALIDATION_ERROR', 400);
+      }
+
+      const success = await TelegramService.setupBotWebhook(webhook_url);
+
+      res.json({
+        success,
+        message: success ? 'Webhook configured successfully' : 'Failed to configure webhook'
+      });
+    } catch (error: any) {
+      logger.error('Setup Telegram webhook error', { error: error.message });
+      throw new BusinessLogicException(
+        'Failed to setup Telegram webhook',
+        'TELEGRAM_WEBHOOK_SETUP_ERROR',
+        error.statusCode || 500,
         { reason: error.message }
       );
     }

@@ -84,24 +84,25 @@ model order_items {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model orders {
-  order_id        Int               @id @default(autoincrement())
-  order_uuid      String            @unique(map: "idx_orders_order_uuid") @db.Uuid
-  receipt_number  String            @unique(map: "idx_orders_receipt_number") @db.VarChar(50)
-  shift_id        Int
-  seller_id       Int
-  order_date      DateTime          @default(now()) @db.Timestamp(6)
-  total_amount    Decimal           @db.Decimal(10, 2)
-  discount_amount Decimal           @default(0) @db.Decimal(10, 2)
-  tax_amount      Decimal           @default(0) @db.Decimal(10, 2)
-  service_fee     Decimal           @default(0) @db.Decimal(10, 2)
-  payment_method  String            @default("CASH") @db.VarChar(20)
-  created_at      DateTime          @default(now()) @db.Timestamp(6)
-  updated_at      DateTime          @default(now()) @db.Timestamp(6)
-  order_items     order_items[]
-  users           users             @relation(fields: [seller_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  shifts          shifts            @relation(fields: [shift_id], references: [shift_id], onDelete: NoAction, onUpdate: NoAction)
-  receipt_links   receipt_links[]
-  stock_movements stock_movements[]
+  order_id           Int                  @id @default(autoincrement())
+  order_uuid         String               @unique(map: "idx_orders_order_uuid") @db.Uuid
+  receipt_number     String               @unique(map: "idx_orders_receipt_number") @db.VarChar(50)
+  shift_id           Int
+  seller_id          Int
+  order_date         DateTime             @default(now()) @db.Timestamp(6)
+  total_amount       Decimal              @db.Decimal(10, 2)
+  discount_amount    Decimal              @default(0) @db.Decimal(10, 2)
+  tax_amount         Decimal              @default(0) @db.Decimal(10, 2)
+  service_fee        Decimal              @default(0) @db.Decimal(10, 2)
+  payment_method     String               @default("CASH") @db.VarChar(20)
+  created_at         DateTime             @default(now()) @db.Timestamp(6)
+  updated_at         DateTime             @default(now()) @db.Timestamp(6)
+  order_items        order_items[]
+  users              users                @relation(fields: [seller_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  shifts             shifts               @relation(fields: [shift_id], references: [shift_id], onDelete: NoAction, onUpdate: NoAction)
+  receipt_deliveries receipt_deliveries[]
+  receipt_links      receipt_links[]
+  stock_movements    stock_movements[]
 
   @@index([created_at], map: "idx_orders_created_at")
   @@index([order_date], map: "idx_orders_order_date")
@@ -395,4 +396,46 @@ model stocks {
   products       products  @relation(fields: [product_id], references: [product_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([stock_version], map: "idx_stocks_version")
+}
+
+model customer_telegram_links {
+  id               Int       @id @default(autoincrement())
+  customer_id      Int       @unique
+  telegram_chat_id BigInt
+  telegram_user_id BigInt?
+  linked_at        DateTime  @default(now()) @db.Timestamp(6)
+  updated_at       DateTime  @default(now()) @db.Timestamp(6)
+  customers        customers @relation(fields: [customer_id], references: [customer_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model customers {
+  customer_id             Int                       @id @default(autoincrement())
+  device_id               String?                   @unique @db.VarChar(255)
+  full_name               String?                   @db.VarChar(255)
+  created_at              DateTime                  @default(now()) @db.Timestamp(6)
+  updated_at              DateTime                  @default(now()) @db.Timestamp(6)
+  customer_linking_tokens customer_linking_tokens[]
+  customer_telegram_links customer_telegram_links?
+}
+
+model receipt_deliveries {
+  id               Int      @id @default(autoincrement())
+  order_id         Int
+  telegram_chat_id BigInt
+  status           String   @db.VarChar(20)
+  sent_at          DateTime @default(now()) @db.Timestamp(6)
+  orders           orders   @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([order_id, telegram_chat_id])
+}
+
+model customer_linking_tokens {
+  token        String    @id @db.VarChar(64)
+  customer_id  Int
+  receipt_code String?   @db.VarChar(255)
+  expires_at   DateTime  @db.Timestamp(6)
+  created_at   DateTime  @default(now()) @db.Timestamp(6)
+  customers    customers @relation(fields: [customer_id], references: [customer_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([expires_at], map: "idx_linking_tokens_expires")
 }

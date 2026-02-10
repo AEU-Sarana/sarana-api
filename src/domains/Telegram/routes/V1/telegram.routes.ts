@@ -47,10 +47,17 @@ router.post(
   TelegramController.resendReport
 );
 
+// POST /api/v1/telegram/send-test-message
 router.post(
   '/send-test-message',
   ...validateRequest(sendTestMessageValidator),
   TelegramController.sendTestMessage
-)
+);
+
+// POST /api/v1/telegram/setup-webhook
+router.post(
+  '/setup-webhook',
+  TelegramController.setupWebhook
+);
 
 export default router;

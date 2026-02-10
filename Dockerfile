@@ -3,10 +3,21 @@
 # =========================================================
 FROM node:20-alpine AS base
 
-# Install timezone + fontconfig (required for sharp SVG text rendering)
-RUN apk add --no-cache tzdata fontconfig font-noto-khmer \
-  && cp /usr/share/zoneinfo/Asia/Phnom_Penh /etc/localtime \
-  && echo "Asia/Phnom_Penh" > /etc/timezone
+# Install runtime dependencies for node-canvas and fonts
+RUN apk add --no-cache \
+    tzdata \
+    fontconfig \
+    cairo \
+    pango \
+    harfbuzz \
+    pixman \
+    freetype \
+    font-noto-khmer \
+    ttf-dejavu \
+    libjpeg-turbo \
+    giflib \
+    && cp /usr/share/zoneinfo/Asia/Phnom_Penh /etc/localtime \
+    && echo "Asia/Phnom_Penh" > /etc/timezone
 
 ENV TZ=Asia/Phnom_Penh
 
@@ -31,6 +42,19 @@ COPY package.json pnpm-lock.yaml ./
 # =========================================================
 FROM base AS development
 
+# Install build dependencies for node-canvas
+RUN apk add --no-cache \
+    build-base \
+    python3 \
+    pkgconf \
+    cairo-dev \
+    pango-dev \
+    pixman-dev \
+    harfbuzz-dev \
+    freetype-dev \
+    libjpeg-turbo-dev \
+    giflib-dev
+
 RUN pnpm config set store-dir /app/.pnpm-store
 RUN pnpm config set node-linker hoisted
 
@@ -45,6 +69,19 @@ CMD ["pnpm", "dev"]
 # BUILD
 # =========================================================
 FROM base AS build
+
+# Install build dependencies for node-canvas
+RUN apk add --no-cache \
+    build-base \
+    python3 \
+    pkgconf \
+    cairo-dev \
+    pango-dev \
+    pixman-dev \
+    harfbuzz-dev \
+    freetype-dev \
+    libjpeg-turbo-dev \
+    giflib-dev
 
 RUN pnpm install --frozen-lockfile
 COPY . .
@@ -64,9 +101,8 @@ WORKDIR /app
 # Copy Prisma config (required for schema location)
 COPY --from=build /app/prisma.config.ts ./
 
-# Install production dependencies AND prisma CLI
-RUN pnpm install --prod --frozen-lockfile && \
-    pnpm add -D prisma tsx
+# Install production dependencies (frozen-lockfile to avoid mutations)
+RUN pnpm install --prod --frozen-lockfile
 
 # Copy Prisma schema and migrations (needed for migrations)
 COPY --from=build /app/src/database/prisma ./src/database/prisma

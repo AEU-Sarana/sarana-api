@@ -19,12 +19,13 @@ export type TelegramAdminCommand =
   | { type: 'UNLINK_BOT' }
   | { type: 'PRODUCT_LOOKUP'; productCode?: string }
   | {
-      type: 'STOCK_WRITE';
-      requestId?: string;
-      movementType?: string;
-      productCode?: string;
-      qty?: number;
-    }
+    type: 'STOCK_WRITE';
+    requestId?: string;
+    movementType?: string;
+    productCode?: string;
+    qty?: number;
+  }
+  | { type: 'CUSTOMER_LINK_START'; token: string }
   | { type: 'UNKNOWN' };
 
 export type TelegramAdminLinkStatus = 'PENDING' | 'ACTIVE' | 'REVOKED';
@@ -33,13 +34,13 @@ export interface CreateTelegramAdminLinkRequest {
   admin_user_id: number;
   telegram_user_id?: number;
   telegram_username?: string;
-  expires_in_minutes?: number; 
+  expires_in_minutes?: number;
 }
 
 export interface CreateTelegramAdminLinkResponse {
   link_code: string;
   expires_at: string;
-  link_status: TelegramAdminLinkStatus; 
+  link_status: TelegramAdminLinkStatus;
 }
 
 export interface PendingTelegramAdminLink {

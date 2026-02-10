@@ -40,3 +40,19 @@ feb / 2 / 2026
 
 
     
+
+## 🧾 Telegram Receipt Auto-Send Flow
+
+This feature allows customers to receive receipts automatically on Telegram after a one-time linking process.
+
+### Flow for Flutter App:
+1. **Scan QR**: QR code contains only the `receipt_code`.
+2. **Scan API**: Flutter calls `POST /api/v1/receipts/scan` with `{ receipt_code, device_id }`.
+3. **Response**: 
+   - If user is already linked: returns `{ linked: true, sent: true }`. Receipt is already in their Telegram.
+   - If not linked: returns `{ linked: false, telegram_link: "..." }`. 
+4. **Link User**: Flutter opens the `telegram_link`. User presses **[ START ]** in Telegram Bot.
+5. **Success**: Bot links the user and sends the receipt immediately.
+
+### API Endpoints:
+- `POST /api/v1/receipts/scan`: Public endpoint for QR scanning.

@@ -36,5 +36,36 @@ export class TelegramAdminBotController {
       message: 'Admin link code created'
     });
   }
-  
+
+  // POST /api/v1/telegram-admin-bot/setup-webhook
+  static async setupWebhook(req: Request, res: Response): Promise<void> {
+    try {
+      const { webhook_url, regenerate_secret } = req.body;
+
+      if (!webhook_url) {
+        return res.status(400).json({
+          success: false,
+          message: 'webhook_url is required'
+        });
+      }
+
+      const result = await TelegramAdminBotService.setupWebhook({
+        webhookUrl: webhook_url,
+        regenerateSecret: regenerate_secret ?? false
+      });
+
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: 'Webhook configured successfully'
+      });
+    } catch (error: any) {
+      logger.error('Setup webhook error', { error: error.message });
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to setup webhook'
+      });
+    }
+  }
+
 }

@@ -404,31 +404,42 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
 
     const command = TelegramAdminParserService.toCommand(text);
 
-    if (command.type === 'START') {
-      const menuKey = getMenuStateKey(chatId, telegramUserId);
-      resetStack(menuKey);
-      return renderMenu({ chatId, telegramUserId }, 'main', { preferEdit: false });
-    }
-
+    // Verify admin link for all commands (except /link which handles its own check)
     let adminUserId = 0;
+    let isAdmin = false;
     try {
       const link = await TelegramAdminLinksService.requireActiveLink(telegramUserId, chatId);
       adminUserId = link.userId;
+      isAdmin = true;
     } catch (error: any) {
       if (error?.message === 'TELEGRAM_ADMIN_NOT_LINKED') {
-        const message =
-          'Bot មិនទាន់ភ្ជាប់ជាមួយ Admin ទេ។\nសូមប្រើ `/link CODE` (ឧ. `/link 435ergfd`).';
-        if (processingMessageId) {
-          return TelegramService.editMessageByChatId(
-            chatId,
-            processingMessageId,
-            message,
-            'Markdown'
-          );
-        }
-        return TelegramService.sendMessageByChatId(chatId, message, 'Markdown');
+        isAdmin = false;
+      } else {
+        throw error;
       }
-      throw error;
+    }
+
+    if (command.type === 'START') {
+      if (isAdmin) {
+        const menuKey = getMenuStateKey(chatId, telegramUserId);
+        resetStack(menuKey);
+        return renderMenu({ chatId, telegramUserId }, 'main', { preferEdit: false });
+      } else {
+        // Non-admin welcome message
+        return TelegramService.sendMessageByChatId(
+          chatId,
+          'សូមស្វាគមន៍មកកាន់ **Phument Mart**! 🙏\n\nនេះគឺជាគណនី Telegram ផ្លូវការសម្រាប់ទទួលបានវិក្កយបត្រស្វ័យប្រវត្តិ។\n\nដើម្បីទទួលបានវិក្កយបត្រ សូមកុំភ្លេចស្កេន QR Code នៅលើវិក្កយបត្ររបស់អ្នកបាទ។',
+          'Markdown'
+        );
+      }
+    }
+
+    if (!isAdmin) {
+      const message = 'សុំទោស! អ្នកមិនមានសិទ្ធិចូលប្រើប្រាស់ Admin Menu ទេបាទ។\nប្រសិនបើអ្នកជា Admin សូមប្រើ `/link CODE` ដើម្បីភ្ជាប់គណនី។';
+      if (processingMessageId) {
+        return TelegramService.editMessageByChatId(chatId, processingMessageId, message, 'Markdown');
+      }
+      return TelegramService.sendMessageByChatId(chatId, message, 'Markdown');
     }
 
     const pendingKey = getPendingKey(chatId);
@@ -703,19 +714,28 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
       'Markdown'
     );
   } catch (error: any) {
-    logger.error('Telegram admin message job failed', { error: error.message });
-    const errorMessage = error?.message
+    logger.error('Telegram admin message job failed', {
+      error: error.message,
+      stack: error.stack,
+      chatId,
+      telegramUserId
+    });
+
+    // Only show the specific error message if it's a known user-friendly error
+    const friendlyErrors = ['TELEGRAM_ADMIN_NOT_LINKED', 'Unauthorized', 'Invalid code'];
+    const displayMessage = friendlyErrors.includes(error?.message)
       ? `❌ ${error.message}`
-      : '❌ Something went wrong. Please try again.';
+      : '❌ មានបញ្ហាបច្ចេកទេសមួយបានកើតឡើង។ សូមព្យាយាមម្ដងទៀតនៅពេលក្រោយបាទ។';
+
     if (processingMessageId) {
       return TelegramService.editMessageByChatId(
         chatId,
         processingMessageId,
-        errorMessage,
+        displayMessage,
         'Markdown'
       );
     }
-    return TelegramService.sendMessageByChatId(chatId, errorMessage, 'Markdown');
+    return TelegramService.sendMessageByChatId(chatId, displayMessage, 'Markdown');
   }
 }
 

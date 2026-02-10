@@ -35,7 +35,8 @@
     "db:generate": "node db-generate.mjs",
     "db:pull": "prisma db pull --schema src/database/prisma/introspected.prisma",
     "db:push": "prisma db push",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "test:khmer": "tsx scripts/test-khmer-receipt.mjs"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -48,19 +49,20 @@
     "@src": "dist"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.983.0",
-    "@aws-sdk/s3-request-presigner": "^3.983.0",
+    "@aws-sdk/client-s3": "^3.986.0",
+    "@aws-sdk/s3-request-presigner": "^3.986.0",
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
     "@prisma/client-runtime-utils": "7.3.0",
     "@prisma/engines": "^7.3.0",
-    "axios": "^1.13.4",
+    "axios": "^1.13.5",
     "bcrypt": "^6.0.0",
     "bull": "^4.16.5",
-    "bullmq": "^5.67.2",
+    "bullmq": "^5.67.3",
+    "canvas": "^3.2.1",
     "cors": "^2.8.6",
     "date-fns": "^4.1.0",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.2.4",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "express-validator": "^7.3.1",
@@ -90,11 +92,11 @@
     "@types/morgan": "^1.9.10",
     "@types/ms": "^2.1.0",
     "@types/multer": "^2.0.0",
-    "@types/node": "^25.2.0",
+    "@types/node": "^25.2.2",
     "@types/nodemailer": "^7.0.9",
     "@types/pg": "^8.16.0",
-    "@typescript-eslint/eslint-plugin": "^8.54.0",
-    "@typescript-eslint/parser": "^8.54.0",
+    "@typescript-eslint/eslint-plugin": "^8.55.0",
+    "@typescript-eslint/parser": "^8.55.0",
     "eslint": "^9.39.2",
     "nodemon": "^3.1.11",
     "prettier": "^3.8.1",
@@ -108,5 +110,10 @@
   },
   "directories": {
     "doc": "doc"
+  },
+  "pnpm": {
+    "allowedBuiltDependencies": [
+      "canvas"
+    ]
   }
 }

@@ -49,7 +49,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: sh -c "pnpm config set store-dir /app/.pnpm-store && pnpm config set node-linker hoisted && pnpm install --frozen-lockfile && (cd /app/node_modules/@prisma/client/runtime && ln -sf query_compiler_fast_bg.postgresql.mjs query_compiler_bg.postgresql.mjs 2>/dev/null || true) && pnpm db:generate && pnpm migrate:apply && pnpm dev"
+    command: sh -c "pnpm config set store-dir /app/.pnpm-store && pnpm config set node-linker hoisted && pnpm install --frozen-lockfile && (cd node_modules/canvas && npm run install) && (cd /app/node_modules/@prisma/client/runtime && ln -sf query_compiler_fast_bg.postgresql.mjs query_compiler_bg.postgresql.mjs 2>/dev/null || true) && pnpm db:generate && pnpm migrate:apply && pnpm dev"
     networks:
       - internal-network
     profiles:

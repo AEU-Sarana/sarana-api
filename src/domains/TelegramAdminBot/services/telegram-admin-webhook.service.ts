@@ -5,6 +5,7 @@ import { TelegramService } from '@src/domains/Telegram/services/telegram.service
 import { TelegramBotService } from '@src/domains/Telegram/services/telegram-bot.service';
 import { ReceiptLinkService } from '@src/domains/Receipt/services/V1/receipt-link.service';
 import { ReceiptImageService } from '@src/domains/Receipt/services/V1/receipt-image.service';
+import { CustomerLinkingService } from '@src/domains/Customer/services/V1/customer-linking.service';
 import { logger } from '@src/shared/utils/logger';
 import { TelegramWebhookPayload } from '@src/domains/TelegramAdminBot/types/telegram-admin-bot.types';
 import { telegramAdminQueue, redisConnection } from '@src/domains/TelegramAdminBot/jobs/telegram-admin.queue';
@@ -27,14 +28,22 @@ const CALLBACK_DEDUPE_TTL_SECONDS = 10;
 
 export class TelegramAdminWebhookService {
   static async handleUpdate(update: TelegramWebhookPayload) {
+    const { update_id } = update;
+    const replayKey = `telegram:update_id:${update_id}`;
+    const isDuplicate = await redisConnection.get(replayKey);
+    if (isDuplicate) {
+      logger.info('Telegram update replay detected, skipping', { updateId: update_id });
+      return { enqueued: false };
+    }
+    await redisConnection.set(replayKey, '1', 'EX', 3600); // Store for 1 hour
+
     const { telegramUserId, chatId, text, callbackData } =
       TelegramAdminParserService.parse(update);
 
     logger.info('Telegram admin webhook received', {
-      updateId: update.update_id,
+      updateId: update_id,
       chatId,
       fromId: telegramUserId,
-      text,
       hasCallback: Boolean(callbackData),
     });
 
@@ -56,11 +65,14 @@ export class TelegramAdminWebhookService {
         : pendingStockHistory
           ? 'WAIT_PRODUCT_QUERY_STOCK_HISTORY'
           : 'NONE';
-    logger.info('Telegram admin pending state', {
-      chatId,
-      fromId: telegramUserId,
-      state: pendingState,
-    });
+
+    if (pendingState !== 'NONE') {
+      logger.info('Telegram admin pending state', {
+        chatId,
+        fromId: telegramUserId,
+        state: pendingState,
+      });
+    }
 
     if (pendingStockIn || pendingStockAdjust || pendingStockHistory) {
       try {
@@ -125,22 +137,12 @@ export class TelegramAdminWebhookService {
           throw linkError;
         }
 
-        logger.info('Telegram admin pending handler start', {
-          chatId,
-          fromId: telegramUserId,
-          text: trimmed,
-        });
         const result = await TelegramAdminInputRouterService.handlePendingInput(
           chatId,
           trimmed,
           adminUserId,
           telegramUserId
         );
-        logger.info('Telegram admin pending handler complete', {
-          chatId,
-          fromId: telegramUserId,
-          handled: Boolean(result),
-        });
 
         if (!result || !('text' in result)) {
           return { enqueued: false };
@@ -182,8 +184,7 @@ export class TelegramAdminWebhookService {
     const isLightCommand =
       command.type === 'START' ||
       command.type === 'RECEIPT_START' ||
-      command.type === 'PRODUCT_LOOKUP' ||
-      command.type === 'STOCK_WRITE' ||
+      command.type === 'CUSTOMER_LINK_START' ||
       text.startsWith('/link');
 
     // Handle receipt start command directly (customer clicking /start <code>)
@@ -194,6 +195,17 @@ export class TelegramAdminWebhookService {
         String(chatId),
         update.message?.from?.username,
         command.code
+      );
+    }
+
+    // Handle customer linking command
+    if (command.type === 'CUSTOMER_LINK_START') {
+      return this.handleCustomerLinkStart(
+        chatId,
+        telegramUserId,
+        chatId,
+        update.message?.from?.username,
+        command.token
       );
     }
 
@@ -283,10 +295,6 @@ export class TelegramAdminWebhookService {
     return { enqueued: true };
   }
 
-  /**
-   * Handle customer clicking /start <code> to claim receipt
-   * Generates JPG image, uploads to R2, and sends via Telegram
-   */
   static async handleReceiptStart(
     chatId: number | string,
     telegramUserId: string,
@@ -295,18 +303,13 @@ export class TelegramAdminWebhookService {
     code: string
   ): Promise<{ enqueued: false }> {
     try {
-      logger.info('Handling receipt start command', { chatId, code });
+      logger.info('Handling receipt start command', { chatId });
 
-      // Step 1: Claim the receipt using the code
-      const claim = await ReceiptLinkService.claimReceipt({
-        code,
-        telegram_user_id: telegramUserId,
-        telegram_chat_id: telegramChatId,
-        telegram_username: telegramUsername,
-      });
+      // Step 1: Validate the receipt code
+      const validation = await ReceiptLinkService.validateReceiptCode(code);
 
       // Step 2: Generate receipt JPG image and upload to R2
-      const receiptImage = await ReceiptImageService.generateReceiptJpg(claim.order_id);
+      const receiptImage = await ReceiptImageService.generateReceiptJpg(validation.order_id);
 
       // Step 3: Get Telegram bot token
       const telegramConfig = await TelegramService.getTelegramConfig();
@@ -314,24 +317,28 @@ export class TelegramAdminWebhookService {
         throw new Error('Telegram not configured');
       }
 
-      // Step 4: Send the receipt image as a document to the customer
+      // Step 4: Send the receipt image
       await TelegramBotService.sendDocument(
         telegramConfig.bot_token,
         String(chatId),
         receiptImage.url,
-        `🧾 Receipt #${claim.receipt_number}`
+        `🧾 Receipt #${validation.receipt_number}`
       );
 
-      logger.info('Receipt sent successfully', { chatId, orderId: claim.order_id, url: receiptImage.url });
+      // Step 5: Mark the receipt as used
+      await ReceiptLinkService.markReceiptAsUsed(code, {
+        telegram_user_id: telegramUserId,
+        telegram_chat_id: telegramChatId,
+        telegram_username: telegramUsername,
+      });
+
       return { enqueued: false };
     } catch (error: any) {
       logger.error('Failed to handle receipt start', {
         error: error.message,
         chatId,
-        code,
       });
 
-      // Send error message to customer
       let errorMessage = '❌ Failed to retrieve receipt. Please try again.';
       if (error.message === 'Invalid receipt code') {
         errorMessage = '❌ Invalid receipt code.';
@@ -341,11 +348,39 @@ export class TelegramAdminWebhookService {
         errorMessage = '⚠️ This receipt link is no longer active.';
       } else if (error.message === 'Receipt code has expired') {
         errorMessage = '⚠️ This receipt has expired.';
-      } else if (error.message === 'Telegram not configured') {
-        errorMessage = '⚠️ Bot is not configured. Please contact support.';
       }
 
       await TelegramService.sendMessageByChatId(chatId, errorMessage, 'Markdown');
+      return { enqueued: false };
+    }
+  }
+
+  static async handleCustomerLinkStart(
+    chatId: number | string,
+    telegramUserId: number,
+    telegramChatId: number,
+    telegramUsername: string | undefined,
+    token: string
+  ): Promise<{ enqueued: false }> {
+    try {
+      logger.info('Handling customer link start', { chatId });
+      await CustomerLinkingService.handleCustomerLink(
+        token,
+        telegramUserId,
+        telegramChatId,
+        telegramUsername
+      );
+      return { enqueued: false };
+    } catch (error: any) {
+      logger.error('Failed to handle customer link start', {
+        error: error.message,
+        chatId,
+      });
+      await TelegramService.sendMessageByChatId(
+        chatId,
+        '❌ Invalid or expired linking link. Please scan the QR code again.',
+        'Markdown'
+      );
       return { enqueued: false };
     }
   }

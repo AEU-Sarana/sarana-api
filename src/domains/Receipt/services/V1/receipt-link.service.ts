@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import  prisma  from '@src/database/client';
+import prisma from '@src/database/client';
 import { ValidationException, BusinessLogicException } from '@src/shared/exceptions';
 import { auditLogService } from '@src/shared/services/audit-log.service';
 import { logger } from '@src/shared/utils/logger';
@@ -169,7 +169,108 @@ export class ReceiptLinkService {
     };
   }
 
-  private static generateSecureCode(): string {
+  /**
+   * Validate receipt code without marking as used
+   * This allows checking if a receipt is valid before attempting to send it
+   */
+  static async validateReceiptCode(code: string): Promise<{
+    order_id: number;
+    receipt_number: string;
+    link_status: ReceiptLinkStatus;
+  }> {
+    const now = new Date();
+
+    const link = await prisma.receiptLink.findUnique({
+      where: { code },
+      include: {
+        order: true,
+      },
+    });
+
+    if (!link) {
+      throw new ValidationException('Invalid receipt code');
+    }
+
+    if (link.linkStatus === ReceiptLinkStatus.USED) {
+      throw new BusinessLogicException('This receipt code was already used');
+    }
+
+    if (link.linkStatus === ReceiptLinkStatus.REVOKED) {
+      throw new BusinessLogicException('This receipt code is no longer active');
+    }
+
+    if (link.expiresAt <= now) {
+      await prisma.receiptLink.update({
+        where: { receiptLinkId: link.receiptLinkId },
+        data: { linkStatus: ReceiptLinkStatus.EXPIRED },
+      });
+      throw new BusinessLogicException('Receipt code has expired');
+    }
+
+    if (!link.order || Number(link.order.totalAmount) <= 0) {
+      throw new BusinessLogicException('Order is not eligible for receipt claim');
+    }
+
+    return {
+      order_id: link.orderId,
+      receipt_number: link.order.receiptNumber,
+      link_status: link.linkStatus as ReceiptLinkStatus,
+    };
+  }
+
+  /**
+   * Mark receipt as used after successful delivery
+   * This should only be called after the receipt has been successfully sent
+   */
+  static async markReceiptAsUsed(
+    code: string,
+    input: {
+      telegram_user_id: string;
+      telegram_chat_id: string;
+      telegram_username?: string;
+    }
+  ): Promise<void> {
+    const now = new Date();
+
+    const link = await prisma.receiptLink.findUnique({
+      where: { code },
+    });
+
+    if (!link) {
+      throw new ValidationException('Invalid receipt code');
+    }
+
+    // Double-check it's still in a valid state
+    if (link.linkStatus === ReceiptLinkStatus.USED) {
+      // Already marked as used, this is idempotent
+      return;
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.receiptLink.update({
+        where: { receiptLinkId: link.receiptLinkId },
+        data: {
+          linkStatus: ReceiptLinkStatus.USED,
+          usedAt: now,
+          telegramUserId: parseInt(input.telegram_user_id, 10),
+          telegramChatId: parseInt(input.telegram_chat_id, 10),
+          telegramUsername: input.telegram_username || null,
+        },
+      });
+    });
+
+    await auditLogService.createAuditLog({
+      action: 'RECEIPT_LINK_CLAIMED',
+      resource: 'ReceiptLink',
+      entityId: link.receiptLinkId,
+      details: {
+        order_id: link.orderId,
+        telegram_user_id: input.telegram_user_id,
+      },
+    });
+  }
+
+  public static generateSecureCode(): string {
     return crypto.randomBytes(24).toString('base64url');
   }
 }

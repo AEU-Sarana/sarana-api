@@ -19,6 +19,7 @@ export const pendingStockInBlocks = new Map<string, PendingStockInBlock>();
 export const stockInDrafts = new Map<string, StockInDraft>();
 export const pendingStockAdjustBlocks = new Map<string, PendingStockAdjustBlock>();
 export const stockAdjustDrafts = new Map<string, StockAdjustDraft>();
+export const linkAttempts = new Map<string, { count: number; lastAttempt: number }>();
 
 export const DEFAULT_EXPIRES_MINUTES = 10;
 export const MAX_CUSTOM_RANGE_DAYS = 31;

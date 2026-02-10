@@ -1,0 +1,7 @@
+CREATE TABLE customers (
+    customer_id SERIAL PRIMARY KEY,
+    device_id VARCHAR(255) UNIQUE,
+    full_name VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

@@ -6,9 +6,7 @@ export const telegramWebhookValidator = [
     .isInt({ min: 1 })
     .withMessage('update_id must be a positive integer'),
   body().custom((value) => {
-    if (!value || (!value.message && !value.callback_query)) {
-      throw new Error('message or callback_query is required');
-    }
+    // Basic check for update_id is enough, we handle relevant fields in the service
     return true;
   }),
 ];

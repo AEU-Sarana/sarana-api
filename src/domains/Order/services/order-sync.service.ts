@@ -1,4 +1,4 @@
-import  prisma  from '@src/database/client';
+import prisma from '@src/database/client';
 import { StockService } from '@src/domains/Stock/services/stock.service';
 import {
   SyncOrdersRequest,
@@ -11,6 +11,9 @@ import { logger } from '@src/shared/utils/logger';
 import { auditLogService } from '@src/shared/services/audit-log.service';
 import { TelegramAdminOrderNotifyService } from '@src/domains/TelegramAdminBot/services/telegram-admin-order-notify.service';
 import { parseClientDateTime } from '@src/shared/utils/date-utils';
+import { ReceiptLinkService } from '@src/domains/Receipt/services/V1/receipt-link.service';
+import { ReceiptLinkStatus } from '@src/domains/Receipt/enums/V1/receipt-link-status.enum';
+import { add } from 'date-fns';
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -136,6 +139,24 @@ export class OrderSyncService {
               });
             }
 
+            // SECURE UPGRADE: If existing order has no receipt link, generate one
+            const hasLink = await tx.receiptLink.findFirst({
+              where: { orderId: existingOrder.orderId }
+            });
+
+            if (!hasLink) {
+              const secureCode = ReceiptLinkService.generateSecureCode();
+              await tx.receiptLink.create({
+                data: {
+                  orderId: existingOrder.orderId,
+                  code: secureCode,
+                  linkStatus: ReceiptLinkStatus.PENDING,
+                  expiresAt: add(new Date(), { minutes: 20 }),
+                  createdBy: currentUserId,
+                }
+              });
+            }
+
             updatedCount++;
             return {
               order_uuid: orderData.order_uuid,
@@ -186,6 +207,18 @@ export class OrderSyncService {
                 },
               });
             }
+
+            // 3. SECURE UPGRADE: Automatically generate a secure ReceiptLink for new orders
+            const secureCode = ReceiptLinkService.generateSecureCode();
+            await tx.receiptLink.create({
+              data: {
+                orderId: newOrder.orderId,
+                code: secureCode,
+                linkStatus: ReceiptLinkStatus.PENDING,
+                expiresAt: add(new Date(), { minutes: 20 }),
+                createdBy: currentUserId,
+              }
+            });
 
             // Auto stock deduction (Stock Out)
             for (const item of orderData.items) {

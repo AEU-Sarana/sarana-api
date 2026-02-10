@@ -3,8 +3,8 @@ import { TelegramAdminCommand, TelegramWebhookPayload } from '@src/domains/Teleg
 export class TelegramAdminParserService {
   static parse(update: TelegramWebhookPayload) {
     return {
-      telegramUserId: update.message?.from?.id || update.callback_query?.from?.id!,
-      chatId: update.message?.chat?.id || update.callback_query?.message?.chat?.id!,
+      telegramUserId: update.message?.from?.id || update.callback_query?.from?.id || 0,
+      chatId: update.message?.chat?.id || update.callback_query?.message?.chat?.id || 0,
       text: update.message?.text,
       callbackData: update.callback_query?.data
     };
@@ -21,6 +21,9 @@ export class TelegramAdminParserService {
     if (command === '/start') {
       const code = parts[1];
       if (code) {
+        if (code.startsWith('LINK_')) {
+          return { type: 'CUSTOMER_LINK_START', token: code.substring(5) };
+        }
         return { type: 'RECEIPT_START', code };
       }
       return { type: 'START' };

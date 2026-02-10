@@ -5,10 +5,15 @@ import { telegramWebhookValidator } from '@src/domains/TelegramAdminBot/validato
 import { authenticateToken } from '@src/shared/middleware/auth.middleware';
 import { requireAdmin } from '@src/shared/middleware/authorization.middleware';
 
+import { telegramWebhookSecretMiddleware } from '@src/shared/middleware/telegram-webhook.middleware';
+import { telegramWebhookRateLimiter } from '@src/shared/middleware/rate-limit.middleware';
+
 const router: IRouter = Router();
 
 router.post(
   '/webhook',
+  telegramWebhookRateLimiter,
+  telegramWebhookSecretMiddleware,
   ...validateRequest(telegramWebhookValidator),
   TelegramAdminBotController.webhook
 );

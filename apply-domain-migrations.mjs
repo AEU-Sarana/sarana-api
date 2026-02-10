@@ -6,7 +6,7 @@ import path from 'node:path';
 /* ================================
    BOOTSTRAP
 ================================ */
-const rootDir = process.cwd(); // ✅ ALWAYS project root when run via pnpm
+const rootDir = process.cwd();
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 /* ================================
@@ -41,6 +41,9 @@ const domainConfig = {
   shared: {
     tables: ['audit_logs'],
   },
+  customer: {
+    tables: ['customers', 'customer_telegram_links', 'receipt_deliveries'],
+  },
 };
 
 /* ================================
@@ -64,13 +67,16 @@ const migrationOrder = [
   'telegram/202601180000014_create_telegram_admin_messages_table',
   'setting/202601180000016_create_settings_table',
   'shared/202601180000017_create_audit_logs_table',
+  'customer/20260210000001_create_customers_table',
+  'customer/20260210000002_create_customer_telegram_links_table',
+  'customer/20260210000003_create_receipt_deliveries_table',
+  'customer/20260210000004_create_customer_linking_tokens_table',
 ];
 
 /* ================================
    HELPERS
 ================================ */
 function extractTableName(sql) {
-  // Handles: CREATE TABLE stocks ( ... ) / CREATE TABLE IF NOT EXISTS stocks ( ... )
   const m = sql.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?("?[\w-]+"?)/i);
   if (!m) return null;
   return m[1].replaceAll('"', '');
