@@ -10,7 +10,7 @@ interface ReceiptImageResult {
   key: string;
 }
 
-const DEFAULT_LOGO_URL = 'https://images-platform.99static.com//7nSmR0ty6OpJURaZb9AVBoPzMnk=/360x114:860x614/fit-in/500x500/99designs-contests-attachments/57/57021/attachment_57021024';
+const DEFAULT_LOGO_URL = 'https://sokly.sgp1.digitaloceanspaces.com/image-2022-07-02-164325-1656755040dyQxA.jpg';
 
 export class ReceiptImageService {
   /**

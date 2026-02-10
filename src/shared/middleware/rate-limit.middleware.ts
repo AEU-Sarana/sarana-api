@@ -41,9 +41,6 @@ const receiptScanRateLimiterConfig = rateLimit({
     message: 'Too many scans, please try again later',
     code: 'SCAN_RATE_LIMIT_EXCEEDED',
   },
-  // Add sub-limit for burst
-  // We can't easily do nested limiters with express-rate-limit 
-  // without multiple instances, so we'll pick a safe middle ground
 });
 
 // Rate limit for telegram webhook (production only)

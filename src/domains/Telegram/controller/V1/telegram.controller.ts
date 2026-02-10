@@ -147,30 +147,4 @@ export class TelegramController {
       );
     }
   }
-
-  // POST /api/v1/telegram/setup-webhook
-  static async setupWebhook(req: Request, res: Response): Promise<void> {
-    try {
-      const { webhook_url } = req.body;
-
-      if (!webhook_url) {
-        throw new BusinessLogicException('webhook_url is required', 'VALIDATION_ERROR', 400);
-      }
-
-      const success = await TelegramService.setupBotWebhook(webhook_url);
-
-      res.json({
-        success,
-        message: success ? 'Webhook configured successfully' : 'Failed to configure webhook'
-      });
-    } catch (error: any) {
-      logger.error('Setup Telegram webhook error', { error: error.message });
-      throw new BusinessLogicException(
-        'Failed to setup Telegram webhook',
-        'TELEGRAM_WEBHOOK_SETUP_ERROR',
-        error.statusCode || 500,
-        { reason: error.message }
-      );
-    }
-  }
 }

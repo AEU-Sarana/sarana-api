@@ -1,10 +1,3 @@
-// db-generate.mjs (FINAL - collision safe)
-// Flow:
-// Database -> pnpm db:pull (writes src/database/prisma/introspected.prisma)
-// -> pnpm db:generate (this file)
-// -> writes src/database/generated/schema.prisma (PascalCase + camelCase)
-// -> runs prisma generate to ./src/database/generated
-
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -160,9 +153,6 @@ function replaceArrayArg(rest, key, items) {
 // relation naming (collision-safe)
 // -------------------------
 function relationNameFromFkFields(targetModel, fkFields) {
-  // fkFields already camelCase after mapping
-  // common patterns:
-  // createdBy -> createdByUser, updatedBy -> updatedByUser, approvedBy -> approvedByUser, userId -> user
   if (!fkFields || fkFields.length === 0) return lowerFirst(targetModel);
 
   const fk = fkFields[0];
@@ -216,7 +206,7 @@ function transformSchema(schemaText) {
   }
 
   // 3) Build scalar field maps per model (snake_case scalar -> camelCase)
-  const fieldMapsByModel = new Map(); // modelName -> Map(old->new)
+  const fieldMapsByModel = new Map(); 
   const blocksNow = getModelBlocks(out);
 
   for (const b of blocksNow) {

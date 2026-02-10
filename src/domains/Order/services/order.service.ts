@@ -26,9 +26,9 @@ export class OrderService {
 
     // Role-based filtering
     if (currentUserRole === 'SELLER') {
-      where.sellerId = currentUserId; // Seller only sees own orders
+      where.sellerId = currentUserId; 
     } else if (seller_id) {
-      where.sellerId = seller_id; // Admin can filter by seller
+      where.sellerId = seller_id; 
     }
 
     if (shift_id) where.shiftId = shift_id;

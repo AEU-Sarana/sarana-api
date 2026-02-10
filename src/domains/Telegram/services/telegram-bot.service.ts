@@ -149,31 +149,6 @@ export class TelegramBotService {
   }
 
   /**
-   * Set webhook for the bot
-   */
-  static async setWebhook(
-    botToken: string,
-    url: string,
-    secretToken?: string
-  ): Promise<boolean> {
-    try {
-      const response = await axios.post(`${this.BASE_URL}${botToken}/setWebhook`, {
-        url,
-        secret_token: secretToken,
-      });
-      return response.data.ok === true;
-    } catch (error: any) {
-      if (error.response) {
-        throw new TelegramAPIError(
-          error.response.data.error_code,
-          error.response.data.description
-        );
-      }
-      throw new TelegramAPIError(0, error.message);
-    }
-  }
-
-  /**
    * Test bot token validity
   */
   static async getMe(botToken: string): Promise<TelegramBotInfo> {

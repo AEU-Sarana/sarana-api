@@ -149,27 +149,6 @@ export class TelegramService {
     return config;
   }
 
-  /**
-   * Setup Telegram Bot Webhook programmatically
-   */
-  static async setupBotWebhook(webhookUrl: string): Promise<boolean> {
-    const config = await this.getActiveConfigOrThrow();
-
-    // Ensure the secret token is available for the webhook security
-    const secretToken = process.env.TELEGRAM_WEBHOOK_SECRET;
-
-    logger.info('Setting up Telegram webhook', {
-      webhookUrl,
-      hasSecret: !!secretToken
-    });
-
-    return TelegramBotService.setWebhook(
-      config.bot_token,
-      webhookUrl,
-      secretToken
-    );
-  }
-
   private static async sendMessageWithMarkup(
     botToken: string,
     chatId: number | string,
