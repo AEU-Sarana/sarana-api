@@ -3,6 +3,7 @@ import { ValidationException } from '@src/shared/exceptions';
 import { fileStorageService } from '@src/shared/services/file-storage.service';
 import sharp from 'sharp';
 import type { ReceiptData } from './receipt-canvas.renderer';
+import type { ReceiptQrPayload } from '@src/domains/Receipt/types/receipt-qr.types';
 
 interface ReceiptImageResult {
   url: string;
@@ -19,6 +20,36 @@ interface ReceiptImageBufferResult {
 const DEFAULT_LOGO_URL = 'https://sokly.sgp1.digitaloceanspaces.com/image-2022-07-02-164325-1656755040dyQxA.jpg';
 
 export class ReceiptImageService {
+  private static buildReceiptDataFromPayload(
+    payload: ReceiptQrPayload,
+    settings: {
+      storeName?: string | null;
+      logoPath?: string | null;
+      isLogoEnabled?: boolean | null;
+      phone?: string | null;
+      address?: string | null;
+      footerNote?: string | null;
+      isFooterEnabled?: boolean | null;
+    }
+  ): ReceiptData {
+    return {
+      storeName: payload.store_name || settings.storeName || 'Name',
+      logoPath: settings.logoPath || DEFAULT_LOGO_URL,
+      isLogoEnabled: settings.isLogoEnabled ?? true,
+      phone: payload.phone || settings.phone || '0978759989',
+      address: payload.address || settings.address || 'Address',
+      receiptNumber: payload.receipt_number,
+      orderDate: new Date(payload.order_date),
+      orderItems: payload.items.map(item => ({
+        productName: item.product_name,
+        quantity: item.qty,
+        subtotal: Number(item.subtotal),
+      })),
+      totalAmount: Number(payload.total_amount),
+      footerNote: payload.footer_note || settings.footerNote || undefined,
+      footerEnabled: settings.isFooterEnabled ?? true,
+    };
+  }
   private static async buildReceiptJpg(orderId: number): Promise<{
     buffer: Buffer;
     receiptNumber: string;
@@ -89,6 +120,38 @@ export class ReceiptImageService {
     const { buffer: jpgBuffer, receiptNumber } = await this.buildReceiptJpg(orderId);
     const filename = `receipt_${receiptNumber}_${Date.now()}.jpg`;
     return { buffer: jpgBuffer, filename };
+  }
+
+  /**
+   * Generates a receipt image from offline QR payload and uploads to storage.
+   */
+  static async generateReceiptJpgFromPayload(payload: ReceiptQrPayload): Promise<ReceiptImageResult> {
+    const settings = await prisma.receiptSetting.findFirst();
+    const receiptData = this.buildReceiptDataFromPayload(payload, {
+      storeName: settings?.storeName,
+      logoPath: settings?.logoPath,
+      isLogoEnabled: settings?.isLogoEnabled,
+      phone: settings?.phone,
+      address: settings?.address,
+      footerNote: settings?.footerNote,
+      isFooterEnabled: settings?.isFooterEnabled,
+    });
+
+    const { renderReceiptToPng } = await import('./receipt-canvas.renderer.js');
+    const pngBuffer = await renderReceiptToPng(receiptData);
+    const jpgBuffer = await sharp(pngBuffer)
+      .jpeg({ quality: 95, mozjpeg: true })
+      .toBuffer();
+
+    const filename = `receipt_${payload.receipt_number}_${Date.now()}.jpg`;
+    const result = await fileStorageService.uploadBuffer(
+      jpgBuffer,
+      filename,
+      'image/jpeg',
+      'receipts'
+    );
+
+    return { url: result.url, filename: result.filename, key: result.key, buffer: jpgBuffer };
   }
 
   /**

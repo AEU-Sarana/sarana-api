@@ -34,8 +34,13 @@ const authRateLimiterConfig = rateLimit({
 
 // Strict rate limit for receipt scanning (production only)
 const receiptScanRateLimiterConfig = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 60, // 60 requests per hour total per IP
+  windowMs: 60 * 60 * 1000, 
+  max: 60, 
+  keyGenerator: (req: Request) => {
+    const receiptCode =
+      typeof req.body?.receipt_code === 'string' ? req.body.receipt_code : 'unknown';
+    return `${req.ip}:${receiptCode}`;
+  },
   message: {
     success: false,
     message: 'Too many scans, please try again later',
@@ -46,8 +51,8 @@ const receiptScanRateLimiterConfig = rateLimit({
 // Rate limit for telegram webhook (production only)
 // Even with a secret token, we want to prevent DDoS
 const telegramWebhookRateLimiterConfig = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 300, // 300 updates per minute from Telegram IPs
+  windowMs: 1 * 60 * 1000, 
+  max: 300, 
   message: {
     success: false,
     message: 'Too many updates',

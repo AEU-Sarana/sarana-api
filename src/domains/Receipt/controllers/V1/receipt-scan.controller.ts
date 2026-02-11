@@ -16,69 +16,99 @@ export class ReceiptScanController {
         const { receipt_code, device_id } = req.body || {};
         try {
 
+            if (device_id) {
+                return res.status(400).json({ success: false, message: 'device_id is not allowed' });
+            }
+
             if (!receipt_code || receipt_code.length < 20) {
                 return res.status(400).json({ success: false, message: 'Invalid receipt_code format' });
             }
 
+            if (/^RCP-/i.test(receipt_code)) {
+                return res.status(400).json({ success: false, message: 'Invalid receipt_code format' });
+            }
+
             // 1. Find receipt and associated order using secure random code
-            const receiptLink = await prisma.receiptLink.findUnique({
-                where: { code: receipt_code },
-                include: { order: true }
-            });
+            const receiptRows = await prisma.$queryRawUnsafe<{
+                receipt_link_id: number;
+                order_id: number;
+                code: string;
+                link_status: string;
+                customer_id: number | null;
+            }[]>(
+                `
+                SELECT receipt_link_id, order_id, code, link_status, customer_id
+                FROM receipt_links
+                WHERE code = $1
+                LIMIT 1
+                `,
+                receipt_code
+            );
+            const receiptLink = receiptRows[0];
 
             if (!receiptLink) {
                 return res.status(404).json({ success: false, message: 'Receipt not found' });
             }
 
-            const orderId = receiptLink.orderId;
+            const orderId = receiptLink.order_id;
 
-            // 2. Identify or Create Customer by device_id
-            let customer = await prisma.customer.findUnique({
-                where: { deviceId: device_id || 'unknown' }
-            });
-
-            if (!customer && device_id) {
-                customer = await prisma.customer.create({
-                    data: {
-                        deviceId: device_id,
-                        fullName: `Guest ${device_id.slice(-4)}`
-                    }
+            // 2. Identify or Create Customer by receipt_link.customer_id
+            let customerId = receiptLink.customer_id;
+            if (!customerId) {
+                const customer = await prisma.customer.create({
+                    data: { fullName: 'Guest' }
                 });
+                customerId = customer.customerId;
+                await prisma.$executeRawUnsafe(
+                    `
+                    UPDATE receipt_links
+                    SET customer_id = $1
+                    WHERE receipt_link_id = $2
+                    `,
+                    customerId,
+                    receiptLink.receipt_link_id
+                );
             }
 
             // 3. Check if customer is linked to Telegram
-            const link = customer ? await prisma.customerTelegramLink.findUnique({
-                where: { customerId: customer.customerId }
-            }) : null;
+            const link = await prisma.customerTelegramLink.findUnique({
+                where: { customerId: customerId }
+            });
 
             if (link && link.telegramChatId) {
+                const existing = await ReceiptDeliveryService.getExistingDelivery(orderId, link.telegramChatId, {
+                    receiptLinkId: receiptLink.receipt_link_id,
+                    receiptCode: receiptLink.code,
+                });
+
+                if (existing?.status === 'SENT' && existing.telegramMessageId != null) {
+                    return res.json({
+                        linked: true,
+                        sent: true,
+                        sentNow: false,
+                        alreadySent: true
+                    });
+                }
+
                 const queue = getReceiptScanQueue();
                 await queue.add('send-receipt', {
                     orderId,
-                    receiptLinkId: receiptLink.receiptLinkId,
+                    receiptLinkId: receiptLink.receipt_link_id,
                     receiptCode: receiptLink.code,
                     telegramChatId: link.telegramChatId.toString(),
                     telegramUserId: link.telegramUserId ? link.telegramUserId.toString() : null,
-                    linkStatus: receiptLink.linkStatus
+                    linkStatus: receiptLink.link_status
                 });
 
                 return res.json({
                     linked: true,
-                    sent: true,
-                    sentNow: false,
-                    alreadySent: false,
+                    sent: false,
                     queued: true
-                });
-            }
-            if (!customer) {
-                // Fallback: create an anonymous customer for this scan
-                customer = await prisma.customer.create({
-                    data: { fullName: 'Anonymous Scanner' }
                 });
             }
 
             const token = await CustomerLinkingService.generateLinkToken({
-                customer_id: customer.customerId,
+                customer_id: customerId,
                 receipt_code
             });
 

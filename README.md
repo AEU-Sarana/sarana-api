@@ -47,7 +47,7 @@ This feature allows customers to receive receipts automatically on Telegram afte
 
 ### Flow for Flutter App:
 1. **Scan QR**: QR code contains only the `receipt_code`.
-2. **Scan API**: Flutter calls `POST /api/v1/receipts/scan` with `{ receipt_code, device_id }`.
+2. **Scan API**: Flutter calls `POST /api/v1/receipts/scan` with `{ receipt_code }`.
 3. **Response**: 
    - If user is already linked: returns `{ linked: true, sent: true }`. Receipt is already in their Telegram.
    - If not linked: returns `{ linked: false, telegram_link: "..." }`. 
@@ -56,3 +56,47 @@ This feature allows customers to receive receipts automatically on Telegram afte
 
 ### API Endpoints:
 - `POST /api/v1/receipts/scan`: Public endpoint for QR scanning.
+- `POST /api/v1/receipts/verify`: Verify offline QR payload with HMAC (no order sync required).
+
+## Offline Receipt QR (HMAC)
+
+Endpoint: `POST /api/v1/receipts/verify`
+
+Request (preferred):
+```json
+{
+  "qr": "<base64url(payload)>.<hex_signature>"
+}
+```
+
+Request (alternate):
+```json
+{
+  "payload": {
+    "receipt_code": "random-high-entropy",
+    "receipt_number": "RCP-...",
+    "order_date": "2026-02-10T10:00:00.000Z",
+    "items": [
+      { "product_name": "Item A", "qty": 2, "subtotal": 10.5 }
+    ],
+    "total_amount": 10.5
+  },
+  "signature": "<hex>"
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "verified": true,
+  "receipt_number": "RCP-...",
+  "total_amount": 10.5,
+  "receipt_image_url": "https://.../receipts/receipt_...jpg"
+}
+```
+
+HMAC:
+- Algorithm: `HMAC-SHA256`
+- Secret: `RECEIPT_QR_HMAC_SECRET` (must exist on POS and backend)
+- Signature: hex digest over canonicalized JSON payload (sorted keys)

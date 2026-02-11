@@ -30,6 +30,14 @@ type ReceiptDeliveryRow = {
 export class ReceiptDeliveryService {
   private static receiptDeliveryColumnCache: Record<string, boolean | undefined> = {};
 
+  static async getExistingDelivery(
+    orderId: number,
+    telegramChatId: bigint,
+    options: DeliveryKey = {}
+  ): Promise<ExistingDelivery | null> {
+    return this.findExistingDelivery(orderId, telegramChatId, options);
+  }
+
   static async sendReceiptIdempotent(
     orderId: number,
     telegramChatId: bigint,
