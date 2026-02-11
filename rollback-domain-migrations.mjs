@@ -55,12 +55,18 @@ const domainConfig = {
   shared: {
     tables: ['audit_logs'],
   },
+
+  backup: {
+    tables: ['backup_runs', 'backups'],
+  },
 };
 
 /* ================================
    MIGRATION ROLLBACK ORDER (REVERSE)
 ================================ */
 const migrationRollbackOrder = [
+  'backup/20260211000006_create_backup_runs_table',
+  'backup/20260211000005_create_backups_table',
   'shared/202601180000014_create_audit_logs_table',
   'setting/202601180000013_create_settings_table',
   'device-binding/202601180000012_create_device_bindings_table',

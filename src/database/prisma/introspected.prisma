@@ -452,3 +452,38 @@ model customer_linking_tokens {
 
   @@index([expires_at], map: "idx_linking_tokens_expires")
 }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model backup_runs {
+  run_id                   Int       @id @default(autoincrement())
+  triggered_by             String
+  run_type                 String
+  backup_name              String
+  schedule                 String
+  status                   String
+  error_code               String?
+  error_message            String?
+  object_key               String?
+  checksum                 String?
+  encryption_method        String?
+  retention_policy_applied Boolean   @default(false)
+  started_at               DateTime  @default(now()) @db.Timestamp(6)
+  completed_at             DateTime? @db.Timestamp(6)
+  created_at               DateTime  @default(now()) @db.Timestamp(6)
+
+  @@index([created_at], map: "idx_backup_runs_created_at")
+  @@index([status], map: "idx_backup_runs_status")
+}
+
+model backups {
+  backup_id   Int      @id @default(autoincrement())
+  backup_name String
+  object_key  String
+  file_size   BigInt
+  checksum    String
+  status      String
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([created_at], map: "idx_backups_created_at")
+  @@index([status], map: "idx_backups_status")
+}

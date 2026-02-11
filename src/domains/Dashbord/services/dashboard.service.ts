@@ -121,18 +121,27 @@ export class DashboardService {
   ): Promise<AdminDashboardOverview> {
     const [ordersAgg, totalShifts, activeShifts] = await Promise.all([
       prisma.order.aggregate({
-        where: { createdAt: { gte: start, lte: end } },
+        where: {
+          sellerId: currentUserId,
+          createdAt: { gte: start, lte: end },
+        },
         _count: { orderId: true },
         _sum: { totalAmount: true },
       }),
-      prisma.shift.count({ where: { shiftDate: { gte: start, lte: end } } }),
-      prisma.shift.count({ where: { status: 'ACTIVE' } }),
+      prisma.shift.count({
+        where: {
+          sellerId: currentUserId,
+          shiftDate: { gte: start, lte: end },
+        },
+      }),
+      prisma.shift.count({ where: { sellerId: currentUserId, status: 'ACTIVE' } }),
     ]);
 
     const totalSalesCount = ordersAgg._count.orderId ?? 0;
     const totalSalesAmount = Number(ordersAgg._sum.totalAmount ?? 0);
 
     const recentOrders = await prisma.order.findMany({
+      where: { sellerId: currentUserId },
       orderBy: { createdAt: 'desc' },
       take: ACTIVITY_LIMIT,
       select: {
@@ -145,6 +154,7 @@ export class DashboardService {
     });
 
     const recentMovements = await prisma.stockMovement.findMany({
+      where: { createdBy: currentUserId },
       orderBy: { createdAt: 'desc' },
       take: ACTIVITY_LIMIT,
       select: {
@@ -181,12 +191,22 @@ export class DashboardService {
       .slice(0, ACTIVITY_LIMIT * 2);
 
     const stocks = await prisma.stock.findMany({
-      include: { product: { select: { productId: true, productName: true, lowStockThreshold: true } } },
+      include: {
+        product: {
+          select: {
+            productId: true,
+            productName: true,
+            lowStockThreshold: true,
+            createdBy: true,
+          },
+        },
+      },
     });
 
     const lowStockWarnings = stocks
       .filter(
         (stock) =>
+          stock.product.createdBy === currentUserId &&
           stock.product.lowStockThreshold != null &&
           stock.quantity <= (stock.product.lowStockThreshold ?? 0)
       )
@@ -200,7 +220,7 @@ export class DashboardService {
       }));
 
     const activeShiftList = await prisma.shift.findMany({
-      where: { status: 'ACTIVE' },
+      where: { sellerId: currentUserId, status: 'ACTIVE' },
       select: { shiftId: true, lastSyncTime: true },
     });
 

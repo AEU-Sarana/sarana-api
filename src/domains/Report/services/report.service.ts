@@ -3,7 +3,6 @@ import { DailySalesReportRequest, DailySalesReportResponse, SalesHistoryReportRe
 import { ReportType } from '../enums/report-type.enum';
 import { ReportExportFormat } from '../enums/export-format.enum';
 import { ValidationException } from '@src/shared/exceptions';
-import { Role } from '@src/shared/config/permissions';
 import { logger } from '@src/shared/utils/logger';
 import { ReportCacheService } from './report-cache.service';
 import { ReportExportService } from './report-export.service';
@@ -30,7 +29,7 @@ export class ReportService {
         throw new ValidationException('Invalid date format. Expected YYYY-MM-DD');
       }
 
-      const effectiveSellerId = currentUserRole === Role.ADMIN ? seller_id : currentUserId;
+      const effectiveSellerId = currentUserId;
 
       // Cache check
       const cacheKey = `daily_report:${date}:${effectiveSellerId || 'all'}`;
@@ -118,32 +117,6 @@ export class ReportService {
         end_time: row.end_time ? new Date(row.end_time).toISOString() : null,
       }));
 
-      if (!effectiveSellerId) {
-        const sellers = await prisma.user.findMany({
-          where: { role: Role.SELLER, status: 'active' },
-          select: { userId: true, fullName: true },
-        });
-
-        const existing = new Map(shifts_breakdown.map(s => [s.seller_id, s]));
-        const missingSellers = sellers.filter(seller => !existing.has(seller.userId));
-
-        if (missingSellers.length) {
-          const missingBreakdown: ShiftBreakdown[] = missingSellers.map(seller => ({
-            seller_id: seller.userId,
-            seller_name: seller.fullName,
-            shift_count: 0,
-            total_sales: 0,
-            total_orders: 0,
-            start_time: null,
-            end_time: null,
-          }));
-
-          shifts_breakdown = [...shifts_breakdown, ...missingBreakdown].sort((a, b) =>
-            a.seller_name.localeCompare(b.seller_name)
-          );
-        }
-      }
-
       // Top products with product codes and average prices
       const topProductsRaw = await prisma.orderItem.groupBy({
         by: ['productId'],
@@ -224,6 +197,7 @@ export class ReportService {
         FROM stocks s
         JOIN products p ON p.product_id = s.product_id
         WHERE p.status = 'active'
+          AND p.created_by = ${currentUserId}
           AND (
             s.quantity < 0
             OR (p.low_stock_threshold IS NOT NULL AND s.quantity <= p.low_stock_threshold)
@@ -346,7 +320,7 @@ export class ReportService {
   ): Promise<SalesHistoryReportResponse> {
     try {
       const { start_date, end_date, seller_id, product_id, page = 1, limit = 50 } = request;
-      const effectiveSellerId = currentUserRole === Role.ADMIN ? seller_id : currentUserId;
+      const effectiveSellerId = currentUserId;
 
       // Validate date formats
       if (!start_date || !/^\d{4}-\d{2}-\d{2}$/.test(start_date)) {
@@ -538,6 +512,7 @@ export class ReportService {
               FROM stocks s
               JOIN products p ON s.product_id = p.product_id
               WHERE p.status = 'active'
+                AND p.created_by = ${currentUserId}
                 AND (
                   s.quantity < 0
                   OR (p.low_stock_threshold IS NOT NULL AND s.quantity <= p.low_stock_threshold)
@@ -562,6 +537,7 @@ export class ReportService {
               SELECT COUNT(*)::int AS total_active_products
               FROM products p
               WHERE p.status = 'active'
+                AND p.created_by = ${currentUserId}
           `;
 
         const response = {
@@ -588,7 +564,7 @@ export class ReportService {
       // Normal case (all stocks)
       const stocks = await prisma.stock.findMany({
         include: { product: true },
-        where: { product: { status: 'active' } }
+        where: { product: { status: 'active', createdBy: currentUserId } }
       });
 
       const stock_report = stocks.map(s => ({

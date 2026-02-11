@@ -23,10 +23,7 @@ export class ShiftService {
     currentUserId: number,
     currentUserRole: string
   ): Promise<{ shift_id: number } | null> {
-    const where =
-      currentUserRole === 'SELLER'
-        ? { sellerId: currentUserId, status: 'CLOSED' }
-        : { status: 'CLOSED' };
+    const where = { sellerId: currentUserId, status: 'CLOSED' };
 
     const latestShift = await prisma.shift.findFirst({
       where,
@@ -257,11 +254,7 @@ export class ShiftService {
     const { page = 1, limit = 20, seller_id, status, start_date, end_date } = request;
 
     const where: any = {};
-    if (currentUserRole === 'SELLER') {
-      where.sellerId = currentUserId;
-    } else if (seller_id) {
-      where.sellerId = seller_id;
-    }
+    where.sellerId = currentUserId;
     if (status) where.status = status;
     if (start_date || end_date) {
       where.shiftDate = {};
@@ -294,6 +287,7 @@ export class ShiftService {
 
     // Get all unique sellers who have shifts (for filtering dropdown)
     const allShifts = await prisma.shift.findMany({
+      where: { sellerId: currentUserId },
       select: {
         sellerId: true,
         user: {
@@ -353,10 +347,7 @@ export class ShiftService {
     currentUserId: number,
     currentUserRole: string
   ): Promise<GetShiftResponse> {
-    const where =
-      currentUserRole === 'SELLER'
-        ? { shiftId, sellerId: currentUserId }
-        : { shiftId };
+    const where = { shiftId, sellerId: currentUserId };
 
     const shift = await prisma.shift.findFirst({
       where,

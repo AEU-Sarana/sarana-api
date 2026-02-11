@@ -2,7 +2,7 @@ import { APP_CONSTANTS } from '@src/shared/config/constants';
 import { env } from '@src/shared/config/env';
 import { logger } from '@src/shared/utils/logger';
 import { StorageFactory } from './storage/storage.factory';
-import type { IStorageProvider, FileUploadResult, UploadOptions } from './storage/storage-provider.interface';
+import type { IStorageProvider, FileUploadResult, StorageFileObject, UploadOptions } from './storage/storage-provider.interface';
 
 /**
  * File Storage Service
@@ -141,6 +141,20 @@ export class FileStorageService {
    */
   async getFileMetadata(key: string) {
     return this.storageProvider.getMetadata(key);
+  }
+
+  /**
+   * List files by prefix/folder
+   */
+  async listFiles(prefix?: string): Promise<StorageFileObject[]> {
+    return this.storageProvider.listFiles(prefix);
+  }
+
+  /**
+   * Download file as buffer by key
+   */
+  async downloadFileBuffer(key: string): Promise<Buffer> {
+    return this.storageProvider.downloadFileBuffer(key);
   }
 
   /**

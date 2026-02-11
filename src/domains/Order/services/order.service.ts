@@ -12,8 +12,7 @@ import { ReceiptLinkStatus } from '@src/domains/Receipt/enums/V1/receipt-link-st
 export class OrderService {
   /**
    * List orders with role-based filtering
-   * - Seller: Only own orders (seller_id from token)
-   * - Admin: All orders (can filter by seller_id)
+   * - Seller/Admin: Only own orders (seller_id from token)
    */
   static async listOrders(
     request: ListOrdersRequest,
@@ -25,11 +24,7 @@ export class OrderService {
     const where: any = {};
 
     // Role-based filtering
-    if (currentUserRole === 'SELLER') {
-      where.sellerId = currentUserId; 
-    } else if (seller_id) {
-      where.sellerId = seller_id; 
-    }
+    where.sellerId = currentUserId;
 
     if (shift_id) where.shiftId = shift_id;
     if (start_date || end_date) {
@@ -105,8 +100,7 @@ export class OrderService {
 
   /**
    * Get order details by ID
-   * - Seller: Can only access own orders
-   * - Admin: Can access any order
+   * - Seller/Admin: Can only access own orders
    */
   static async getOrder(
     orderId: number,
@@ -151,7 +145,7 @@ export class OrderService {
     }
 
     // Role-based access control
-    if (currentUserRole === 'SELLER' && order.sellerId !== currentUserId) {
+    if (order.sellerId !== currentUserId) {
       throw new ValidationException('You can only access your own orders');
     }
 
