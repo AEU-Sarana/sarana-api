@@ -12,6 +12,13 @@ let lastRunKey: string | null = null;
 
 type BackupFrequency = 'daily' | 'weekly' | 'monthly';
 
+function formatTime(value: Date | null | undefined, fallback: string): string {
+  if (!value) return fallback;
+  const hours = value.getUTCHours().toString().padStart(2, '0');
+  const minutes = value.getUTCMinutes().toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
 function getNowInTimezone(timeZone: string): {
   date: string;
   time: string;
@@ -41,18 +48,24 @@ function getNowInTimezone(timeZone: string): {
   return { date, time, weekday, dayOfMonth };
 }
 
-async function loadBackupSettings(): Promise<{ enabled: boolean; frequency: BackupFrequency }> {
+async function loadBackupSettings(): Promise<{
+  enabled: boolean;
+  frequency: BackupFrequency;
+  scheduleTime: string;
+}> {
   const settings = await prisma.appSetting.findFirst({
     orderBy: { updatedAt: 'desc' },
     select: {
       autoBackup: true,
       backupFrequency: true,
+      backupScheduleTime: true,
     },
   });
 
   return {
     enabled: settings?.autoBackup ?? true,
     frequency: (settings?.backupFrequency || 'daily') as BackupFrequency,
+    scheduleTime: formatTime(settings?.backupScheduleTime, DEFAULT_SCHEDULE_TIME),
   };
 }
 
@@ -70,9 +83,10 @@ function getRunKey(now: { date: string }, frequency: BackupFrequency): string {
 
 function shouldRunNow(
   now: { time: string; weekday: string; dayOfMonth: number },
-  frequency: BackupFrequency
+  frequency: BackupFrequency,
+  scheduleTime: string
 ): boolean {
-  if (now.time < DEFAULT_SCHEDULE_TIME) {
+  if (now.time < scheduleTime) {
     return false;
   }
 
@@ -96,7 +110,7 @@ export async function runBackupSchedulerOnce(): Promise<void> {
     if (!settings.enabled) return;
 
     const now = getNowInTimezone(DEFAULT_TIMEZONE);
-    if (!shouldRunNow(now, settings.frequency)) return;
+    if (!shouldRunNow(now, settings.frequency, settings.scheduleTime)) return;
 
     const runKey = getRunKey(now, settings.frequency);
     if (lastRunKey === runKey) return;
@@ -111,7 +125,7 @@ export async function runBackupSchedulerOnce(): Promise<void> {
     logger.info('Backup scheduler completed run', {
       frequency: settings.frequency,
       runKey,
-      scheduleTime: DEFAULT_SCHEDULE_TIME,
+      scheduleTime: settings.scheduleTime,
       timezone: DEFAULT_TIMEZONE,
     });
   } catch (error: any) {

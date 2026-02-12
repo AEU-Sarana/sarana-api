@@ -11,6 +11,11 @@ export const updateSettingsValidator = [
     .notEmpty()
     .isIn(Object.values(BackupFrequency))
     .withMessage('backup_frequency must be daily, weekly, or monthly'),
+  body('backup_schedule_time')
+    .optional()
+    .isString()
+    .matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .withMessage('backup_schedule_time must be in HH:mm format'),
   body('device_binding_enabled')
     .notEmpty()
     .isBoolean()

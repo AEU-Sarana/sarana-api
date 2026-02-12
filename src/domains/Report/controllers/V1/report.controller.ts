@@ -167,6 +167,37 @@ export class ReportController {
   }
 
   /**
+   * GET /api/v1/reports/income
+   */
+  static async getIncomeReport(req: Request, res: Response): Promise<void> {
+    try {
+      const user = req.user as UserPayload;
+      const rawPeriod = (getStringValue(req.query.period) || 'today').toLowerCase();
+      const period = rawPeriod === 'today' ? 'daily' : rawPeriod;
+
+      logger.info('Get income report request', {
+        userId: user.userId,
+        period,
+        path: req.path,
+      });
+
+      const response = await ReportService.getIncomeReport(period as any);
+
+      res.status(200).json({
+        success: true,
+        data: response,
+        message: 'Income report retrieved successfully',
+      });
+    } catch (error: any) {
+      logger.error('Get income report error', {
+        error: error.message,
+        stack: error.stack,
+      });
+      throw error;
+    }
+  }
+
+  /**
    * POST /api/v1/reports/export
    * Queue a report export job for background processing
    */

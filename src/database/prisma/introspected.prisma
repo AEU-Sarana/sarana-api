@@ -12,6 +12,7 @@ model app_settings {
   setting_id             Int      @id @default(autoincrement())
   auto_backup            Boolean  @default(true)
   backup_frequency       String   @default("daily") @db.VarChar(20)
+  backup_schedule_time   DateTime @default(dbgenerated("'23:30:00'::time without time zone")) @db.Time(6)
   device_binding_enabled Boolean  @default(false)
   report_send_time       DateTime @default(dbgenerated("'23:30:00'::time without time zone")) @db.Time(6)
   report_send_timezone   String   @default("Asia/Phnom_Penh") @db.VarChar(50)

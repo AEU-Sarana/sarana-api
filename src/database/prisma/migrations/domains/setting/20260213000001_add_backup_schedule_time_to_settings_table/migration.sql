@@ -1,0 +1,2 @@
+ALTER TABLE app_settings
+ADD COLUMN IF NOT EXISTS backup_schedule_time TIME NOT NULL DEFAULT '23:30';

@@ -68,6 +68,7 @@ const migrationRollbackOrder = [
   'backup/20260211000006_create_backup_runs_table',
   'backup/20260211000005_create_backups_table',
   'shared/202601180000014_create_audit_logs_table',
+  'setting/20260213000001_add_backup_schedule_time_to_settings_table',
   'setting/202601180000013_create_settings_table',
   'device-binding/202601180000012_create_device_bindings_table',
   'telegram/202601180000011_create_telegram_admin_messages_table',

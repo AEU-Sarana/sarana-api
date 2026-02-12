@@ -165,6 +165,21 @@ export interface ExportReportResponse {
 }
 
 /**
+ * Income Report
+ */
+export type IncomeReportPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+export interface IncomeReportResponse {
+  total_sales: number;
+  total_orders: number;
+  totalItems: number;
+  cogs: number;
+  profit: number;
+  purchasesCost: number;
+  purchasesQty: number;
+}
+
+/**
  * Common Report Pagination
  */
 export interface ReportPagination {
