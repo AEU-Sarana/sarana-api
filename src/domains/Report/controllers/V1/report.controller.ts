@@ -17,8 +17,20 @@ function getStringValue(value: any): string | undefined {
 }
 
 export class ReportController {
+  private static readonly REPORT_TIMEZONE =
+    process.env.REPORT_TIMEZONE || 'Asia/Phnom_Penh';
+
   private static getTodayUTC(): string {
     return new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
+  }
+
+  private static formatDateInTimezone(date: Date, timeZone: string): string {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date);
   }
 
   /**
@@ -81,9 +93,26 @@ export class ReportController {
     try {
       const user = req.user as UserPayload;
 
-      const today = ReportController.getTodayUTC();
-      const startDateStr = getStringValue(req.query.start_date) || today;
-      const endDateStr = getStringValue(req.query.end_date) || startDateStr;
+      const periodParam = getStringValue(req.query.period)?.toLowerCase();
+      let startDateStr = getStringValue(req.query.start_date);
+      let endDateStr = getStringValue(req.query.end_date);
+      if (periodParam || (!startDateStr && !endDateStr)) {
+        const resolved = ReportService.resolvePeriodRange((periodParam || 'daily') as any);
+        startDateStr = ReportController.formatDateInTimezone(
+          resolved.start,
+          ReportController.REPORT_TIMEZONE
+        );
+        endDateStr = ReportController.formatDateInTimezone(
+          resolved.end,
+          ReportController.REPORT_TIMEZONE
+        );
+      }
+      if (!startDateStr) {
+        startDateStr = ReportController.getTodayUTC();
+      }
+      if (!endDateStr) {
+        endDateStr = startDateStr;
+      }
       const sellerIdStr = getStringValue(req.query.seller_id);
       const productIdStr = getStringValue(req.query.product_id);
       let sellerId = sellerIdStr ? parseInt(sellerIdStr, 10) : undefined;
@@ -139,14 +168,31 @@ export class ReportController {
       const user = req.user as UserPayload;
 
       const lowStockOnlyStr = getStringValue(req.query.low_stock_only);
+      const periodParam = getStringValue(req.query.period)?.toLowerCase();
+      let startDateStr: string | undefined;
+      let endDateStr: string | undefined;
+      if (periodParam || !req.query.start_date) {
+        const resolved = ReportService.resolvePeriodRange((periodParam || 'daily') as any);
+        startDateStr = ReportController.formatDateInTimezone(
+          resolved.start,
+          ReportController.REPORT_TIMEZONE
+        );
+        endDateStr = ReportController.formatDateInTimezone(
+          resolved.end,
+          ReportController.REPORT_TIMEZONE
+        );
+      }
 
       const request = {
         low_stock_only: lowStockOnlyStr === 'true',
+        start_date: startDateStr,
+        end_date: endDateStr,
       };
 
       logger.info('Get stock report request', {
         userId: user.userId,
         lowStockOnly: request.low_stock_only,
+        period: periodParam || 'daily',
         path: req.path,
       });
 

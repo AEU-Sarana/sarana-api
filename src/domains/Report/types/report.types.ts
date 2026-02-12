@@ -125,6 +125,8 @@ export interface SalesHistoryReportResponse {
  */
 export interface StockReportRequest {
   low_stock_only?: boolean;
+  start_date?: string;
+  end_date?: string;
 }
 
 export interface StockReportItem {

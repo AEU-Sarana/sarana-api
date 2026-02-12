@@ -1,6 +1,11 @@
 import { query } from 'express-validator';
 
 export const getSalesHistoryReportValidator = [
+  query('period')
+    .optional()
+    .isIn(['daily', 'weekly', 'monthly', 'yearly'])
+    .withMessage('period must be daily, weekly, monthly, or yearly'),
+
   query('start_date')
     .optional()
     .matches(/^\d{4}-\d{2}-\d{2}$/)
