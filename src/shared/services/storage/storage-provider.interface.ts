@@ -52,6 +52,16 @@ export interface IStorageProvider {
    * Get file metadata
    */
   getMetadata(key: string): Promise<FileMetadata | null>;
+
+  /**
+   * List files in a folder/prefix
+   */
+  listFiles(prefix?: string): Promise<StorageFileObject[]>;
+
+  /**
+   * Download file as buffer by key
+   */
+  downloadFileBuffer(key: string): Promise<Buffer>;
 }
 
 export interface UploadOptions {
@@ -82,5 +92,11 @@ export interface FileMetadata {
   contentType: string;
   lastModified: Date;
   etag?: string;
+  metadata?: Record<string, string>;
 }
 
+export interface StorageFileObject {
+  key: string;
+  size: number;
+  lastModified: Date;
+}

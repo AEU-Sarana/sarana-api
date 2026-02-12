@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { env } from '@src/shared/config/env';
 
 // No-op middleware for development (unlimited requests)
@@ -39,7 +39,7 @@ const receiptScanRateLimiterConfig = rateLimit({
   keyGenerator: (req: Request) => {
     const receiptCode =
       typeof req.body?.receipt_code === 'string' ? req.body.receipt_code : 'unknown';
-    return `${req.ip}:${receiptCode}`;
+    return `${ipKeyGenerator(req.ip)}:${receiptCode}`;
   },
   message: {
     success: false,

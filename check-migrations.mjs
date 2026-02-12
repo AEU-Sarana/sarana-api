@@ -70,6 +70,8 @@ async function checkMigrations() {
       'app_settings',
       'telegram_config',
       'audit_logs',
+      'backups',
+      'backup_runs',
     ];
 
     console.log('\n🔍 Migration Status:');

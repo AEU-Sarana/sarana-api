@@ -43,6 +43,9 @@ const domainConfig = {
   customer: {
     tables: ['customers', 'customer_telegram_links', 'receipt_deliveries'],
   },
+  backup: {
+    tables: ['backups', 'backup_runs'],
+  },
 };
 
 /* ================================
@@ -70,6 +73,8 @@ const migrationOrder = [
   'customer/20260210000002_create_customer_telegram_links_table',
   'customer/20260210000003_create_receipt_deliveries_table',
   'customer/20260210000004_create_customer_linking_tokens_table',
+  'backup/20260211000005_create_backups_table',
+  'backup/20260211000006_create_backup_runs_table',
 ];
 
 /* ================================

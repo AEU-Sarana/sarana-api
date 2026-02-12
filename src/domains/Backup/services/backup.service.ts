@@ -1,123 +1,133 @@
-import fs from 'fs';
-import path from 'path';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
-import { env } from '@src/shared/config/env';
-import { logger } from '@src/shared/utils/logger';
-import { fileStorageService } from '@src/shared/services/file-storage.service';
-import { CreateBackupRequest, CreateBackupResponse } from '@src/domains/Backup/types';
+// File: src/domains/Backup/services/backup.service.ts
+
+import { BackupCreateService } from './backup-create.service';
+import { BackupRestoreService } from './backup-restore.service';
+import { BackupExportService } from './backup-export.service';
+import {
+  CreateBackupRequest,
+  CreateBackupResponse,
+  ListBackupsResponse,
+  RestoreBackupRequest,
+  RestoreBackupResponse,
+  ExportResponse,
+  ExportFormat,
+} from '../types/backup.types';
 import { auditLogService } from '@src/shared/services/audit-log.service';
-
-const execFileAsync = promisify(execFile);
-
-function sanitizeBackupName(name: string): string {
-  return name.trim().replace(/[^a-zA-Z0-9_-]+/g, '_');
-}
-
-function ensureSqlExtension(name: string): string {
-  return name.toLowerCase().endsWith('.sql') ? name : `${name}.sql`;
-}
-
-function makeUniqueFilename(baseName: string): string {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  return ensureSqlExtension(`${baseName}_${timestamp}`);
-}
-
-async function runPgDump(outputPath: string, includeData: boolean): Promise<void> {
-  if (!env.DATABASE_URL) {
-    throw new Error('DATABASE_URL is not set');
-  }
-
-  const args = [
-    `--dbname=${env.DATABASE_URL}`,
-    '--format=plain',
-    '--no-owner',
-    '--no-acl',
-    `--file=${outputPath}`,
-  ];
-
-  if (!includeData) {
-    args.push('--schema-only');
-  }
-
-  await execFileAsync('pg_dump', args);
-}
+import { eventBus } from '@src/shared/events/event-bus';
+import { BackupExportFormat, BackupRunStatus, BackupRunType } from '@src/domains/Backup/enums';
+import {
+  BackupCreatedEvent,
+  BackupExportedEvent,
+  BackupFailedEvent,
+  BackupRestoredEvent,
+} from '@src/domains/Backup/events';
 
 export class BackupService {
-  static async createBackup(
-    request: CreateBackupRequest,
-    currentUserId: number
-  ): Promise<CreateBackupResponse> {
-    const safeName = sanitizeBackupName(request.backup_name);
-    const filename = makeUniqueFilename(safeName);
-    const tempPath = path.join('/tmp', filename);
+  static async createBackup(req: CreateBackupRequest): Promise<CreateBackupResponse> {
+    const runType = req.triggered_by === 'auto' ? BackupRunType.AUTO : BackupRunType.MANUAL;
 
     try {
-      await runPgDump(tempPath, request.include_data);
-    } catch (error: any) {
-      logger.error('Backup generation failed', { error: error.message });
-      throw new Error(`Backup generation failed: ${error.message}`);
-    }
-
-    let uploadResult;
-    let fileSize = 0;
-    try {
-      const fileBuffer = fs.readFileSync(tempPath);
-      fileSize = fileBuffer.length;
-
-      const multerFile: Express.Multer.File = {
-        fieldname: 'backup',
-        originalname: filename,
-        encoding: 'utf8',
-        mimetype: 'application/sql',
-        size: fileSize,
-        buffer: fileBuffer,
-        destination: '/tmp',
-        filename,
-        path: tempPath,
-      } as Express.Multer.File;
-
-      uploadResult = await fileStorageService.uploadFile(multerFile, 'backups', {
-        filename,
-        contentType: 'application/sql',
-        metadata: {
-          createdBy: String(currentUserId),
-          includeData: String(request.include_data),
-        },
+      const data = await BackupCreateService.createBackup(req);
+      await auditLogService.createAuditLog({
+        action: 'BACKUP_CREATE',
+        resource: 'backup',
+        details: { backup_name: req.backup_name, include_data: req.include_data, run_type: runType },
       });
+
+      eventBus.emit('backup.created', {
+        backup_id: data.backup_id,
+        backup_name: data.backup_name,
+        file_size: data.file_size,
+        created_at: data.created_at,
+        run_type: runType,
+        status: BackupRunStatus.SUCCESS,
+      } satisfies BackupCreatedEvent);
+
+      return data;
     } catch (error: any) {
-      logger.error('Backup upload failed', { error: error.message });
-      throw new Error(`Backup upload failed: ${error.message}`);
-    } finally {
-      try {
-        if (fs.existsSync(tempPath)) {
-          fs.unlinkSync(tempPath);
-        }
-      } catch (cleanupError: any) {
-        logger.warn('Failed to remove temp backup file', { error: cleanupError.message });
-      }
+      eventBus.emit('backup.failed', {
+        run_type: BackupRunType.MANUAL,
+        status: BackupRunStatus.FAILED,
+        error_code: 'BACKUP_CREATE_ERROR',
+        error_message: error.message,
+        occurred_at: new Date(),
+      } satisfies BackupFailedEvent);
+      throw error;
     }
+  }
 
-    const createdAt = new Date();
+  static async listBackups(page = 1, limit = 20): Promise<ListBackupsResponse> {
+    try {
+      const data = await BackupCreateService.listBackups(page, limit);
+      await auditLogService.createAuditLog({
+        action: 'BACKUP_LIST',
+        resource: 'backup',
+        details: { page, limit },
+      });
+      return data;
+    } catch (error: any) {
+      throw error;
+    }
+  }
 
-    await auditLogService.createAuditLog({
-      userId: currentUserId,
-      action: 'CREATE_BACKUP',
-      resource: 'Backup',
-      details: {
-        backup_name: request.backup_name,
-        include_data: request.include_data,
-        file_key: uploadResult.key,
-        file_size: uploadResult.size,
-      },
-    });
+  static async restoreBackup(req: RestoreBackupRequest): Promise<RestoreBackupResponse> {
+    try {
+      const data = await BackupRestoreService.restoreBackup(req);
+      await auditLogService.createAuditLog({
+        action: 'BACKUP_RESTORE',
+        resource: 'backup',
+        details: { backup_id: req.backup_id },
+      });
 
-    return {
-      backup_id: Date.now(),
-      backup_name: request.backup_name,
-      file_path: uploadResult.url,
-      file_size: uploadResult.size,
-      created_at: createdAt,
-    };
+      eventBus.emit('backup.restored', {
+        backup_id: req.backup_id,
+        restored_at: data.restored_at,
+        run_type: BackupRunType.RESTORE,
+        status: BackupRunStatus.SUCCESS,
+      } satisfies BackupRestoredEvent);
+
+      return data;
+    } catch (error: any) {
+      eventBus.emit('backup.failed', {
+        run_type: BackupRunType.RESTORE,
+        status: BackupRunStatus.FAILED,
+        error_code: 'BACKUP_RESTORE_ERROR',
+        error_message: error.message,
+        occurred_at: new Date(),
+      } satisfies BackupFailedEvent);
+      throw error;
+    }
+  }
+
+  static async exportData(format: string, table: string, query: any): Promise<ExportResponse> {
+    try {
+      const normalizedFormat = format.toUpperCase() as ExportFormat;
+      const data = await BackupExportService.exportData(normalizedFormat, table, query);
+      await auditLogService.createAuditLog({
+        action: 'BACKUP_EXPORT',
+        resource: 'backup',
+        details: { format: normalizedFormat, table },
+      });
+
+      eventBus.emit('backup.exported', {
+        table,
+        format: normalizedFormat as BackupExportFormat,
+        file_name: data.file_name,
+        file_url: data.file_url,
+        expires_at: data.expires_at,
+        status: BackupRunStatus.SUCCESS,
+      } satisfies BackupExportedEvent);
+
+      return data;
+    } catch (error: any) {
+      eventBus.emit('backup.failed', {
+        run_type: BackupRunType.MANUAL,
+        status: BackupRunStatus.FAILED,
+        error_code: 'BACKUP_EXPORT_ERROR',
+        error_message: error.message,
+        occurred_at: new Date(),
+      } satisfies BackupFailedEvent);
+      throw error;
+    }
   }
 }

@@ -17,6 +17,9 @@ import { responseTimezoneMiddleware } from '@src/shared/middleware/response-time
 import { startTelegramAdminWorker } from '@src/domains/TelegramAdminBot/jobs/telegram-admin.worker';
 import { startTelegramAdminExportWorker } from '@src/domains/TelegramAdminBot/jobs/telegram-admin-export-excel.worker';
 import { startTelegramAdminStockHistoryExportWorker } from '@src/domains/TelegramAdminBot/jobs/telegram-admin-stock-history-export.worker';
+import { startBackupSchedulerJob } from '@src/domains/Backup/jobs/backup-scheduler.job';
+import { startBackupRetentionCleanupJob } from '@src/domains/Backup/jobs/backup-retention-cleanup.job';
+import { startBackupExportCleanupJob } from '@src/domains/Backup/jobs/backup-export-cleanup.job';
 
 // Register event listeners
 registerStockEventListeners();
@@ -62,6 +65,25 @@ registerTelegramEventListeners();
 
 // Start scheduled Telegram daily report
 startTelegramDailyReportScheduler();
+
+// Start Backup background jobs
+try {
+  startBackupSchedulerJob();
+} catch (error) {
+  console.error('Failed to start backup scheduler job:', error);
+}
+
+try {
+  startBackupRetentionCleanupJob();
+} catch (error) {
+  console.error('Failed to start backup retention cleanup job:', error);
+}
+
+try {
+  startBackupExportCleanupJob();
+} catch (error) {
+  console.error('Failed to start backup export cleanup job:', error);
+}
 
 
 const app: Application = express();

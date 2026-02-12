@@ -4,6 +4,45 @@ import XLSX from 'xlsx';
 import { logger } from '@src/shared/utils/logger';
 
 export class ReportExportService {
+  private static buildAutoWidthColumns(rows: any[]): Array<{ wch: number }> {
+    if (!rows || rows.length === 0) {
+      return [];
+    }
+
+    const keys: string[] = [];
+    const keySet = new Set<string>();
+
+    for (const row of rows) {
+      if (!row || typeof row !== 'object') continue;
+      for (const key of Object.keys(row)) {
+        if (!keySet.has(key)) {
+          keySet.add(key);
+          keys.push(key);
+        }
+      }
+    }
+
+    return keys.map((key) => {
+      let maxLength = [...key].length;
+
+      for (const row of rows) {
+        const value = row?.[key];
+        const text =
+          value === null || value === undefined
+            ? ''
+            : value instanceof Date
+              ? value.toISOString()
+              : String(value);
+        const length = [...text].length;
+        if (length > maxLength) {
+          maxLength = length;
+        }
+      }
+
+      return { wch: Math.max(10, maxLength + 2) };
+    });
+  }
+
   /**
    * Export data to CSV format
    * @param data Array of objects to export
@@ -89,6 +128,7 @@ export class ReportExportService {
         const safeName = sheetName.slice(0, 31);
         const rows = Array.isArray(data) && data.length > 0 ? data : [{}];
         const worksheet = XLSX.utils.json_to_sheet(rows);
+        worksheet['!cols'] = this.buildAutoWidthColumns(rows);
         XLSX.utils.book_append_sheet(workbook, worksheet, safeName);
       }
 

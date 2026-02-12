@@ -24,6 +24,15 @@ export const userSeedData: UserSeedData[] = [
     status: 'active',
   },
   {
+    username: 'super-admin',
+    email: 'superadmin@stockpos.com',
+    passwordHash: bcrypt.hashSync('Admin123!', 10),
+    fullName: 'Super Administrator',
+    role: 'ADMIN',
+    phone: '0123456710',
+    status: 'active',
+  },
+  {
     username: 'seller1',
     email: 'seller1@stockpos.com',
     passwordHash: bcrypt.hashSync('Seller123!', 10),

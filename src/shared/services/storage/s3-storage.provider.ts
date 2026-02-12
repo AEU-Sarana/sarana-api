@@ -5,6 +5,8 @@ import {
   HeadObjectCommand,
   CreateBucketCommand,
   HeadBucketCommand,
+  ListObjectsV2Command,
+  GetObjectCommand,
 } from '@aws-sdk/client-s3';
 import { env } from '@src/shared/config/env';
 import { logger } from '@src/shared/utils/logger';
@@ -14,6 +16,7 @@ import type {
   FileUploadResult,
   UploadOptions,
   FileMetadata,
+  StorageFileObject,
 } from './storage-provider.interface';
 import type multer from 'multer';
 
@@ -237,10 +240,71 @@ export class S3StorageProvider implements IStorageProvider {
         contentType: response.ContentType || 'application/octet-stream',
         lastModified: response.LastModified,
         etag: response.ETag,
+        metadata: response.Metadata || {},
       };
     } catch (error: any) {
       if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
         return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * List files in a folder/prefix
+   */
+  async listFiles(prefix?: string): Promise<StorageFileObject[]> {
+    const items: StorageFileObject[] = [];
+    let continuationToken: string | undefined;
+
+    do {
+      const response = await this.s3Client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucket,
+          Prefix: prefix,
+          ContinuationToken: continuationToken,
+        })
+      );
+
+      for (const object of response.Contents ?? []) {
+        if (!object.Key || !object.LastModified) {
+          continue;
+        }
+
+        items.push({
+          key: object.Key,
+          size: object.Size ?? 0,
+          lastModified: object.LastModified,
+        });
+      }
+
+      continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+    } while (continuationToken);
+
+    return items;
+  }
+
+  /**
+   * Download file as buffer by key
+   */
+  async downloadFileBuffer(key: string): Promise<Buffer> {
+    try {
+      const response = await this.s3Client.send(
+        new GetObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+        })
+      );
+
+      if (!response.Body) {
+        throw new Error('Empty response body');
+      }
+
+      const bytes = await response.Body.transformToByteArray();
+      return Buffer.from(bytes);
+    } catch (error: any) {
+      if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+        throw new Error(`File not found: ${key}`);
       }
       throw error;
     }

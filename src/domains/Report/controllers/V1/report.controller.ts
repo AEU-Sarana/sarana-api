@@ -7,7 +7,6 @@ import { FileStorageService } from '@src/shared/services/file-storage.service';
 import fs from 'fs';
 import path from 'path';
 import { DailySalesReportRequest, DailyReportMeta } from '../../types/report.types';
-import { Role } from '@src/shared/config/permissions';
 import { ValidationException } from '@src/shared/exceptions';
 
 // Helper function (same as StockController)
@@ -36,9 +35,7 @@ export class ReportController {
       if (sellerIdStr && Number.isNaN(sellerId)) {
         throw new ValidationException('Invalid seller_id');
       }
-      if (user.role === Role.SELLER) {
-        sellerId = user.userId;
-      }
+      sellerId = user.userId;
 
       logger.info('Get daily report request', {
         userId: user.userId,
@@ -97,9 +94,7 @@ export class ReportController {
       if (productIdStr && Number.isNaN(productId)) {
         throw new ValidationException('Invalid product_id');
       }
-      if (user.role === Role.SELLER) {
-        sellerId = user.userId;
-      }
+      sellerId = user.userId;
 
       const request = {
         start_date: startDateStr,
@@ -201,12 +196,12 @@ export class ReportController {
       let filters: any = {};
 
       if (report_type === 'daily_sales') {
-        filters = { date };
+        filters = { date, seller_id: user.userId };
       } else if (report_type === 'sales_history') {
         filters = {
           start_date,
           end_date,
-          seller_id: seller_id ? parseInt(String(seller_id), 10) : undefined,
+          seller_id: user.userId,
           product_id: product_id ? parseInt(String(product_id), 10) : undefined,
           page: page ? parseInt(String(page), 10) : undefined,
           limit: limit ? parseInt(String(limit), 10) : undefined,
