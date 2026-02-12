@@ -54,7 +54,7 @@ export class ReportService {
     };
   }
 
-  private static getIncomeRange(period: IncomeReportPeriod): { start: Date; end: Date } {
+  static resolvePeriodRange(period: IncomeReportPeriod): { start: Date; end: Date } {
     const nowParts = this.getNowParts(DEFAULT_TIMEZONE);
     const todayStr = `${nowParts.year}-${String(nowParts.month).padStart(2, '0')}-${String(
       nowParts.day
@@ -102,7 +102,7 @@ export class ReportService {
    */
   static async getIncomeReport(period: IncomeReportPeriod): Promise<IncomeReportResponse> {
     const normalizedPeriod = (period || 'daily') as IncomeReportPeriod;
-    const { start, end } = this.getIncomeRange(normalizedPeriod);
+    const { start, end } = this.resolvePeriodRange(normalizedPeriod);
 
     const salesAgg = await prisma.order.aggregate({
       where: { orderDate: { gte: start, lte: end } },
@@ -622,7 +622,17 @@ export class ReportService {
    */
   static async getStockReport(request: StockReportRequest, currentUserId: number): Promise<StockReportResponse> {
     try {
-      const { low_stock_only } = request;
+      const { low_stock_only, start_date, end_date } = request;
+      let rangeStart: Date | null = null;
+      let rangeEnd: Date | null = null;
+      if (start_date && end_date) {
+        const start = new Date(`${start_date}T00:00:00+07:00`);
+        const end = new Date(`${end_date}T23:59:59.999+07:00`);
+        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+          rangeStart = start;
+          rangeEnd = end;
+        }
+      }
 
       if (low_stock_only) {
         // Use raw query for efficient low stock filtering
@@ -645,6 +655,7 @@ export class ReportService {
               JOIN products p ON s.product_id = p.product_id
               WHERE p.status = 'active'
                 AND p.created_by = ${currentUserId}
+                ${rangeStart && rangeEnd ? Prisma.sql`AND s.updated_at >= ${rangeStart} AND s.updated_at <= ${rangeEnd}` : Prisma.empty}
                 AND (
                   s.quantity < 0
                   OR (p.low_stock_threshold IS NOT NULL AND s.quantity <= p.low_stock_threshold)
@@ -696,7 +707,10 @@ export class ReportService {
       // Normal case (all stocks)
       const stocks = await prisma.stock.findMany({
         include: { product: true },
-        where: { product: { status: 'active', createdBy: currentUserId } }
+        where: {
+          product: { status: 'active', createdBy: currentUserId },
+          ...(rangeStart && rangeEnd ? { updatedAt: { gte: rangeStart, lte: rangeEnd } } : {}),
+        },
       });
 
       const stock_report = stocks.map(s => ({
