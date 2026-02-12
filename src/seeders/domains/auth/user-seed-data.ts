@@ -51,4 +51,3 @@ export const userSeedData: UserSeedData[] = [
     status: 'active',
   },
 ];
-
