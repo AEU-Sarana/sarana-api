@@ -2,7 +2,7 @@ import { ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { buildS3Client, deleteObject } from '../utils/s3.util';
 import { logger } from '@src/shared/utils/logger';
 
-const BUCKET = process.env.S3_BUCKET || 'stock-pos-storage';
+const BUCKET = process.env.S3_BUCKET || process.env.STORAGE_BUCKET || 'stock-pos-storage';
 const EXPORT_PREFIX = 'exports/';
 const EXPORT_TTL_HOURS = Number(process.env.BACKUP_EXPORT_TTL_HOURS || 24);
 const EXPORT_CLEANUP_INTERVAL_MS = Number(
@@ -55,10 +55,14 @@ export function startBackupExportCleanupJob(): void {
   if (exportCleanupTimer) return;
 
   // Run once on startup
-  void runBackupExportCleanupJob();
+  void runBackupExportCleanupJob().catch((error) => {
+    logger.error('Backup export cleanup initial run failed', { error: error.message });
+  });
 
   exportCleanupTimer = setInterval(() => {
-    void runBackupExportCleanupJob();
+    void runBackupExportCleanupJob().catch((error) => {
+      logger.error('Backup export cleanup scheduled run failed', { error: error.message });
+    });
   }, EXPORT_CLEANUP_INTERVAL_MS);
 
   logger.info('Backup export cleanup scheduler started', {

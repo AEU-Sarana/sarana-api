@@ -5,12 +5,17 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import fs from 'fs';
 
 export function buildS3Client(): S3Client {
+  const region = process.env.S3_REGION || process.env.STORAGE_REGION || 'us-east-1';
+  const endpoint = process.env.S3_ENDPOINT || process.env.STORAGE_ENDPOINT;
+  const accessKeyId = process.env.S3_ACCESS_KEY_ID || process.env.STORAGE_ACCESS_KEY || '';
+  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || process.env.STORAGE_SECRET_KEY || '';
+
   return new S3Client({
-    region: process.env.S3_REGION,
-    endpoint: process.env.S3_ENDPOINT,
+    region,
+    endpoint,
     credentials: {
-      accessKeyId: process.env.S3_ACCESS_KEY_ID || '',
-      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || '',
+      accessKeyId,
+      secretAccessKey,
     },
     forcePathStyle: true,
   });

@@ -2,7 +2,7 @@ import { Client } from 'pg';
 import { buildS3Client, deleteObject } from '../utils/s3.util';
 import { logger } from '@src/shared/utils/logger';
 
-const BUCKET = process.env.S3_BUCKET || 'stock-pos-storage';
+const BUCKET = process.env.S3_BUCKET || process.env.STORAGE_BUCKET || 'stock-pos-storage';
 const MAX_BACKUPS = Number(process.env.MAX_BACKUPS || 7);
 const RETENTION_CLEANUP_INTERVAL_MS = Number(
   process.env.BACKUP_RETENTION_CLEANUP_INTERVAL_MS || 6 * 60 * 60 * 1000
@@ -68,10 +68,14 @@ export function startBackupRetentionCleanupJob(): void {
   if (retentionCleanupTimer) return;
 
   // Run once on startup
-  void runBackupRetentionCleanupJob();
+  void runBackupRetentionCleanupJob().catch((error) => {
+    logger.error('Backup retention cleanup initial run failed', { error: error.message });
+  });
 
   retentionCleanupTimer = setInterval(() => {
-    void runBackupRetentionCleanupJob();
+    void runBackupRetentionCleanupJob().catch((error) => {
+      logger.error('Backup retention cleanup scheduled run failed', { error: error.message });
+    });
   }, RETENTION_CLEANUP_INTERVAL_MS);
 
   logger.info('Backup retention cleanup scheduler started', {

@@ -16,6 +16,7 @@ RUN apk add --no-cache \
     ttf-dejavu \
     libjpeg-turbo \
     giflib \
+    postgresql-client \
     && cp /usr/share/zoneinfo/Asia/Phnom_Penh /etc/localtime \
     && echo "Asia/Phnom_Penh" > /etc/timezone
 

@@ -162,7 +162,7 @@ export class DashboardService {
         movementType: true,
         quantity: true,
         createdAt: true,
-        product: { select: { productName: true } },
+        product: { select: { productId: true, productName: true, imagePath: true } },
       },
     });
 
@@ -179,7 +179,11 @@ export class DashboardService {
       (movement) => ({
         type: 'stock_movement',
         movement_id: movement.movementId,
-        product_name: movement.product.productName,
+        product: {
+          product_id: movement.product.productId,
+          product_name: movement.product.productName,
+          image_path: movement.product.imagePath,
+        },
         movement_type: movement.movementType,
         quantity: movement.quantity,
         created_at: movement.createdAt,

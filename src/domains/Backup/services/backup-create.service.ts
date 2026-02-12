@@ -10,7 +10,7 @@ import { CreateBackupRequest, CreateBackupResponse, ListBackupsResponse } from '
 
 const BACKUP_LOCK_KEY = 9235001;
 
-const BUCKET = process.env.S3_BUCKET || 'stock-pos-storage';
+const BUCKET = process.env.S3_BUCKET || process.env.STORAGE_BUCKET || 'stock-pos-storage';
 const BACKUP_PREFIX = 'backups/';
 
 export class BackupCreateService {
@@ -43,6 +43,8 @@ export class BackupCreateService {
           '--format=plain',
           '--no-owner',
           '--no-acl',
+          '--clean',
+          '--if-exists',
           `--dbname=${dbUrl}`,
         ];
         if (!input.include_data) {
@@ -50,10 +52,37 @@ export class BackupCreateService {
         }
 
         const proc = spawn('pg_dump', args);
+        let dumpError = '';
+        let procExited = false;
+        let exitCode: number | null = null;
+        let streamFinished = false;
+
+        const finalize = () => {
+          if (!procExited || !streamFinished) return;
+          if (exitCode === 0) {
+            resolve();
+            return;
+          }
+          reject(new Error(dumpError ? `pg_dump failed: ${dumpError.trim()}` : 'pg_dump failed'));
+        };
+
         proc.stdout.pipe(outStream);
-        proc.stderr.on('data', (d) => process.stderr.write(d));
+        proc.stderr.on('data', (d) => {
+          const msg = d.toString();
+          dumpError += msg;
+          process.stderr.write(d);
+        });
+        outStream.on('error', reject);
+        outStream.on('finish', () => {
+          streamFinished = true;
+          finalize();
+        });
         proc.on('error', reject);
-        proc.on('close', (code) => (code === 0 ? resolve() : reject(new Error('pg_dump failed'))));
+        proc.on('close', (code) => {
+          procExited = true;
+          exitCode = code;
+          finalize();
+        });
       });
 
       // Encrypt

@@ -3,9 +3,22 @@
 import fs from 'fs';
 import crypto from 'crypto';
 
+function parseBackupKey(keyBase64: string): Buffer {
+  if (!keyBase64) {
+    throw new Error('BACKUP_ENCRYPTION_KEY is required');
+  }
+
+  const key = Buffer.from(keyBase64, 'base64');
+  if (key.length !== 32) {
+    throw new Error('BACKUP_ENCRYPTION_KEY must be a base64-encoded 32-byte key for AES-256-GCM');
+  }
+
+  return key;
+}
+
 // File format: [12B IV][ciphertext...][16B authTag]
 export async function encryptFile(inputPath: string, outputPath: string, keyBase64: string): Promise<void> {
-  const key = Buffer.from(keyBase64, 'base64');
+  const key = parseBackupKey(keyBase64);
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
 
@@ -30,7 +43,7 @@ export async function decryptFile(inputPath: string, outputPath: string, keyBase
   const tag = data.subarray(data.length - 16);
   const ciphertext = data.subarray(12, data.length - 16);
 
-  const key = Buffer.from(keyBase64, 'base64');
+  const key = parseBackupKey(keyBase64);
   const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
   decipher.setAuthTag(tag);
 

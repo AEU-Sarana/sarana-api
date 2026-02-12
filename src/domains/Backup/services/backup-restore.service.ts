@@ -9,7 +9,7 @@ import { decryptFile } from '../utils/crypto.util';
 import { RestoreBackupRequest, RestoreBackupResponse } from '../types/backup.types';
 
 const RESTORE_LOCK_KEY = 9235002;
-const BUCKET = process.env.S3_BUCKET || 'stock-pos-storage';
+const BUCKET = process.env.S3_BUCKET || process.env.STORAGE_BUCKET || 'stock-pos-storage';
 
 export class BackupRestoreService {
   static async restoreBackup(input: RestoreBackupRequest): Promise<RestoreBackupResponse> {
@@ -44,11 +44,28 @@ export class BackupRestoreService {
       const s3 = buildS3Client();
       await getObjectToFile(s3, BUCKET, objectKey, encPath);
       await decryptFile(encPath, sqlPath, process.env.BACKUP_ENCRYPTION_KEY || '');
+      await this.sanitizeSqlDumpForCompatibility(sqlPath);
 
       await new Promise<void>((resolve, reject) => {
-        const proc = spawn('psql', [`--dbname=${dbUrl}`, '--set', 'ON_ERROR_STOP=on', '--file', sqlPath]);
+        let restoreError = '';
+        const proc = spawn('psql', [
+          `--dbname=${dbUrl}`,
+          '-v',
+          'ON_ERROR_STOP=1',
+          '--file',
+          sqlPath,
+        ]);
+        proc.stderr.on('data', (d) => {
+          const msg = d.toString();
+          restoreError += msg;
+          process.stderr.write(d);
+        });
         proc.on('error', reject);
-        proc.on('close', (code) => (code === 0 ? resolve() : reject(new Error('psql restore failed'))));
+        proc.on('close', (code) =>
+          code === 0
+            ? resolve()
+            : reject(new Error(restoreError ? `psql restore failed: ${restoreError.trim()}` : 'psql restore failed'))
+        );
       });
 
       await client.query(
@@ -72,6 +89,14 @@ export class BackupRestoreService {
 
       await client.query('SELECT pg_advisory_unlock($1)', [RESTORE_LOCK_KEY]);
       await client.end();
+    }
+  }
+
+  private static async sanitizeSqlDumpForCompatibility(filePath: string): Promise<void> {
+    const content = await fs.promises.readFile(filePath, 'utf8');
+    const sanitized = content.replace(/^SET transaction_timeout = .*;\n/gm, '');
+    if (sanitized !== content) {
+      await fs.promises.writeFile(filePath, sanitized, 'utf8');
     }
   }
 }

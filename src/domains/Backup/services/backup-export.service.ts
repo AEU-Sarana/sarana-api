@@ -3,17 +3,23 @@
 import { Client } from 'pg';
 import fs from 'fs';
 import path from 'path';
-import { buildS3Client, putObject, presignGetUrl } from '../utils/s3.util';
+import { buildS3Client, putObject } from '../utils/s3.util';
 import { ExportFormat, ExportResponse } from '../types/backup.types';
+import { env } from '@src/shared/config/env';
 
 const PDFDocument = require('pdfkit');
 
-const EXPORT_BUCKET = process.env.S3_BUCKET || 'stock-pos-storage';
+const EXPORT_BUCKET = process.env.S3_BUCKET || process.env.STORAGE_BUCKET || 'stock-pos-storage';
 const EXPORT_PREFIX = 'exports/';
 
 const EXPORT_TABLES: Record<string, string[]> = {
   orders: ['order_id', 'seller_id', 'total_amount', 'created_at'],
   products: ['product_id', 'product_name', 'price'],
+};
+
+const EXPORT_DATE_FIELD: Record<string, string> = {
+  orders: 'order_date',
+  products: 'created_at',
 };
 
 function escapeCsv(value: any): string {
@@ -48,13 +54,14 @@ export class BackupExportService {
 
       let where = '1=1';
       const params: any[] = [];
+      const dateField = EXPORT_DATE_FIELD[table] || 'created_at';
       if (query.start_date) {
         params.push(new Date(`${String(query.start_date)}T00:00:00.000Z`));
-        where += ` AND created_at >= $${params.length}`;
+        where += ` AND ${dateField} >= $${params.length}`;
       }
       if (query.end_date) {
         params.push(new Date(`${String(query.end_date)}T23:59:59.999Z`));
-        where += ` AND created_at <= $${params.length}`;
+        where += ` AND ${dateField} <= $${params.length}`;
       }
       if (query.seller_id && safeCols.includes('seller_id')) {
         params.push(query.seller_id);
@@ -102,7 +109,8 @@ export class BackupExportService {
       const s3 = buildS3Client();
       await putObject(s3, EXPORT_BUCKET, objectKey, fileBuffer);
 
-      const url = await presignGetUrl(s3, EXPORT_BUCKET, objectKey, 60 * 60 * 24);
+      const baseUrl = env.API_BASE_URL || `http://localhost:${env.PORT}`;
+      const url = `${baseUrl}/storage/${encodeURIComponent(EXPORT_BUCKET)}/${encodeURIComponent(objectKey)}`;
 
       return {
         file_url: url,

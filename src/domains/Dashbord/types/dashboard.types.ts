@@ -30,7 +30,11 @@ export interface DashboardRecentOrderActivity {
 export interface DashboardRecentStockMovementActivity {
   type: 'stock_movement';
   movement_id: number;
-  product_name: string;
+  product: {
+    product_id: number;
+    product_name: string;
+    image_path: string | null;
+  };
   movement_type: string;
   quantity: number;
   created_at: Date;
