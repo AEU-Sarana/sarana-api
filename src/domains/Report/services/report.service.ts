@@ -1,5 +1,21 @@
 import prisma from '@src/database/client';
-import { DailySalesReportRequest, DailySalesReportResponse, SalesHistoryReportRequest, SalesHistoryReportResponse, StockReportRequest, StockReportResponse, ExportReportRequest, ExportReportResponse, TopProduct, ShiftBreakdown, LowStockItem, DailyReportSummary, DailyReportMetadata } from '../types/report.types';
+import {
+  DailySalesReportRequest,
+  DailySalesReportResponse,
+  SalesHistoryReportRequest,
+  SalesHistoryReportResponse,
+  StockReportRequest,
+  StockReportResponse,
+  ExportReportRequest,
+  ExportReportResponse,
+  TopProduct,
+  ShiftBreakdown,
+  LowStockItem,
+  DailyReportSummary,
+  DailyReportMetadata,
+  IncomeReportPeriod,
+  IncomeReportResponse,
+} from '../types/report.types';
 import { ReportType } from '../enums/report-type.enum';
 import { ReportExportFormat } from '../enums/export-format.enum';
 import { ValidationException } from '@src/shared/exceptions';
@@ -10,8 +26,125 @@ import { eventBus } from '@src/shared/events/event-bus';
 import { ReportGeneratedEvent } from '../events/report-generated.event';
 import { ReportExportedEvent } from '../events/report-exported.event';
 import { Prisma } from '@src/database/generated';
+import { calculateProfit } from '@src/domains/Report/utils/income-math';
+
+const DEFAULT_TIMEZONE = process.env.REPORT_TIMEZONE || 'Asia/Phnom_Penh';
 
 export class ReportService {
+  private static getNowParts(timeZone: string): {
+    year: number;
+    month: number;
+    day: number;
+    weekday: string;
+  } {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      weekday: 'short',
+    });
+    const parts = formatter.formatToParts(new Date());
+    const lookup = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
+    return {
+      year: Number(lookup('year')),
+      month: Number(lookup('month')),
+      day: Number(lookup('day')),
+      weekday: lookup('weekday'),
+    };
+  }
+
+  private static getIncomeRange(period: IncomeReportPeriod): { start: Date; end: Date } {
+    const nowParts = this.getNowParts(DEFAULT_TIMEZONE);
+    const todayStr = `${nowParts.year}-${String(nowParts.month).padStart(2, '0')}-${String(
+      nowParts.day
+    ).padStart(2, '0')}`;
+
+    const end = new Date(`${todayStr}T23:59:59.999+07:00`);
+
+    if (period === 'daily') {
+      return {
+        start: new Date(`${todayStr}T00:00:00+07:00`),
+        end,
+      };
+    }
+
+    if (period === 'weekly') {
+      const weekdayMap: Record<string, number> = {
+        Mon: 1,
+        Tue: 2,
+        Wed: 3,
+        Thu: 4,
+        Fri: 5,
+        Sat: 6,
+        Sun: 7,
+      };
+      const weekdayIndex = weekdayMap[nowParts.weekday] ?? 1;
+      const daysFromMonday = weekdayIndex - 1;
+      const start = new Date(`${todayStr}T00:00:00+07:00`);
+      start.setUTCDate(start.getUTCDate() - daysFromMonday);
+      return { start, end };
+    }
+
+    if (period === 'monthly') {
+      const start = new Date(
+        `${nowParts.year}-${String(nowParts.month).padStart(2, '0')}-01T00:00:00+07:00`
+      );
+      return { start, end };
+    }
+
+    const start = new Date(`${nowParts.year}-01-01T00:00:00+07:00`);
+    return { start, end };
+  }
+
+  /**
+   * Income Report
+   */
+  static async getIncomeReport(period: IncomeReportPeriod): Promise<IncomeReportResponse> {
+    const normalizedPeriod = (period || 'daily') as IncomeReportPeriod;
+    const { start, end } = this.getIncomeRange(normalizedPeriod);
+
+    const salesAgg = await prisma.order.aggregate({
+      where: { orderDate: { gte: start, lte: end } },
+      _sum: { totalAmount: true },
+      _count: { orderId: true },
+    });
+
+    const cogsAgg = await prisma.orderItem.aggregate({
+      where: { order: { orderDate: { gte: start, lte: end } } },
+      _sum: { cogsLineTotal: true, quantity: true },
+    });
+
+    const purchasesRows = await prisma.$queryRaw<
+      { total_cost: any; total_qty: any }[]
+    >(Prisma.sql`
+      SELECT
+        COALESCE(SUM(COALESCE(cost, 0) * COALESCE(quantity, 0)), 0) AS total_cost,
+        COALESCE(SUM(COALESCE(quantity, 0)), 0) AS total_qty
+      FROM stock_movements
+      WHERE movement_type = 'STOCK_IN'
+        AND created_at >= ${start}
+        AND created_at <= ${end}
+    `);
+
+    const totalSales = Number(salesAgg._sum.totalAmount || 0);
+    const totalOrders = Number(salesAgg._count.orderId || 0);
+    const totalItems = Number(cogsAgg._sum?.quantity || 0);
+    const cogs = Number(cogsAgg._sum?.cogsLineTotal || 0);
+    const purchasesCost = Number(purchasesRows[0]?.total_cost || 0);
+    const purchasesQty = Number(purchasesRows[0]?.total_qty || 0);
+    const profit = calculateProfit(totalSales, cogs);
+
+    return {
+      total_sales: totalSales,
+      total_orders: totalOrders,
+      totalItems,
+      cogs,
+      profit,
+      purchasesCost,
+      purchasesQty,
+    };
+  }
 
   /**
    * Daily Sales Report

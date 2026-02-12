@@ -7,6 +7,7 @@ import {
   getSalesHistoryReportValidator,
   getStockReportValidator,
   exportReportValidator,
+  getIncomeReportValidator,
 } from '../../validators/V1/index';
 
 import { ReportController } from '../../controllers/V1/report.controller';
@@ -44,6 +45,17 @@ router.get(
   requireAdmin,
   ...validateRequest(getStockReportValidator),
   ReportController.getStockReport
+);
+
+/**
+ * GET /api/v1/reports/income
+ */
+router.get(
+  '/income',
+  authenticateToken,
+  requireAdmin,
+  ...validateRequest(getIncomeReportValidator),
+  ReportController.getIncomeReport
 );
 
 /**
