@@ -351,8 +351,6 @@ export class ReportService {
 
       const offset = (page - 1) * limit;
 
-      // Aggregate per-day sales
-      // If product_id is provided, total_sales is based on order_items.subtotal for that product.
       type SalesRow = {
         date: string;
         total_sales: Prisma.Decimal | number | string;
