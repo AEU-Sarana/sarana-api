@@ -23,6 +23,7 @@ export class UserSeeder extends BaseSeeder {
           status: userData.status,
           deviceId: userData.deviceId,
           isDeviceBound: userData.isDeviceBound || false,
+          tenantId: userData.tenantId,
         },
         create: {
           username: userData.username,
@@ -35,6 +36,7 @@ export class UserSeeder extends BaseSeeder {
           status: userData.status,
           deviceId: userData.deviceId,
           isDeviceBound: userData.isDeviceBound || false,
+          tenantId: userData.tenantId,
           createdBy: adminUserId, // Will be null for first user
         },
       });
@@ -56,4 +58,3 @@ export class UserSeeder extends BaseSeeder {
     console.log(`   Created/Updated ${userSeedData.length} users`);
   }
 }
-

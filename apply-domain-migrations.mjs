@@ -53,11 +53,13 @@ const domainConfig = {
 ================================ */
 const migrationOrder = [
   'auth/20260118000001_create_users_table',
+  'auth/20260212000001_add_tenant_id_to_users',
   'device-binding/202601180000015_create_device_bindings_table',
   'auth/20260118000002_create_refresh_tokens_table',
   'product/20260118000003_create_products_table',
   'shift/20260118000004_create_shifts_table',
   'order/20260118000005_create_orders_table',
+  'order/20260212000002_add_tenant_id_to_orders',
   'order/20260118000006_create_order_items_table',
   'setting/20260118000007_create_receipt_settings_table',
   'order/20260118000008_create_receipt_links_table',

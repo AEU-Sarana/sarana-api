@@ -1,30 +1,102 @@
-import  prisma  from '@src/database/client';
+import prisma from '@src/database/client';
 import {
   ListOrdersRequest,
   ListOrdersResponse,
   GetOrderResponse,
 } from '@src/domains/Order/types/order.types';
-import { ValidationException, BusinessLogicException } from '@src/shared/exceptions';
+import { ForbiddenException, NotFoundException } from '@src/shared/exceptions';
 import { logger } from '@src/shared/utils/logger';
 import { auditLogService } from '@src/shared/services/audit-log.service';
-import { ReceiptLinkStatus } from '@src/domains/Receipt/enums/V1/receipt-link-status.enum';
+import { Role } from '@src/shared/config/permissions';
+
+type CurrentUserContext = {
+  userId: number;
+  role: string;
+  tenantId?: number;
+};
+
+const ADMIN_ROLES = new Set<string>([
+  Role.ADMIN,
+  'SUPER_ADMIN',
+  'COMPANY_ADMIN',
+  'OWNER',
+  'MANAGER',
+]);
+
+const isAdminRole = (role?: string): boolean => (role ? ADMIN_ROLES.has(role) : false);
 
 export class OrderService {
   /**
    * List orders with role-based filtering
-   * - Seller/Admin: Only own orders (seller_id from token)
+   * - Seller: Only own orders
+   * - Admin: Orders within the same tenant
    */
   static async listOrders(
     request: ListOrdersRequest,
-    currentUserId: number,
-    currentUserRole: string
+    currentUser: CurrentUserContext
   ): Promise<ListOrdersResponse> {
     const { page = 1, limit = 50, shift_id, seller_id, start_date, end_date } = request;
+    const { userId: currentUserId, role: currentUserRole, tenantId: currentUserTenantId } = currentUser;
 
     const where: any = {};
 
     // Role-based filtering
-    where.sellerId = currentUserId;
+    if (isAdminRole(currentUserRole)) {
+      if (currentUserTenantId == null) {
+        logger.warn('Order list access denied: missing tenant scope', {
+          userId: currentUserId,
+          role: currentUserRole,
+          userTenant: currentUserTenantId ?? null,
+          orderId: null,
+          orderTenant: null,
+        });
+        throw new ForbiddenException('You do not have permission to access these orders', 'ORDER_ACCESS_DENIED');
+      }
+
+      where.tenantId = currentUserTenantId;
+
+      if (seller_id) {
+        const seller = await prisma.user.findUnique({
+          where: { userId: seller_id },
+          select: { tenantId: true },
+        });
+
+        if (!seller || seller.tenantId !== currentUserTenantId) {
+          logger.warn('Order list access denied: seller outside tenant', {
+            userId: currentUserId,
+            role: currentUserRole,
+            userTenant: currentUserTenantId,
+            orderId: null,
+            orderTenant: seller?.tenantId ?? null,
+          });
+          throw new ForbiddenException('You do not have permission to access these orders', 'ORDER_ACCESS_DENIED');
+        }
+
+        where.sellerId = seller_id;
+      }
+    } else if (currentUserRole === Role.SELLER) {
+      if (seller_id && seller_id !== currentUserId) {
+        logger.warn('Order list access denied: seller cannot view other sellers', {
+          userId: currentUserId,
+          role: currentUserRole,
+          userTenant: currentUserTenantId ?? null,
+          orderId: null,
+          orderTenant: null,
+        });
+        throw new ForbiddenException('You do not have permission to access these orders', 'ORDER_ACCESS_DENIED');
+      }
+
+      where.sellerId = currentUserId;
+    } else {
+      logger.warn('Order list access denied: unsupported role', {
+        userId: currentUserId,
+        role: currentUserRole,
+        userTenant: currentUserTenantId ?? null,
+        orderId: null,
+        orderTenant: null,
+      });
+      throw new ForbiddenException('You do not have permission to access these orders', 'ORDER_ACCESS_DENIED');
+    }
 
     if (shift_id) where.shiftId = shift_id;
     if (start_date || end_date) {
@@ -100,13 +172,14 @@ export class OrderService {
 
   /**
    * Get order details by ID
-   * - Seller/Admin: Can only access own orders
+   * - Seller: Own orders only
+   * - Admin: Orders within the same tenant
    */
   static async getOrder(
     orderId: number,
-    currentUserId: number,
-    currentUserRole: string
+    currentUser: CurrentUserContext
   ): Promise<GetOrderResponse> {
+    const { userId: currentUserId, role: currentUserRole, tenantId: currentUserTenantId } = currentUser;
     const order = await prisma.order.findUnique({
       where: { orderId },
       include: {
@@ -141,12 +214,41 @@ export class OrderService {
     });
 
     if (!order) {
-      throw new ValidationException('Order not found');
+      throw new NotFoundException('Order not found', 'ORDER_NOT_FOUND');
     }
 
     // Role-based access control
-    if (order.sellerId !== currentUserId) {
-      throw new ValidationException('You can only access your own orders');
+    if (currentUserRole === Role.SELLER) {
+      if (order.sellerId !== currentUserId) {
+        logger.warn('Order access denied: seller cannot view other orders', {
+          userId: currentUserId,
+          role: currentUserRole,
+          userTenant: currentUserTenantId ?? null,
+          orderId,
+          orderTenant: order.tenantId ?? null,
+        });
+        throw new ForbiddenException('You do not have permission to access this order', 'ORDER_ACCESS_DENIED');
+      }
+    } else if (isAdminRole(currentUserRole)) {
+      if (currentUserTenantId == null || order.tenantId !== currentUserTenantId) {
+        logger.warn('Order access denied: admin tenant mismatch', {
+          userId: currentUserId,
+          role: currentUserRole,
+          userTenant: currentUserTenantId ?? null,
+          orderId,
+          orderTenant: order.tenantId ?? null,
+        });
+        throw new ForbiddenException('You do not have permission to access this order', 'ORDER_ACCESS_DENIED');
+      }
+    } else {
+      logger.warn('Order access denied: unsupported role', {
+        userId: currentUserId,
+        role: currentUserRole,
+        userTenant: currentUserTenantId ?? null,
+        orderId,
+        orderTenant: order.tenantId ?? null,
+      });
+      throw new ForbiddenException('You do not have permission to access this order', 'ORDER_ACCESS_DENIED');
     }
 
     await auditLogService.createAuditLog({

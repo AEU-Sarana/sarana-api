@@ -11,6 +11,7 @@ export interface UserSeedData {
   status: 'active' | 'inactive';
   deviceId?: string;
   isDeviceBound?: boolean;
+  tenantId: number;
 }
 
 export const userSeedData: UserSeedData[] = [
@@ -22,6 +23,7 @@ export const userSeedData: UserSeedData[] = [
     role: 'ADMIN',
     phone: '012345678',
     status: 'active',
+    tenantId: 1,
   },
   {
     username: 'super-admin',
@@ -31,6 +33,7 @@ export const userSeedData: UserSeedData[] = [
     role: 'ADMIN',
     phone: '0123456710',
     status: 'active',
+    tenantId: 2,
   },
   {
     username: 'seller1',
@@ -40,6 +43,7 @@ export const userSeedData: UserSeedData[] = [
     role: 'SELLER',
     phone: '012345679',
     status: 'active',
+    tenantId: 1,
   },
   {
     username: 'seller2',
@@ -49,6 +53,7 @@ export const userSeedData: UserSeedData[] = [
     role: 'SELLER',
     phone: '012345680',
     status: 'active',
+    tenantId: 1,
   },
   {
     username: 'seller3',
@@ -58,5 +63,6 @@ export const userSeedData: UserSeedData[] = [
     role: 'SELLER',
     phone: '012345681',
     status: 'active',
+    tenantId: 2,
   },
 ];

@@ -36,6 +36,7 @@ export class AuthService {
         passwordHash: true,
         role: true,
         status: true,
+        tenantId: true,
         createdAt: true,
       },
     });
@@ -60,6 +61,7 @@ export class AuthService {
       userId: user.userId,
       username: user.username,
       role: user.role as UserRole,
+      tenantId: user.tenantId ?? 1,
     });
 
     // const refreshToken = TokenService.generateRefreshToken(user.userId);
@@ -129,6 +131,7 @@ export class AuthService {
         username: true,
         role: true,
         status: true,
+        tenantId: true,
       },
     });
 
@@ -146,6 +149,7 @@ export class AuthService {
       userId: user.userId,
       username: user.username,
       role: user.role as UserRole,
+      tenantId: user.tenantId ?? 1,
     });
 
     // Optionally generate new refresh token (refresh token rotation)

@@ -3,7 +3,9 @@ import { logger } from '@src/shared/utils/logger';
 import {
   ValidationException,
   BusinessLogicException,
-  DomainException
+  DomainException,
+  ForbiddenException,
+  NotFoundException
 } from '@src/shared/exceptions';
 
 export interface ApiError {
@@ -37,6 +39,26 @@ export function errorMiddleware(
       message: validationErr.message,
       code: validationErr.code || 'VALIDATION_ERROR',
       errors: validationErr.errors,
+    });
+    return;
+  }
+
+  if (err instanceof ForbiddenException) {
+    res.status(err.statusCode || 403).json({
+      success: false,
+      message: err.message,
+      code: err.code || 'FORBIDDEN',
+      ...(err.details && { details: err.details }),
+    });
+    return;
+  }
+
+  if (err instanceof NotFoundException) {
+    res.status(err.statusCode || 404).json({
+      success: false,
+      message: err.message,
+      code: err.code || 'NOT_FOUND',
+      ...(err.details && { details: err.details }),
     });
     return;
   }

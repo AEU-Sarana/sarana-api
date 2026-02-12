@@ -254,7 +254,11 @@ export class ShiftService {
     const { page = 1, limit = 20, seller_id, status, start_date, end_date } = request;
 
     const where: any = {};
-    where.sellerId = currentUserId;
+    if (currentUserRole === 'ADMIN') {
+      if (seller_id) where.sellerId = seller_id;
+    } else {
+      where.sellerId = currentUserId;
+    }
     if (status) where.status = status;
     if (start_date || end_date) {
       where.shiftDate = {};
@@ -287,7 +291,7 @@ export class ShiftService {
 
     // Get all unique sellers who have shifts (for filtering dropdown)
     const allShifts = await prisma.shift.findMany({
-      where: { sellerId: currentUserId },
+      where: currentUserRole === 'ADMIN' ? {} : { sellerId: currentUserId },
       select: {
         sellerId: true,
         user: {

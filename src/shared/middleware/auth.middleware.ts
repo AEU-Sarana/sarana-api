@@ -3,12 +3,14 @@ import jwt, { JwtPayload } from 'jsonwebtoken';
 import { env } from '@src/shared/config/env';
 import { Role } from '@src/shared/config/permissions';
 import { tokenBlacklistService } from '@src/domains/Auth/services/token-blacklist.service';
+import prisma from '@src/database/client';
 
 export interface UserPayload {
   userId: number;
   username?: string;
   role: Role;
   deviceId?: string;
+  tenantId?: number;
 }
 
 declare global {
@@ -34,6 +36,32 @@ function parseAuthorizationHeader(header?: string): { scheme?: string; token?: s
 
 function parseNumericUserId(payload: Record<string, any>): number | null {
   const candidates = ['userId', 'user_id', 'sub'];
+  for (const key of candidates) {
+    const v = payload[key];
+    if (v === undefined || v === null) continue;
+    if (typeof v === 'number' && Number.isInteger(v)) return v;
+    if (typeof v === 'string' && /^[0-9]+$/.test(v)) return parseInt(v, 10);
+  }
+  return null;
+}
+
+function parseNumericTenantId(payload: Record<string, any>): number | null {
+  const candidates = [
+    'tenantId',
+    'tenant_id',
+    'companyId',
+    'company_id',
+    'clientId',
+    'client_id',
+    'merchantId',
+    'merchant_id',
+    'shopId',
+    'shop_id',
+    'orgId',
+    'org_id',
+    'businessId',
+    'business_id',
+  ];
   for (const key of candidates) {
     const v = payload[key];
     if (v === undefined || v === null) continue;
@@ -139,12 +167,26 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
 
   const username = (payload.username as string) ?? (payload.user_name as string) ?? undefined;
   const deviceId = (payload.deviceId as string) ?? (payload.device_id as string) ?? undefined;
+  let tenantId = parseNumericTenantId(payload);
+
+  if (tenantId === null) {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { userId },
+        select: { tenantId: true },
+      });
+      tenantId = user?.tenantId ?? null;
+    } catch {
+      tenantId = null;
+    }
+  }
 
   req.user = {
     userId,
     username,
     role: roleValue as Role,
     deviceId,
+    ...(tenantId !== null ? { tenantId } : {}),
   };
 
   req.clientIp = req.ip;

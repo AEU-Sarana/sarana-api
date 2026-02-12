@@ -48,6 +48,7 @@ export class RefreshTokenRepository {
             username: true,
             role: true,
             status: true,
+            tenantId: true,
           },
         },
       },

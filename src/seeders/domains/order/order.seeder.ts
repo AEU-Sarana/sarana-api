@@ -26,6 +26,13 @@ export class OrderSeeder extends BaseSeeder {
     const orders = [];
     let orderIndex = 0;
 
+    const sellerIds = Array.from(new Set(shifts.map((s) => s.sellerId)));
+    const sellers = await prisma.user.findMany({
+      where: { userId: { in: sellerIds } },
+      select: { userId: true, tenantId: true },
+    });
+    const sellerTenantMap = new Map(sellers.map((s) => [s.userId, s.tenantId]));
+
     for (const shift of shifts) {
       // Create 5-15 orders per shift
       const orderCount = SeederHelper.randomInt(5, 15);
@@ -81,6 +88,7 @@ export class OrderSeeder extends BaseSeeder {
             receiptNumber: DataGenerator.generateReceiptNumber(orderIndex++),
             shiftId: shift.shiftId,
             sellerId: shift.sellerId,
+            tenantId: sellerTenantMap.get(shift.sellerId) ?? 1,
             orderDate,
             totalAmount: finalTotal,
             discountAmount,

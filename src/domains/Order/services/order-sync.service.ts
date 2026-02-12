@@ -27,7 +27,8 @@ export class OrderSyncService {
    */
   static async syncOrders(
     request: SyncOrdersRequest,
-    currentUserId: number
+    currentUserId: number,
+    currentUserTenantId?: number
   ): Promise<SyncOrdersResponse> {
     const { orders } = request;
 
@@ -97,6 +98,7 @@ export class OrderSyncService {
                 receiptNumber: orderData.receipt_number,
                 shiftId: orderData.shift_id,
                 sellerId: orderData.seller_id || currentUserId,
+                ...(currentUserTenantId != null ? { tenantId: currentUserTenantId } : {}),
                 orderDate,
                 totalAmount: orderData.total_amount,
                 discountAmount: orderData.discount_amount || 0,
@@ -171,6 +173,7 @@ export class OrderSyncService {
                 receiptNumber: orderData.receipt_number,
                 shiftId: orderData.shift_id,
                 sellerId: orderData.seller_id || currentUserId,
+                ...(currentUserTenantId != null ? { tenantId: currentUserTenantId } : {}),
                 orderDate,
                 totalAmount: orderData.total_amount,
                 discountAmount: orderData.discount_amount || 0,

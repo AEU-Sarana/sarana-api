@@ -28,6 +28,7 @@ export class AuthService {
         passwordHash: true,
         role: true,
         status: true,
+        tenantId: true,
       },
     });
 
@@ -62,6 +63,7 @@ export class AuthService {
     const accessToken = TokenService.generateAccessToken({
       userId: user.userId,
       role: user.role as 'ADMIN' | 'SELLER',
+      tenantId: user.tenantId ?? 1,
       deviceId: input.device_id,
     });
 
@@ -141,6 +143,7 @@ export class AuthService {
     const accessToken = TokenService.generateAccessToken({
       userId: session.userId,
       role: session.user.role as 'ADMIN' | 'SELLER',
+      tenantId: session.user.tenantId ?? 1,
       deviceId: session.deviceId ?? undefined,
     });
 

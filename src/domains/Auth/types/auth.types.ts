@@ -54,6 +54,7 @@ export interface UserPayload {
   userId: number;
   username: string;
   role: UserRole;
+  tenantId: number;
 }
 
 export interface TokenPayload extends UserPayload {

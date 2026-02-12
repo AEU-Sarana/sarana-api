@@ -4,7 +4,7 @@ import prisma from '@src/database/client';
 
 /**
  * Middleware to authorize order access
- * - Admin can access all orders
+ * - Admin can access all orders within tenant
  * - Seller can only access own orders
  */
 export async function authorizeOrderAccess(
@@ -46,10 +46,19 @@ export async function authorizeOrderAccess(
       return;
     }
 
-    // Admin can access all orders
+    // Admin can access all orders within tenant
     if (req.user.role === Role.ADMIN) {
-      req.order = order;
-      return next();
+      if (req.user.tenantId != null && order.tenantId === req.user.tenantId) {
+        req.order = order;
+        return next();
+      }
+
+      res.status(403).json({
+        success: false,
+        message: 'Access denied to this order',
+        code: 'ORDER_ACCESS_DENIED',
+      });
+      return;
     }
 
     // Seller can only access own orders

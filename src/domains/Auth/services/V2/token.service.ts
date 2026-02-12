@@ -8,11 +8,13 @@ export class TokenService {
   static generateAccessToken(payload: {
     userId: number;
     role: 'ADMIN' | 'SELLER';
+    tenantId: number;
     deviceId?: string;
   }): string {
     const claims: AccessTokenPayload = {
       userId: payload.userId,
       role: payload.role,
+      tenantId: payload.tenantId,
       deviceId: payload.deviceId,
       jti: crypto.randomUUID(),
       iat: Math.floor(Date.now() / 1000),

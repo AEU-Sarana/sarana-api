@@ -65,6 +65,8 @@ const domainConfig = {
    MIGRATION ROLLBACK ORDER (REVERSE)
 ================================ */
 const migrationRollbackOrder = [
+  'order/20260212000002_add_tenant_id_to_orders',
+  'auth/20260212000001_add_tenant_id_to_users',
   'backup/20260211000006_create_backup_runs_table',
   'backup/20260211000005_create_backups_table',
   'shared/202601180000014_create_audit_logs_table',

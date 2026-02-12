@@ -320,7 +320,8 @@ export class ReportService {
   ): Promise<SalesHistoryReportResponse> {
     try {
       const { start_date, end_date, seller_id, product_id, page = 1, limit = 50 } = request;
-      const effectiveSellerId = currentUserId;
+      const effectiveSellerId =
+        currentUserRole === 'ADMIN' ? (seller_id ?? null) : currentUserId;
 
       // Validate date formats
       if (!start_date || !/^\d{4}-\d{2}-\d{2}$/.test(start_date)) {

@@ -8,7 +8,7 @@ export class OrderController {
   static async syncOrders(req: Request, res: Response): Promise<void> {
     try {
       const user = req.user as UserPayload;
-      const response = await OrderSyncService.syncOrders(req.body, user.userId);
+      const response = await OrderSyncService.syncOrders(req.body, user.userId, user.tenantId);
 
       res.status(200).json({
         success: true,
@@ -33,7 +33,7 @@ export class OrderController {
         end_date: req.query.end_date as string,
       };
 
-      const response = await OrderService.listOrders(request, user.userId, user.role);
+      const response = await OrderService.listOrders(request, user);
 
       res.status(200).json({
         success: true,
@@ -51,7 +51,7 @@ export class OrderController {
       const user = req.user as UserPayload;
       const orderId = parseInt(req.params.id as string, 10);
 
-      const response = await OrderService.getOrder(orderId, user.userId, user.role);
+      const response = await OrderService.getOrder(orderId, user);
 
       res.status(200).json({
         success: true,

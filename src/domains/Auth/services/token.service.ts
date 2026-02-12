@@ -13,6 +13,7 @@ export class TokenService {
       userId: payload.userId,
       username: payload.username,
       role: payload.role,
+      tenantId: payload.tenantId,
       iat: Math.floor(Date.now() / 1000),
     };
 
