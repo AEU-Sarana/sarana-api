@@ -18,7 +18,7 @@ pipeline {
         // GitHub Container Registryy
         REGISTRY = 'ghcr.io'
         GITHUB_USERNAME = credentials('github-username')
-        GITHUB_TOKEN = credentials('github-token')
+        GITHUB_TOKEN = credentials('github-pat-global')
         APP_NAME = 'stock-pos-server'
         VERSION = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
         DOCKER_IMAGE = "${REGISTRY}/${GITHUB_USERNAME.toLowerCase()}/${APP_NAME}"
@@ -164,7 +164,7 @@ pipeline {
                     echo "Branch: ${env.GIT_BRANCH ?: env.BRANCH_NAME}"
                     
                     withCredentials([
-                        string(credentialsId: 'github-token', variable: 'GHCR_TOKEN')
+                        string(credentialsId: 'github-pat-global', variable: 'GHCR_TOKEN')
                     ]) {
                         sh '''#!/bin/bash
                             set -e
@@ -359,7 +359,7 @@ pipeline {
             script {
                 echo "❌ Build failed!"
                 echo "Build: ${BUILD_NUMBER}"
-                echo "Branch: ${GIT_BRANCH}"
+                echo "Branch: ${env.GIT_BRANCH ?: env.BRANCH_NAME}"
                 notifyTelegram("❌ <b>Build failed</b>\n• <b>App:</b> ${APP_NAME}\n• <b>Build:</b> #${BUILD_NUMBER}\n• <b>Jenkins:</b> <a href=\"${env.BUILD_URL}\">Console Log</a>")
             }
         }
@@ -367,18 +367,24 @@ pipeline {
             script {
                 echo "=== Cleanup ==="
                 
-                // Clean up dangling and unused Docker resources
-                sh '''
-                    # Remove dangling images
-                    docker image prune -f
-                    
-                    # Remove unused build cache
-                    docker builder prune -f --filter "until=24h"
-                    
-                    echo "Docker system cleanup completed"
-                '''
-                
-                cleanWs()
+                // Clean up dangling and unused Docker resources (only if node is available)
+                try {
+                    node {
+                        sh '''
+                            # Remove dangling images
+                            docker image prune -f
+                            
+                            # Remove unused build cache
+                            docker builder prune -f --filter "until=24h"
+                            
+                            echo "Docker system cleanup completed"
+                        '''
+                        
+                        cleanWs()
+                    }
+                } catch (Exception e) {
+                    echo "Cleanup skipped - node context not available: ${e.message}"
+                }
             }
         }
     }
