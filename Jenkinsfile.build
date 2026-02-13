@@ -51,7 +51,7 @@ pipeline {
                 script {
                     echo "=== Checking out code from repository ==="
                     notifyTelegram("🔨 <b>Build started</b>\n• <b>App:</b> ${APP_NAME}\n• <b>Build:</b> #${BUILD_NUMBER}\n• <b>Jenkins:</b> <a href=\"${env.BUILD_URL}\">Open Build</a>")
-                    checkout([
+                    def scmVars = checkout([
                         $class: 'GitSCM',
                         branches: [[name: '*/nan']],
                         userRemoteConfigs: [[
@@ -59,11 +59,14 @@ pipeline {
                             credentialsId: 'deploy-ssh-key'
                         ]]
                     ])
+                    env.GIT_BRANCH = scmVars?.GIT_BRANCH ?: sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                    env.GIT_COMMIT = scmVars?.GIT_COMMIT ?: sh(script: "git rev-parse HEAD", returnStdout: true).trim()
                     env.SHORT_COMMIT = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
                     env.VERSION = "${env.BUILD_NUMBER}-${env.SHORT_COMMIT}"
                     sh '''
                         echo "Branch: ${GIT_BRANCH}"
                         echo "Commit: ${GIT_COMMIT}"
+                        echo "Version: ${VERSION}"
                         git log -1 --oneline
                     '''
                 }
@@ -127,6 +130,14 @@ pipeline {
             steps {
                 script {
                     echo "=== Building Docker image for GHCR ==="
+                    if (!env.VERSION?.trim()) {
+                        env.SHORT_COMMIT = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+                        env.VERSION = "${env.BUILD_NUMBER}-${env.SHORT_COMMIT}"
+                    }
+                    if (!env.VERSION?.trim()) {
+                        error("VERSION is empty; cannot build Docker image tag.")
+                    }
+                    echo "Docker tag version: ${env.VERSION}"
                     sh '''
                         docker build \
                             --target production \
