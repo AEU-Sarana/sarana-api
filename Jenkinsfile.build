@@ -20,11 +20,12 @@ pipeline {
         GITHUB_USERNAME = credentials('github-username')
         GITHUB_TOKEN = credentials('github-pat-global')
         APP_NAME = 'stock-pos-server'
-        VERSION = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
+        SHORT_COMMIT = ''
+        VERSION = ''
         DOCKER_IMAGE = "${REGISTRY}/${GITHUB_USERNAME.toLowerCase()}/${APP_NAME}"
         // Telegram Bot notification
-        TELEGRAM_BOT_TOKEN = '8469597174:AAHkhd345CvQaEMPLveGMuaIOdbtF-789BM'  // set your bot token
-        TELEGRAM_CHAT_ID = '-5118246928'    // set your chat/user idd
+        TELEGRAM_BOT_TOKEN = credentials('telegram-bot-token')
+        TELEGRAM_CHAT_ID = credentials('telegram-chat-id')
     }
 
     triggers {
@@ -50,9 +51,11 @@ pipeline {
                         branches: [[name: '*/nan']],
                         userRemoteConfigs: [[
                             url: 'git@github.com:techey-solution/stock-pos-server.git',
-                            credentialsId: 'github-ssh-key'
+                            credentialsId: 'deploy-ssh-key'
                         ]]
                     ])
+                    env.SHORT_COMMIT = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+                    env.VERSION = "${env.BUILD_NUMBER}-${env.SHORT_COMMIT}"
                     sh '''
                         echo "Branch: ${GIT_BRANCH}"
                         echo "Commit: ${GIT_COMMIT}"
