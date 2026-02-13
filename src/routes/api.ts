@@ -19,7 +19,7 @@ router.use(apiRateLimiter);
 router.get('/health', (req, res) => {
   res.json({
     success: true,
-    message: 'API is healthy',
+    message: 'API is healthy Nan Nan',
     timestamp: new Date().toISOString(),
   });
 });
