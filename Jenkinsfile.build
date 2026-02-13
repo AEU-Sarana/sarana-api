@@ -27,8 +27,6 @@ pipeline {
         GITHUB_USERNAME = credentials('github-username')
         GITHUB_TOKEN = credentials('github-pat-global')
         APP_NAME = 'stock-pos-server'
-        SHORT_COMMIT = ''
-        VERSION = ''
         DOCKER_IMAGE = "${REGISTRY}/${GITHUB_USERNAME.toLowerCase()}/${APP_NAME}"
     }
 
@@ -62,7 +60,7 @@ pipeline {
                     env.GIT_BRANCH = scmVars?.GIT_BRANCH ?: sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
                     env.GIT_COMMIT = scmVars?.GIT_COMMIT ?: sh(script: "git rev-parse HEAD", returnStdout: true).trim()
                     env.SHORT_COMMIT = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
-                    env.VERSION = "${env.BUILD_NUMBER}-${env.SHORT_COMMIT}"
+                    env.VERSION = sh(script: 'echo "${BUILD_NUMBER}-$(git rev-parse --short HEAD)"', returnStdout: true).trim()
                     sh '''
                         echo "Branch: ${GIT_BRANCH}"
                         echo "Commit: ${GIT_COMMIT}"
@@ -131,8 +129,7 @@ pipeline {
                 script {
                     echo "=== Building Docker image for GHCR ==="
                     if (!env.VERSION?.trim()) {
-                        env.SHORT_COMMIT = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
-                        env.VERSION = "${env.BUILD_NUMBER}-${env.SHORT_COMMIT}"
+                        env.VERSION = sh(script: 'echo "${BUILD_NUMBER}-$(git rev-parse --short HEAD)"', returnStdout: true).trim()
                     }
                     if (!env.VERSION?.trim()) {
                         error("VERSION is empty; cannot build Docker image tag.")
