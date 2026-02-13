@@ -17,9 +17,9 @@ router.use(apiRateLimiter);
 
 // Health check endpoint (no version)
 router.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'API is healthy Nan Nan',
+  res.status(500).json({
+    success: false,
+    message: 'API health check forced failure for rollback test',
     timestamp: new Date().toISOString(),
   });
 });
