@@ -57,15 +57,17 @@
           - "Rollback tag: {{ rollback_tag }}"
           - "Image: {{ docker_registry }}/{{ docker_registry_username | lower }}/{{ docker_image_name }}"
 
-  roles:
-    - role: app-deploy
-      vars:
+    - name: Enforce rollback deployment flags
+      set_fact:
         build_image: false
         pull_images: true
         force_recreate: true
         run_db_migrations: false
         run_db_seed: false
         docker_image_tag: "{{ rollback_tag }}"
+
+  roles:
+    - role: app-deploy
 
   post_tasks:
     - name: Wait for app health endpoint after rollback
