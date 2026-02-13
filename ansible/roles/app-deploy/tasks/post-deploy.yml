@@ -1,7 +1,7 @@
 ---
 - name: Wait for application to be ready
   uri:
-    url: "http://localhost:{{ nginx_http_port | default(nginx_http_port_custom) | default(8081) }}/health"
+    url: "http://127.0.0.1:{{ app_port }}/api/health"
     status_code: 200
   register: health_check
   until: health_check.status == 200
