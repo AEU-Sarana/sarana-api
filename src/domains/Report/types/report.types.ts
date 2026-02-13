@@ -133,6 +133,7 @@ export interface StockReportItem {
   product_id: number;
   product_name: string;
   product_code?: string;
+  image_path: string | null;
   category?: string | null;
   current_stock: number;
   low_stock_threshold: number | null;

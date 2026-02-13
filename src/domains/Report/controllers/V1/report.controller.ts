@@ -123,7 +123,11 @@ export class ReportController {
       if (productIdStr && Number.isNaN(productId)) {
         throw new ValidationException('Invalid product_id');
       }
-      sellerId = user.userId;
+      // Admin can view all sellers (or a specific seller via query param).
+      // Non-admin users are always scoped to their own data.
+      if (user.role !== 'ADMIN') {
+        sellerId = user.userId;
+      }
 
       const request = {
         start_date: startDateStr,

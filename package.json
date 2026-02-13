@@ -5,7 +5,7 @@
   "type": "commonjs",
   "main": "dist/index.js",
   "prisma": {
-    "schema": "src/database/prisma/schema.prisma"
+    "schema": "src/database/generated/schema.prisma"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -23,7 +23,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:status": "prisma migrate status",
-    "db:migrate:reset": "prisma migrate reset",
+    "db:migrate:reset": "node refresh-db.mjs --force && node apply-domain-migrations.mjs apply",
     "migrate:apply": "node apply-domain-migrations.mjs apply",
     "migrate:single": "node apply-single-migration.mjs",
     "migrate:rollback": "node rollback-domain-migrations.mjs",
@@ -113,8 +113,14 @@
     "doc": "doc"
   },
   "pnpm": {
-    "allowedBuiltDependencies": [
-      "canvas"
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "bcrypt",
+      "canvas",
+      "esbuild",
+      "msgpackr-extract",
+      "prisma",
+      "sharp"
     ]
   }
 }

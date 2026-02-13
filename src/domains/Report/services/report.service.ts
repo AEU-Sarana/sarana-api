@@ -643,6 +643,7 @@ export class ReportService {
           updated_at: Date;
           product_name: string;
           product_code: string;
+          image_path: string | null;
           category: string | null;
           low_stock_threshold: number | null;
           p_status: string;
@@ -650,7 +651,7 @@ export class ReportService {
 
         const rawItems = await prisma.$queryRaw<StockRawRow[]>`
               SELECT s.stock_id, s.product_id, s.quantity, s.updated_at,
-                     p.product_name, p.product_code, p.category, p.low_stock_threshold, p.status as p_status
+                     p.product_name, p.product_code, p.image_path, p.category, p.low_stock_threshold, p.status as p_status
               FROM stocks s
               JOIN products p ON s.product_id = p.product_id
               WHERE p.status = 'active'
@@ -666,6 +667,7 @@ export class ReportService {
           product_id: s.product_id,
           product_name: s.product_name,
           product_code: s.product_code,
+          image_path: s.image_path,
           category: s.category,
           current_stock: s.quantity,
           low_stock_threshold: s.low_stock_threshold,
@@ -717,6 +719,7 @@ export class ReportService {
         product_id: s.productId,
         product_name: s.product.productName,
         product_code: s.product.productCode,
+        image_path: s.product.imagePath ?? null,
         category: s.product.category,
         current_stock: s.quantity,
         low_stock_threshold: s.product.lowStockThreshold,
