@@ -30,7 +30,7 @@ app_port: 3000
 app_host: 0.0.0.0
 
 # ===== DOCKER CONFIGURATION (Production) =====
-docker_image_name: stock-pos-app
+docker_image_name: stock-pos-server
 docker_image_tag: latest
 docker_container_name: stock-pos-app
 docker_registry: "{{ vault_docker_registry_url }}"

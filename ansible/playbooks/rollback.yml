@@ -61,7 +61,7 @@
       set_fact:
         build_image: false
         pull_images: true
-        force_recreate: true
+        force_recreate: false
         run_db_migrations: false
         run_db_seed: false
         docker_image_tag: "{{ rollback_tag }}"
