@@ -12,6 +12,7 @@ export interface UserSeedData {
   deviceId?: string;
   isDeviceBound?: boolean;
   tenantId: number;
+  createdByUsername?: string;
 }
 
 export const userSeedData: UserSeedData[] = [
@@ -44,6 +45,7 @@ export const userSeedData: UserSeedData[] = [
     phone: '012345679',
     status: 'active',
     tenantId: 1,
+    createdByUsername: 'admin',
   },
   {
     username: 'seller2',
@@ -54,6 +56,7 @@ export const userSeedData: UserSeedData[] = [
     phone: '012345680',
     status: 'active',
     tenantId: 1,
+    createdByUsername: 'admin',
   },
   {
     username: 'seller3',
@@ -63,6 +66,40 @@ export const userSeedData: UserSeedData[] = [
     role: 'SELLER',
     phone: '012345681',
     status: 'active',
+    tenantId: 1,
+    createdByUsername: 'admin',
+  },
+  {
+    username: 'seller4',
+    email: 'seller4@stockpos.com',
+    passwordHash: bcrypt.hashSync('Seller123!', 10),
+    fullName: 'Seller Four',
+    role: 'SELLER',
+    phone: '012345682',
+    status: 'active',
     tenantId: 2,
+    createdByUsername: 'super-admin',
+  },
+  {
+    username: 'seller5',
+    email: 'seller5@stockpos.com',
+    passwordHash: bcrypt.hashSync('Seller123!', 10),
+    fullName: 'Seller Five',
+    role: 'SELLER',
+    phone: '012345683',
+    status: 'active',
+    tenantId: 2,
+    createdByUsername: 'super-admin',
+  },
+  {
+    username: 'seller6',
+    email: 'seller6@stockpos.com',
+    passwordHash: bcrypt.hashSync('Seller123!', 10),
+    fullName: 'Seller Six',
+    role: 'SELLER',
+    phone: '012345684',
+    status: 'active',
+    tenantId: 2,
+    createdByUsername: 'super-admin',
   },
 ];

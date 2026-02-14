@@ -9,20 +9,24 @@ export class UserSeeder extends BaseSeeder {
     // Clear existing users (except if you want to keep them)
     // await this.clearTable('users');
 
-    let adminUserId: number | null = null;
+    const usersByUsername = new Map<
+      string,
+      { userId: number; role: string; tenantId: number }
+    >();
 
     for (const userData of userSeedData) {
-      const user: { userId: number; role: string } = await prisma.user.upsert({
+      const user = await prisma.user.upsert({
         where: { username: userData.username },
         update: {
           email: userData.email,
           passwordHash: userData.passwordHash,
+          pinHash: userData.pinHash,
           fullName: userData.fullName,
           role: userData.role,
           phone: userData.phone,
           status: userData.status,
           deviceId: userData.deviceId,
-          isDeviceBound: userData.isDeviceBound || false,
+          isDeviceBound: userData.isDeviceBound ?? false,
           tenantId: userData.tenantId,
         },
         create: {
@@ -35,24 +39,54 @@ export class UserSeeder extends BaseSeeder {
           phone: userData.phone,
           status: userData.status,
           deviceId: userData.deviceId,
-          isDeviceBound: userData.isDeviceBound || false,
+          isDeviceBound: userData.isDeviceBound ?? false,
           tenantId: userData.tenantId,
-          createdBy: adminUserId, // Will be null for first user
+        },
+        select: {
+          userId: true,
+          role: true,
+          tenantId: true,
         },
       });
 
-      // Store admin user ID for self-reference
-      if (user.role === 'ADMIN' && !adminUserId) {
-        adminUserId = user.userId;
+      usersByUsername.set(userData.username, user);
+    }
+
+    const adminIdByTenant = new Map<number, number>();
+    for (const user of usersByUsername.values()) {
+      if (user.role === 'ADMIN' && !adminIdByTenant.has(user.tenantId)) {
+        adminIdByTenant.set(user.tenantId, user.userId);
       }
     }
 
-    // Update createdBy for all users to point to admin
-    if (adminUserId) {
-      await prisma.user.updateMany({
-        where: { createdBy: null },
-        data: { createdBy: adminUserId },
-      });
+    for (const userData of userSeedData) {
+      const seededUser = usersByUsername.get(userData.username);
+      if (!seededUser) {
+        continue;
+      }
+
+      let createdBy: number | undefined;
+
+      if (userData.createdByUsername) {
+        const creator = usersByUsername.get(userData.createdByUsername);
+        if (!creator) {
+          throw new Error(
+            `Invalid createdByUsername "${userData.createdByUsername}" for user "${userData.username}"`,
+          );
+        }
+        createdBy = creator.userId;
+      } else if (seededUser.role === 'ADMIN') {
+        createdBy = seededUser.userId;
+      } else {
+        createdBy = adminIdByTenant.get(userData.tenantId);
+      }
+
+      if (createdBy) {
+        await prisma.user.update({
+          where: { userId: seededUser.userId },
+          data: { createdBy },
+        });
+      }
     }
 
     console.log(`   Created/Updated ${userSeedData.length} users`);

@@ -24,6 +24,9 @@ export class TelegramAdminParserService {
         if (code.startsWith('LINK_')) {
           return { type: 'CUSTOMER_LINK_START', token: code.substring(5) };
         }
+        if (code.startsWith('RECEIPT_')) {
+          return { type: 'RECEIPT_START', code: code.substring(8) };
+        }
         return { type: 'RECEIPT_START', code };
       }
       return { type: 'START' };

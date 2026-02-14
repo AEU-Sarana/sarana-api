@@ -66,8 +66,8 @@ Seeders run in the following order (respecting dependencies):
 ## Seed Data
 
 ### Users
-- 1 Admin user (username: `admin`, password: `Admin123!`)
-- 3 Seller users (username: `seller1`, `seller2`, `seller3`, password: `Seller123!`)
+- 2 Admin users (username: `admin`, `super-admin`, password: `Admin123!`)
+- 6 Seller users (username: `seller1`-`seller6`, password: `Seller123!`)
 
 ### Products
 - 50 products with random data
