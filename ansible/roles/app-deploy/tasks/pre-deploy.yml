@@ -64,8 +64,8 @@
   set_fact:
     active_color: >-
       {{
-        ((vars.get('active_color_state_raw', {}).get('content', '') | b64decode | trim))
-        if ((vars.get('active_color_state_raw', {}).get('content', '') | b64decode | trim) in ['blue', 'green'])
+        (((active_color_state_raw | default({})).get('content', '') | b64decode | trim))
+        if ((((active_color_state_raw | default({})).get('content', '') | b64decode | trim) in ['blue', 'green']))
         else active_color_default
       }}
   when: blue_green_enabled | bool

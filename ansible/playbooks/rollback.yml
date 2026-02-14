@@ -57,8 +57,8 @@
       set_fact:
         active_color: >-
           {{
-            ((vars.get('rollback_active_color_state_raw', {}).get('content', '') | b64decode | trim))
-            if ((vars.get('rollback_active_color_state_raw', {}).get('content', '') | b64decode | trim) in ['blue', 'green'])
+            (((rollback_active_color_state_raw | default({})).get('content', '') | b64decode | trim))
+            if ((((rollback_active_color_state_raw | default({})).get('content', '') | b64decode | trim) in ['blue', 'green']))
             else active_color_default
           }}
       when: blue_green_enabled | bool

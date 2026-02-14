@@ -291,7 +291,13 @@ pipeline {
                         previousImage = sh(
                             script: '''#!/bin/bash
                                 ssh -o StrictHostKeyChecking=no deployer@89.167.6.46 \
-                                  "docker inspect --format='{{.Config.Image}}' stock-pos-app 2>/dev/null || true"
+                                  'set -e
+                                   ACTIVE_COLOR="$(cat /opt/stock-pos/.active_color 2>/dev/null || echo blue)"
+                                   if [ "$ACTIVE_COLOR" != "blue" ] && [ "$ACTIVE_COLOR" != "green" ]; then
+                                     ACTIVE_COLOR="blue"
+                                   fi
+                                   docker inspect --format="{{.Config.Image}}" "stock-pos-app-${ACTIVE_COLOR}" 2>/dev/null || \
+                                   docker inspect --format="{{.Config.Image}}" stock-pos-app 2>/dev/null || true'
                             ''',
                             returnStdout: true
                         ).trim()
@@ -397,8 +403,17 @@ pipeline {
                             script: '''#!/bin/bash
                                 set +e
                                 ssh -o StrictHostKeyChecking=no deployer@89.167.6.46 '
+                                  ACTIVE_COLOR="$(cat /opt/stock-pos/.active_color 2>/dev/null || echo blue)"
+                                  if [ "$ACTIVE_COLOR" = "green" ]; then
+                                    APP_PORT=3002
+                                  elif [ "$ACTIVE_COLOR" = "blue" ]; then
+                                    APP_PORT=3001
+                                  else
+                                    APP_PORT=3000
+                                  fi
                                   for i in $(seq 1 12); do
-                                    curl -fsS http://127.0.0.1:3000/api/health >/dev/null && exit 0
+                                    curl -fsS "http://127.0.0.1:${APP_PORT}/api/health" >/dev/null && \
+                                    curl -fsS http://127.0.0.1/api/health >/dev/null && exit 0
                                     sleep 10
                                   done
                                   exit 1
