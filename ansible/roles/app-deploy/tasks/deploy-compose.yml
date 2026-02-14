@@ -65,6 +65,7 @@
       - db
       - redis
       - minio
+      - node-exporter
       - nginx
       - "{{ deploy_service_name }}"
     state: present
