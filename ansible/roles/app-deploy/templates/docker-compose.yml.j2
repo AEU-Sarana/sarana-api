@@ -5,6 +5,49 @@
 # - external-network: Public network (only nginx exposed)
 
 services:
+{% if blue_green_enabled | default(false) | bool %}
+  # Application Service (Express) - Blue
+  app-blue:
+    image: "{{ docker_registry }}/{{ docker_registry_username | lower }}/{{ docker_image_name }}:{{ docker_image_tag }}"
+    container_name: {{ app_name }}-app-blue
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - APP_PORT=3000
+    ports:
+      - "{{ blue_app_port }}:3000"
+    expose:
+      - "3000"
+    depends_on:
+      - db
+      - redis
+      - minio
+    restart: unless-stopped
+    networks:
+      - internal-network
+
+  # Application Service (Express) - Green
+  app-green:
+    image: "{{ docker_registry }}/{{ docker_registry_username | lower }}/{{ docker_image_name }}:{{ docker_image_tag }}"
+    container_name: {{ app_name }}-app-green
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - APP_PORT=3000
+    ports:
+      - "{{ green_app_port }}:3000"
+    expose:
+      - "3000"
+    depends_on:
+      - db
+      - redis
+      - minio
+    restart: unless-stopped
+    networks:
+      - internal-network
+{% else %}
   # Application Service (Express)
   app:
     image: "{{ docker_registry }}/{{ docker_registry_username | lower }}/{{ docker_image_name }}:{{ docker_image_tag }}"
@@ -22,6 +65,7 @@ services:
     restart: unless-stopped
     networks:
       - internal-network
+{% endif %}
 
   # Database (private network only)
   db:
@@ -93,7 +137,12 @@ services:
       - nginx-cache:/var/cache/nginx
       - nginx-logs:/var/log/nginx
     depends_on:
+{% if blue_green_enabled | default(false) | bool %}
+      - app-blue
+      - app-green
+{% else %}
       - app
+{% endif %}
     restart: unless-stopped
     networks:
       - internal-network

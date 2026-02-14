@@ -29,6 +29,13 @@ app_directory: /opt/stock-pos
 app_port: 3000
 app_host: 0.0.0.0
 
+# ===== BLUE/GREEN DEPLOYMENT =====
+blue_green_enabled: true
+active_color_default: blue
+active_color_state_file: "{{ app_directory }}/.active_color"
+blue_app_port: 3001
+green_app_port: 3002
+
 # ===== DOCKER CONFIGURATION (Production) =====
 docker_image_name: stock-pos-server
 docker_image_tag: latest

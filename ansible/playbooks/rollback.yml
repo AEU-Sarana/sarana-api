@@ -39,8 +39,37 @@
           - rollback_tag is match('^[A-Za-z0-9._-]+$')
         fail_msg: "Invalid rollback_tag. Use only letters, numbers, dot, underscore, dash."
 
+    - name: Check active color state file
+      stat:
+        path: "{{ active_color_state_file }}"
+      register: rollback_active_color_state_stat
+      when: blue_green_enabled | bool
+
+    - name: Read active color state file
+      slurp:
+        src: "{{ active_color_state_file }}"
+      register: rollback_active_color_state_raw
+      when:
+        - blue_green_enabled | bool
+        - rollback_active_color_state_stat.stat.exists | default(false)
+
+    - name: Resolve active color for rollback
+      set_fact:
+        active_color: >-
+          {{
+            (rollback_active_color_state_raw.content | b64decode | trim)
+            if (
+              rollback_active_color_state_raw is defined and
+              (rollback_active_color_state_raw.content | b64decode | trim) in ['blue', 'green']
+            )
+            else active_color_default
+          }}
+      when: blue_green_enabled | bool
+
     - name: Detect currently running app image
-      shell: docker inspect --format='{{ "{{" }}.Config.Image{{ "}}" }}' "{{ app_name }}-app"
+      shell: >-
+        docker inspect --format='{{ "{{" }}.Config.Image{{ "}}" }}'
+        "{{ app_name }}-app{{ '-' + active_color if blue_green_enabled | bool else '' }}"
       register: current_image
       changed_when: false
       failed_when: false
@@ -72,7 +101,7 @@
   post_tasks:
     - name: Wait for app health endpoint after rollback
       uri:
-        url: "http://127.0.0.1:{{ app_port }}/api/health"
+        url: "http://127.0.0.1:{{ active_host_port | default(app_port) }}/api/health"
         status_code: 200
       register: rollback_health
       retries: 12
@@ -80,7 +109,9 @@
       until: rollback_health.status == 200
 
     - name: Verify container health status is healthy
-      shell: docker inspect --format='{{ "{{" }}if .State.Health{{ "}}" }}{{ "{{" }}.State.Health.Status{{ "}}" }}{{ "{{" }}else{{ "}}" }}unknown{{ "{{" }}end{{ "}}" }}' "{{ app_name }}-app"
+      shell: >-
+        docker inspect --format='{{ "{{" }}if .State.Health{{ "}}" }}{{ "{{" }}.State.Health.Status{{ "}}" }}{{ "{{" }}else{{ "}}" }}unknown{{ "{{" }}end{{ "}}" }}'
+        "{{ app_name }}-app{{ '-' + active_color if blue_green_enabled | bool else '' }}"
       register: container_health
       changed_when: false
       retries: 12
@@ -112,6 +143,7 @@
           - "Host: {{ inventory_hostname }}"
           - "From tag: {{ current_tag }}"
           - "To tag: {{ rollback_tag }}"
+          - "Active color: {{ active_color if blue_green_enabled | bool else 'single-service' }}"
           - "Health endpoint: OK"
           - "Container health: {{ container_health.stdout | trim }}"
           - "======================================"
