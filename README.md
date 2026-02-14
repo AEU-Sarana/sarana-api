@@ -206,7 +206,8 @@ Configured in:
 Variables:
 - `node_exporter_enabled: true`
 - `node_exporter_port: 9100`
-- `node_exporter_bind_address: 127.0.0.1`
+- `node_exporter_bind_address: 0.0.0.0`
+- `node_exporter_allowed_source_ip: 37.27.180.31` (Jenkins server IP)
 
 ### Container service
 
@@ -217,7 +218,33 @@ Service name:
 - `stock-pos-node-exporter`
 
 Port binding:
-- `127.0.0.1:9100 -> 9100` (localhost-only, not public)
+- `0.0.0.0:9100 -> 9100` (published on host)
+
+### Restrict access to Jenkins IP only
+
+Apply firewall rules on app server so only Jenkins can scrape port `9100`:
+
+```bash
+cd /home/techey/develop/stock-pos-server
+ansible-playbook -i ansible/inventories/production/hosts.ini \
+  ansible/playbooks/secure-node-exporter.yml
+```
+
+This playbook adds `DOCKER-USER` iptables rules:
+- `ACCEPT` source `37.27.180.31` to `tcp/9100`
+- `DROP` everyone else to `tcp/9100`
+
+### Apply compose change
+
+After changing `node_exporter_bind_address`, redeploy app stack:
+
+```bash
+cd /home/techey/develop/stock-pos-server
+ansible-playbook -i ansible/inventories/production/hosts.ini \
+  ansible/playbooks/deploy.yml \
+  --vault-password-file .vault-pass \
+  -e confirm_deploy=yes
+```
 
 ### Verify on app server
 
