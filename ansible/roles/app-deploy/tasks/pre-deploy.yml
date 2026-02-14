@@ -80,6 +80,31 @@
     app_runtime_service: "app-{{ 'green' if active_color == 'blue' else 'blue' }}"
   when: blue_green_enabled | bool
 
+- name: Detect current active app image
+  shell: >-
+    docker inspect --format='{{ "{{" }}.Config.Image{{ "}}" }}'
+    "{{ app_name }}-app-{{ active_color }}"
+  register: active_app_image
+  changed_when: false
+  failed_when: false
+  when: blue_green_enabled | bool
+
+- name: Resolve current active app image tag
+  set_fact:
+    current_active_image_tag: >-
+      {{
+        ((active_app_image.stdout | trim).split(':')[-1])
+        if (active_app_image is defined and active_app_image.rc == 0 and (active_app_image.stdout | trim | length > 0))
+        else docker_image_tag
+      }}
+  when: blue_green_enabled | bool
+
+- name: Resolve per-color image tags for true blue/green
+  set_fact:
+    app_blue_image_tag: "{{ current_active_image_tag if active_color == 'blue' else docker_image_tag }}"
+    app_green_image_tag: "{{ current_active_image_tag if active_color == 'green' else docker_image_tag }}"
+  when: blue_green_enabled | bool
+
 - name: Use single-service mode facts
   set_fact:
     active_service_name: "app"
@@ -87,6 +112,8 @@
     app_runtime_service: "app"
     active_host_port: "{{ app_port }}"
     deploy_host_port: "{{ app_port }}"
+    app_blue_image_tag: "{{ docker_image_tag }}"
+    app_green_image_tag: "{{ docker_image_tag }}"
   when: not (blue_green_enabled | bool)
 
 - name: Display blue/green deployment plan
@@ -97,4 +124,6 @@
       - "Active service: {{ active_service_name }}"
       - "Deploy service: {{ deploy_service_name }}"
       - "Deploy port: {{ deploy_host_port }}"
+      - "Active tag (kept): {{ current_active_image_tag }}"
+      - "Deploy tag (new): {{ docker_image_tag }}"
   when: blue_green_enabled | bool

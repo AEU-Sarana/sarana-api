@@ -8,7 +8,7 @@ services:
 {% if blue_green_enabled | default(false) | bool %}
   # Application Service (Express) - Blue
   app-blue:
-    image: "{{ docker_registry }}/{{ docker_registry_username | lower }}/{{ docker_image_name }}:{{ docker_image_tag }}"
+    image: "{{ docker_registry }}/{{ docker_registry_username | lower }}/{{ docker_image_name }}:{{ app_blue_image_tag | default(docker_image_tag) }}"
     container_name: {{ app_name }}-app-blue
     env_file:
       - .env
@@ -29,7 +29,7 @@ services:
 
   # Application Service (Express) - Green
   app-green:
-    image: "{{ docker_registry }}/{{ docker_registry_username | lower }}/{{ docker_image_name }}:{{ docker_image_tag }}"
+    image: "{{ docker_registry }}/{{ docker_registry_username | lower }}/{{ docker_image_name }}:{{ app_green_image_tag | default(docker_image_tag) }}"
     container_name: {{ app_name }}-app-green
     env_file:
       - .env
