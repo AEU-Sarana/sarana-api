@@ -47,7 +47,7 @@ services:
       - STORAGE_USE_SSL=${STORAGE_USE_SSL:-false}
       - STORAGE_PUBLIC_URL=${STORAGE_PUBLIC_URL:-}
     ports:
-      - "{{ blue_app_port }}:3000"
+      - "127.0.0.1:{{ blue_app_port }}:3000"
     depends_on:
       db:
         condition: service_healthy
@@ -122,7 +122,7 @@ services:
       - STORAGE_USE_SSL=${STORAGE_USE_SSL:-false}
       - STORAGE_PUBLIC_URL=${STORAGE_PUBLIC_URL:-}
     ports:
-      - "{{ green_app_port }}:3000"
+      - "127.0.0.1:{{ green_app_port }}:3000"
     depends_on:
       db:
         condition: service_healthy

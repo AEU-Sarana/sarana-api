@@ -16,7 +16,7 @@ services:
       - NODE_ENV=${NODE_ENV:-production}
       - APP_PORT=3000
     ports:
-      - "{{ blue_app_port }}:3000"
+      - "127.0.0.1:{{ blue_app_port }}:3000"
     expose:
       - "3000"
     depends_on:
@@ -37,7 +37,7 @@ services:
       - NODE_ENV=${NODE_ENV:-production}
       - APP_PORT=3000
     ports:
-      - "{{ green_app_port }}:3000"
+      - "127.0.0.1:{{ green_app_port }}:3000"
     expose:
       - "3000"
     depends_on:

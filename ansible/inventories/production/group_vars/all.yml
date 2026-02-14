@@ -20,7 +20,6 @@ deployer_home: /home/deployer
 
 # ===== APPLICATION CONFIGURATION =====
 app_env: production
-environment: production
 node_env: production
 app_name: stock-pos
 app_repo: "https://github.com/yourusername/stock-pos.git"
