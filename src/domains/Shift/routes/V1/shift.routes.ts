@@ -1,36 +1,36 @@
-import { Router, type IRouter } from 'express';
+import { Router } from 'express';
+import { ShiftController } from '@src/domains/Shift/controllers/V1/shift.controller';
+import {
+  closeShiftValidator,
+  getShiftReconciliationValidator,
+  getShiftValidator,
+  listShiftsValidator,
+  startShiftValidator,
+} from '@src/domains/Shift/validators/V1/index';
 import { authenticateToken } from '@src/shared/middleware/auth.middleware';
 import { requireAdmin } from '@src/shared/middleware/authorization.middleware';
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
-import { ShiftController } from '@src/domains/Shift/controllers/V1/shift.controller';
-import {
-  startShiftValidator,
-  closeShiftValidator,
-  listShiftsValidator,
-  getShiftValidator,
-  getShiftReconciliationValidator,
-} from '@src/domains/Shift/validators/V1/index';
 
-const router: IRouter = Router();
+const router = Router();
 
-// All routes require authentication
+// Apply authentication to all routes
 router.use(authenticateToken);
 
-// Start shift - All users (role-scoped in service)
+// Start shift
 router.post(
   '/start',
   ...validateRequest(startShiftValidator),
   ShiftController.startShift
 );
 
-// List shifts - All users (Seller: own, Admin: all)
+// List shifts
 router.get(
   '/',
   ...validateRequest(listShiftsValidator),
   ShiftController.listShifts
 );
 
-// Get shift reconciliation - Admin only (MUST be before /:id)
+// Get shift reconciliation (Admin only)
 router.get(
   '/:id/reconciliation',
   requireAdmin,
@@ -38,14 +38,14 @@ router.get(
   ShiftController.getReconciliation
 );
 
-// Get shift details - All users (role-scoped in service)
+// Get shift details
 router.get(
   '/:id',
   ...validateRequest(getShiftValidator),
   ShiftController.getShift
 );
 
-// Close shift - All users (role-scoped in service)
+// Close shift
 router.post(
   '/:id/close',
   ...validateRequest(closeShiftValidator),
@@ -53,4 +53,3 @@ router.post(
 );
 
 export default router;
-// i need clean code for this file

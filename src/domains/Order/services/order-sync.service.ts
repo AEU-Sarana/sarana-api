@@ -14,6 +14,7 @@ import { parseClientDateTime } from '@src/shared/utils/date-utils';
 import { ReceiptLinkService } from '@src/domains/Receipt/services/V1/receipt-link.service';
 import { ReceiptLinkStatus } from '@src/domains/Receipt/enums/V1/receipt-link-status.enum';
 import { add } from 'date-fns';
+import { eventBus } from '@src/shared/events/event-bus';
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -270,6 +271,11 @@ export class OrderSyncService {
                 order_uuid: orderData.order_uuid,
               });
             });
+
+            // Emit event for real-time delivery wait logic
+            if (result.order_id) {
+              eventBus.emit(`order_synced:${result.order_id}`, { orderId: result.order_id });
+            }
           });
         }
       } catch (error: unknown) {

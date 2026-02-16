@@ -17,7 +17,7 @@ router.use(authenticateToken);
 
 // Cashier/Admin - generate QR receipt link
 router.post(
-  '/orders/:order_id/receipt-link',
+  '/orders/:order_uuid/receipt-link',
   ...validateRequest(createReceiptLinkValidator),
   ReceiptLinkController.createReceiptLink
 );
@@ -26,7 +26,6 @@ router.post(
 router.get(
   '/admin/receipt-settings',
   ...validateRequest(getReceiptSettingsValidator),
-  requireAdmin,
   ReceiptSettingsController.getSettings
 );
 
@@ -37,14 +36,16 @@ router.put(
   ReceiptSettingsController.updateSettings
 );
 
+import { productImageUploadAny } from '@src/shared/utils/multer.config';
+
 // Optional upload endpoint (if multipart middleware enabled)
 router.post(
   '/admin/receipt-settings/logo',
-  ...validateRequest(uploadReceiptLogoValidator),
+  authenticateToken,
   requireAdmin,
-  (_req: Request, res: Response) => {
-    res.status(200).json({ success: true, message: 'Logo uploaded successfully' });
-  }
+  productImageUploadAny,
+  ...validateRequest(uploadReceiptLogoValidator),
+  ReceiptSettingsController.uploadLogo
 );
 
 export default router;

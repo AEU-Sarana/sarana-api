@@ -34,7 +34,7 @@ export class ReceiptImageService {
   ): ReceiptData {
     return {
       storeName: payload.store_name || settings.storeName || 'Name',
-      logoPath: settings.logoPath || DEFAULT_LOGO_URL,
+      logoPath: (settings.logoPath && settings.logoPath.trim() !== '') ? settings.logoPath : DEFAULT_LOGO_URL,
       isLogoEnabled: settings.isLogoEnabled ?? true,
       phone: payload.phone || settings.phone || '0978759989',
       address: payload.address || settings.address || 'Address',
@@ -46,6 +46,9 @@ export class ReceiptImageService {
         subtotal: Number(item.subtotal),
       })),
       totalAmount: Number(payload.total_amount),
+      taxAmount: payload.tax_amount ? Number(payload.tax_amount) : undefined,
+      discountAmount: payload.discount_amount ? Number(payload.discount_amount) : undefined,
+      serviceFee: payload.service_fee ? Number(payload.service_fee) : undefined,
       footerNote: payload.footer_note || settings.footerNote || undefined,
       footerEnabled: settings.isFooterEnabled ?? true,
     };
@@ -55,7 +58,9 @@ export class ReceiptImageService {
     receiptNumber: string;
   }> {
     const [settings, order] = await Promise.all([
-      prisma.receiptSetting.findFirst(),
+      prisma.receiptSetting.findFirst({
+        orderBy: { updatedAt: 'desc' }
+      }),
       prisma.order.findUnique({
         where: { orderId },
         include: { order_items: true },
@@ -67,7 +72,7 @@ export class ReceiptImageService {
     const { renderReceiptToPng } = await import('./receipt-canvas.renderer.js');
     const receiptData: ReceiptData = {
       storeName: settings?.storeName || 'Name',
-      logoPath: settings?.logoPath || DEFAULT_LOGO_URL,
+      logoPath: (settings?.logoPath && settings.logoPath.trim() !== '') ? settings.logoPath : DEFAULT_LOGO_URL,
       isLogoEnabled: settings?.isLogoEnabled ?? true,
       phone: settings?.phone || '0978759989',
       address: settings?.address || 'Address',
@@ -79,6 +84,9 @@ export class ReceiptImageService {
         subtotal: Number(item.subtotal)
       })),
       totalAmount: Number(order.totalAmount),
+      taxAmount: Number(order.taxAmount || 0),
+      discountAmount: Number(order.discountAmount || 0),
+      serviceFee: Number(order.serviceFee || 0),
       footerNote: settings?.footerNote || undefined,
       footerEnabled: settings?.isFooterEnabled ?? true
     };
@@ -126,7 +134,9 @@ export class ReceiptImageService {
    * Generates a receipt image from offline QR payload and uploads to storage.
    */
   static async generateReceiptJpgFromPayload(payload: ReceiptQrPayload): Promise<ReceiptImageResult> {
-    const settings = await prisma.receiptSetting.findFirst();
+    const settings = await prisma.receiptSetting.findFirst({
+      orderBy: { updatedAt: 'desc' }
+    });
     const receiptData = this.buildReceiptDataFromPayload(payload, {
       storeName: settings?.storeName,
       logoPath: settings?.logoPath,

@@ -1,3 +1,4 @@
+import prisma from '@src/database/client';
 import { TelegramAdminParserService } from '@src/domains/TelegramAdminBot/services/telegram-admin-parser.service';
 import { TelegramAdminInputRouterService } from '@src/domains/TelegramAdminBot/services/telegram-admin-input-router.service';
 import { TelegramAdminLinksService } from '@src/domains/TelegramAdminBot/services/telegram-admin-links.service';
@@ -7,6 +8,7 @@ import { ReceiptLinkService } from '@src/domains/Receipt/services/V1/receipt-lin
 import { ReceiptImageService } from '@src/domains/Receipt/services/V1/receipt-image.service';
 import { CustomerLinkingService } from '@src/domains/Customer/services/V1/customer-linking.service';
 import { logger } from '@src/shared/utils/logger';
+import { eventBus } from '@src/shared/events/event-bus';
 import { TelegramWebhookPayload } from '@src/domains/TelegramAdminBot/types/telegram-admin-bot.types';
 import { telegramAdminQueue, redisConnection } from '@src/domains/TelegramAdminBot/jobs/telegram-admin.queue';
 import {
@@ -307,6 +309,48 @@ export class TelegramAdminWebhookService {
 
       // Step 1: Validate the receipt code
       const validation = await ReceiptLinkService.validateReceiptCode(code);
+
+      // --- WAIT FOR SYNC LOGIC ---
+      const SYNC_WAIT_TIMEOUT = 12000; // 12 seconds
+
+      // Check if order already has items
+      const itemCount = await prisma.orderItem.count({
+        where: { orderId: validation.order_id },
+      });
+
+      // If no items, we suspect a pending sync
+      if (itemCount === 0) {
+        logger.info('Order has no items, waiting for sync event...', {
+          orderId: validation.order_id,
+          receiptNumber: validation.receipt_number,
+        });
+
+        try {
+          await TelegramService.sendMessageByChatId(
+            chatId,
+            '⏳ កំពុងរៀបចំវិក្កយបត្រ... សូមរង់ចាំមួយភ្លែត (Preparing your receipt, please wait...)',
+            'Markdown'
+          );
+        } catch (error) {
+          logger.warn('Failed to send preparing message', { error });
+        }
+
+        await new Promise<void>((resolve) => {
+          const timeout = setTimeout(() => {
+            logger.warn('Timeout waiting for order sync event', { orderId: validation.order_id });
+            resolve();
+          }, SYNC_WAIT_TIMEOUT);
+
+          eventBus.once(`order_synced:${validation.order_id}`, () => {
+            logger.info('Received order sync event, proceeding with receipt', {
+              orderId: validation.order_id,
+            });
+            clearTimeout(timeout);
+            resolve();
+          });
+        });
+      }
+      // --- END WAIT FOR SYNC LOGIC ---
 
       // Step 2: Generate receipt JPG image buffer (no upload)
       const receiptImage = await ReceiptImageService.generateReceiptJpgBuffer(validation.order_id);

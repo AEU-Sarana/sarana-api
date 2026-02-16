@@ -10,7 +10,7 @@ import { TelegramBotService } from '@src/domains/Telegram/services/telegram-bot.
 const DEFAULT_EXPIRE_MINUTES = 20;
 
 export class ReceiptLinkService {
-  static async createReceiptLink(orderId: number, currentUserId: number): Promise<{
+  static async createReceiptLink(orderUuid: string, currentUserId: number): Promise<{
     receipt_link_id: number;
     order_id: number;
     code: string;
@@ -19,7 +19,7 @@ export class ReceiptLinkService {
     telegram_deep_link: string;
   }> {
     const order = await prisma.order.findUnique({
-      where: { orderId },
+      where: { orderUuid },
       select: {
         orderId: true,
         paymentMethod: true,
@@ -44,7 +44,7 @@ export class ReceiptLinkService {
       // Revoke any still-active pending link for this order (regenerate behavior)
       await tx.receiptLink.updateMany({
         where: {
-          orderId,
+          orderId: order.orderId,
           linkStatus: ReceiptLinkStatus.PENDING,
           expiresAt: { gt: new Date() },
         },
@@ -55,7 +55,7 @@ export class ReceiptLinkService {
 
       const created = await tx.receiptLink.create({
         data: {
-          orderId,
+          orderId: order.orderId,
           code,
           linkStatus: ReceiptLinkStatus.PENDING,
           expiresAt,
@@ -71,7 +71,7 @@ export class ReceiptLinkService {
       action: 'RECEIPT_LINK_CREATED',
       resource: 'ReceiptLink',
       entityId: result.receiptLinkId,
-      details: { order_id: orderId, expires_at: expiresAt },
+      details: { order_id: order.orderId, expires_at: expiresAt },
     });
 
     // Get bot username from Telegram config

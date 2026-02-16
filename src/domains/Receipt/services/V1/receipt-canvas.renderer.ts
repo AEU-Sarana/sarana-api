@@ -4,11 +4,13 @@ import { createCanvas, registerFont, loadImage } from 'canvas';
 const FONT_PATHS = [
     '/usr/share/fonts/noto/NotoSansKhmer-Regular.ttf',
     '/usr/share/fonts/truetype/custom/NotoSansKhmer-Regular.ttf',
+    '/home/techey/techey/stock-pos/stock-pos-server/fonts/NotoSansKhmer-Regular.ttf',
 ];
 
 const BOLD_FONT_PATHS = [
     '/usr/share/fonts/noto/NotoSansKhmer-Bold.ttf',
     '/usr/share/fonts/truetype/custom/NotoSansKhmer-Bold.ttf',
+    '/home/techey/techey/stock-pos/stock-pos-server/fonts/NotoSansKhmer-Bold.ttf',
 ];
 
 const LATIN_FONT_PATH = '/usr/share/fonts/dejavu/DejaVuSans.ttf';
@@ -43,6 +45,9 @@ export interface ReceiptData {
         subtotal: number | string;
     }>;
     totalAmount: number;
+    taxAmount?: number;
+    discountAmount?: number;
+    serviceFee?: number;
     footerNote?: string;
     footerEnabled?: boolean;
 }
@@ -52,7 +57,7 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
      * ULTRA-SHARP 4K CONFIGURATION
      */
     const scale = 4;
-    const baseWidth = 600; 
+    const baseWidth = 600;
     const padding = 50;
     const contentWidth = baseWidth - (padding * 2);
 
@@ -60,7 +65,7 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
     const logoHeight = data.isLogoEnabled ? 300 : 0;
     const headerHeight = 180 + logoHeight;
     const tableHeaderHeight = 50;
-    const itemLineHeight = 60; 
+    const itemLineHeight = 60;
     const totalsAreaHeight = 150;
     const footerAreaHeight = 200;
     const bottomMargin = 100;
@@ -212,16 +217,34 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
     });
 
     // 6. TOTALS (Grand)
-    currentY += 50;
-    ctx.textAlign = 'left';
-    setFont(22, 'bold');
-    ctx.fillStyle = '#000000';
-    ctx.fillText('តម្លៃសរុប (GRAND TOTAL)', padding, currentY);
+    currentY += 30;
 
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#1f8f3a';
-    ctx.fillText(`$${data.totalAmount.toFixed(2)}`, baseWidth - padding, currentY);
-    currentY += 90;
+    const renderTotalLine = (label: string, amount: number, color: string = '#444444', isBold: boolean = false) => {
+        if (amount === 0 && label !== 'តម្លៃសរុប (GRAND TOTAL)') return;
+
+        ctx.textAlign = 'left';
+        setFont(isBold ? 22 : 16, isBold ? 'bold' : '400');
+        ctx.fillStyle = color;
+        ctx.fillText(label, padding, currentY);
+
+        ctx.textAlign = 'right';
+        ctx.fillText(`$${amount.toFixed(2)}`, baseWidth - padding, currentY);
+        currentY += isBold ? 50 : 30;
+    };
+
+    if (data.discountAmount && data.discountAmount > 0) {
+        renderTotalLine('បញ្ចុះតម្លៃ (DISCOUNT)', -data.discountAmount, '#d32f2f');
+    }
+    if (data.taxAmount && data.taxAmount > 0) {
+        renderTotalLine('ពន្ធ (TAX)', data.taxAmount);
+    }
+    if (data.serviceFee && data.serviceFee > 0) {
+        renderTotalLine('សេវា (SERVICE FEE)', data.serviceFee);
+    }
+
+    currentY += 10;
+    renderTotalLine('តម្លៃសរុប (GRAND TOTAL)', data.totalAmount, '#1f8f3a', true);
+    currentY += 40;
 
     // 7. FOOTER SECTION (Modern Cleanup)
     ctx.textAlign = 'center';

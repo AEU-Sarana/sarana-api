@@ -33,4 +33,23 @@ export class ReceiptSettingsController {
       throw error;
     }
   }
+  static async uploadLogo(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.file) {
+        throw new Error('No file uploaded');
+      }
+
+      const user = req.user as { userId: number };
+      const data = await ReceiptSettingService.uploadLogo(req.file, user.userId);
+
+      res.status(200).json({
+        success: true,
+        data,
+        message: 'Logo uploaded successfully',
+      });
+    } catch (error: any) {
+      logger.error('Upload receipt logo error', { error: error.message });
+      throw error;
+    }
+  }
 }

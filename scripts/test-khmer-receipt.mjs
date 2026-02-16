@@ -14,7 +14,10 @@ const mockData = {
         { productName: 'កណ្តុរឥតខ្សែ Logitech', quantity: 2, subtotal: 30.00 },
         { productName: 'ក្តារចុចយន្តិក', quantity: 1, subtotal: 45.00 }
     ],
-    totalAmount: 925.00,
+    totalAmount: 935.00,
+    taxAmount: 10.00,
+    discountAmount: 5.00,
+    serviceFee: 5.00,
     footerNote: 'សូមអរគុណ! រីករាយថ្ងៃឈប់សម្រាក!',
     footerEnabled: true,
     isLogoEnabled: true,
