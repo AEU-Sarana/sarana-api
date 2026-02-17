@@ -14,6 +14,7 @@ const adapter = new PrismaPg(pool);
 // Slow query logging (default 200ms, configurable via env)
 const slowQueryThresholdMs = Number(process.env.SLOW_QUERY_MS || 200);
 
+
 // Create Prisma Client instance with query extension (Prisma 7+)
 const prisma = new PrismaClient({ adapter }).$extends({
   query: {
