@@ -26,7 +26,6 @@ const prisma = new PrismaClient({ adapter }).$extends({
       const start = Date.now();
       const result = await query(args);
       const duration = Date.now() - start;
-
       if (duration >= slowQueryThresholdMs) {
         logger.warn('Slow database query detected', {
           model,
