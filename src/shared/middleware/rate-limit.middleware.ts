@@ -39,7 +39,8 @@ const receiptScanRateLimiterConfig = rateLimit({
   keyGenerator: (req: Request) => {
     const receiptCode =
       typeof req.body?.receipt_code === 'string' ? req.body.receipt_code : 'unknown';
-    return `${ipKeyGenerator(req.ip)}:${receiptCode}`;
+    const ip = typeof req.ip === 'string' ? req.ip : String(req.ip);
+    return `${ipKeyGenerator(ip)}:${receiptCode}`;
   },
   message: {
     success: false,

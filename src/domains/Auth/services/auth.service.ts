@@ -266,6 +266,7 @@ export class AuthService {
         fullName: true,
         role: true,
         status: true,
+        tenantId: true,
       },
     });
 
@@ -286,6 +287,7 @@ export class AuthService {
       userId: user.userId,
       username: user.username,
       role: user.role as UserRole,
+      tenantId: user.tenantId ?? 1,
     });
 
     // Store reset token in database (optional - for tracking)
@@ -299,11 +301,13 @@ export class AuthService {
     }
 
     // Fire-and-forget (do not block the response)
+    // Generate OTP code for password reset
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     void sendPasswordResetEmailJob({
       toEmail: user.email,
       username: user.username,
       fullName: user.fullName,
-      resetToken,
+      otpCode,
     }).catch((error) => {
       logger.error('Failed to enqueue/send password reset email', {
         userId: user.userId,

@@ -38,9 +38,9 @@ export class SettingService {
     });
 
     return {
-      auto_backup: settings.autoBackup,
-      backup_frequency: settings.backupFrequency,
-      backup_schedule_time: this.formatTime(settings.backupScheduleTime, '23:30'),
+  auto_backup: settings.autoBackup,
+  backup_frequency: settings.backupFrequency,
+  // backup_schedule_time removed
       device_binding_enabled: settings.deviceBindingEnabled,
       stock_sync_policy: settings.stockSyncPolicy,
       report_send_enabled: settings.reportSendEnabled ?? true,
@@ -74,8 +74,8 @@ export class SettingService {
       ? this.parseTime(request.report_send_time)
       : existing?.reportSendTime ?? this.parseTime('23:30');
     const backupScheduleTime = request.backup_schedule_time
-      ? this.parseTime(request.backup_schedule_time)
-      : existing?.backupScheduleTime ?? this.parseTime('23:30');
+  ? this.parseTime(request.backup_schedule_time)
+  : this.parseTime('23:30');
 
     const updated = existing
       ? await prisma.appSetting.update({
@@ -83,7 +83,6 @@ export class SettingService {
           data: {
             autoBackup: request.auto_backup,
             backupFrequency: request.backup_frequency,
-            backupScheduleTime,
             deviceBindingEnabled: request.device_binding_enabled,
             stockSyncPolicy: request.stock_sync_policy,
             reportSendEnabled,
@@ -96,7 +95,6 @@ export class SettingService {
           data: {
             autoBackup: request.auto_backup,
             backupFrequency: request.backup_frequency,
-            backupScheduleTime,
             deviceBindingEnabled: request.device_binding_enabled,
             stockSyncPolicy: request.stock_sync_policy,
             reportSendEnabled,
@@ -114,7 +112,7 @@ export class SettingService {
       newValues: {
         auto_backup: request.auto_backup,
         backup_frequency: request.backup_frequency,
-        backup_schedule_time: this.formatTime(backupScheduleTime, '23:30'),
+        // backup_schedule_time removed
         device_binding_enabled: request.device_binding_enabled,
         stock_sync_policy: request.stock_sync_policy,
         report_send_enabled: reportSendEnabled,
@@ -124,23 +122,23 @@ export class SettingService {
     });
 
     eventBus.emit('settings.updated', {
-      setting_id: updated.settingId,
-      auto_backup: updated.autoBackup,
-      backup_frequency: updated.backupFrequency,
-      backup_schedule_time: this.formatTime(updated.backupScheduleTime, '23:30'),
-      device_binding_enabled: updated.deviceBindingEnabled,
-      stock_sync_policy: updated.stockSyncPolicy,
-      report_send_enabled: updated.reportSendEnabled ?? true,
-      report_send_time: this.formatTime(updated.reportSendTime, '23:30'),
-      report_send_timezone: updated.reportSendTimezone || 'Asia/Phnom_Penh',
-      updated_at: updated.updatedAt,
-      updated_by: updated.updatedBy,
+  setting_id: updated.settingId,
+  auto_backup: updated.autoBackup,
+  backup_frequency: updated.backupFrequency,
+  backup_schedule_time: '',
+  device_binding_enabled: updated.deviceBindingEnabled,
+  stock_sync_policy: updated.stockSyncPolicy,
+  report_send_enabled: updated.reportSendEnabled ?? true,
+  report_send_time: this.formatTime(updated.reportSendTime, '23:30'),
+  report_send_timezone: updated.reportSendTimezone || 'Asia/Phnom_Penh',
+  updated_at: updated.updatedAt,
+  updated_by: updated.updatedBy,
     } satisfies SettingsUpdatedEvent);
 
     return {
       auto_backup: updated.autoBackup,
       backup_frequency: updated.backupFrequency,
-      backup_schedule_time: this.formatTime(updated.backupScheduleTime, '23:30'),
+  // backup_schedule_time removed
       device_binding_enabled: updated.deviceBindingEnabled,
       stock_sync_policy: updated.stockSyncPolicy,
       report_send_enabled: updated.reportSendEnabled ?? true,

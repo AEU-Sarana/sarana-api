@@ -11,7 +11,7 @@ export class ReceiptLinkController {
       const orderId = parseInt(orderIdParam, 10);
       const user = req.user as { userId: number };
 
-      const data = await ReceiptLinkService.createReceiptLink(orderId, user.userId);
+  const data = await ReceiptLinkService.createReceiptLink(orderIdParam, user.userId);
 
       res.status(200).json({
         success: true,

@@ -14,7 +14,7 @@ export interface UpdateSettingsRequest {
 export interface GetSettingsResponse {
   auto_backup: boolean;
   backup_frequency: string;
-  backup_schedule_time: string;
+  backup_schedule_time?: string;
   device_binding_enabled: boolean;
   stock_sync_policy: string;
   report_send_enabled: boolean;

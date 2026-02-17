@@ -58,14 +58,14 @@ async function loadBackupSettings(): Promise<{
     select: {
       autoBackup: true,
       backupFrequency: true,
-      backupScheduleTime: true,
+      // backupScheduleTime removed
     },
   });
 
   return {
     enabled: settings?.autoBackup ?? true,
     frequency: (settings?.backupFrequency || 'daily') as BackupFrequency,
-    scheduleTime: formatTime(settings?.backupScheduleTime, DEFAULT_SCHEDULE_TIME),
+    scheduleTime: DEFAULT_SCHEDULE_TIME,
   };
 }
 
