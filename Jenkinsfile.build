@@ -50,7 +50,7 @@ pipeline {
                     notifyTelegram("🔨 <b>Build started</b>\n• <b>App:</b> ${APP_NAME}\n• <b>Build:</b> #${BUILD_NUMBER}\n• <b>Jenkins:</b> <a href=\"${env.BUILD_URL}\">Open Build</a>")
                     def scmVars = checkout([
                         $class: 'GitSCM',
-                        branches: [[name: '*/nan']],
+                        branches: [[name: '*/main']],
                         userRemoteConfigs: [[
                             url: 'git@github.com:techey-solution/stock-pos-server.git',
                             credentialsId: 'deploy-ssh-key'
@@ -155,8 +155,8 @@ pipeline {
         stage('Security Scan') {
             when {
                 anyOf {
-                    branch 'nan'
-                    branch 'origin/nan'
+                    branch 'main'
+                    branch 'origin/main'
                 }
             }
             steps {
@@ -278,9 +278,9 @@ pipeline {
         stage('Capture Current Release') {
             when {
                 expression {
-                    env.GIT_BRANCH == 'nan' ||
-                    env.GIT_BRANCH == 'origin/nan' ||
-                    env.BRANCH_NAME == 'nan'
+                    env.GIT_BRANCH == 'main' ||
+                    env.GIT_BRANCH == 'origin/main' ||
+                    env.BRANCH_NAME == 'main'
                 }
             }
             steps {
@@ -316,9 +316,9 @@ pipeline {
         stage('Deploy with Ansible') {
             when {
                 expression { 
-                    env.GIT_BRANCH == 'nan' || 
-                    env.GIT_BRANCH == 'origin/nan' ||
-                    env.BRANCH_NAME == 'nan'
+                    env.GIT_BRANCH == 'main' || 
+                    env.GIT_BRANCH == 'origin/main' ||
+                    env.BRANCH_NAME == 'main'
                 }
             }
             steps {
@@ -389,9 +389,9 @@ pipeline {
         stage('Post-Deploy Health Gate / Auto Rollback') {
             when {
                 expression {
-                    env.GIT_BRANCH == 'nan' ||
-                    env.GIT_BRANCH == 'origin/nan' ||
-                    env.BRANCH_NAME == 'nan'
+                    env.GIT_BRANCH == 'main' ||
+                    env.GIT_BRANCH == 'origin/main' ||
+                    env.BRANCH_NAME == 'main'
                 }
             }
             steps {
