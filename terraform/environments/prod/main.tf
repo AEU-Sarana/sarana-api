@@ -61,6 +61,7 @@ module "firewall" {
   allow_http     = true
   allow_https    = true
   ssh_source_ips = var.ssh_source_ips
+  custom_rules   = var.custom_firewall_rules
 
   labels = local.common_labels
 }
