@@ -68,6 +68,22 @@ services:
     environment:
       NODE_ENV: production
       PORT: ${PORT:-3000}
+      TZ: ${SYSTEM_TIMEZONE:-Asia/Phnom_Penh}
+      API_BASE_URL: ${API_BASE_URL:-http://localhost}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-stock_pos}
+      DB_USER: ${DB_USER:-stockpos}
+      DB_PASSWORD: ${DB_PASSWORD:-stockpos}
+      DATABASE_URL: postgresql://${DB_USER:-stockpos}:${DB_PASSWORD:-stockpos}@db:5432/${DB_NAME:-stock_pos}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_URL: redis://redis:6379
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-minio}
+      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-http://minio:9000}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-stock-pos-storage}
+      STORAGE_REGION: ${STORAGE_REGION:-us-east-1}
+      STORAGE_USE_SSL: ${STORAGE_USE_SSL:-false}
     expose:
       - "3000"
     volumes:

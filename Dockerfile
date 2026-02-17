@@ -130,8 +130,8 @@ COPY --from=build /app/db-generate.mjs ./
 # Copy built application
 COPY --from=build /app/dist ./dist
 
-# Regenerate Prisma Client in production
-RUN pnpm db:generate
+# Copy pre-generated Prisma client artifacts from build stage
+COPY --from=build /app/src/database/generated ./src/database/generated
 
 # Copy generated Prisma client to dist for module resolution
 RUN mkdir -p dist/database/generated && \
