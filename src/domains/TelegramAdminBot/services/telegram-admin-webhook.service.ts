@@ -310,6 +310,19 @@ export class TelegramAdminWebhookService {
       // Step 1: Validate the receipt code
       const validation = await ReceiptLinkService.validateReceiptCode(code);
 
+      // --- SHOW INITIAL LOADING MESSAGE ---
+      let loadingMessageId: number | undefined;
+      try {
+        const loadingMsg = await TelegramService.sendMessageByChatId(
+          chatId,
+          '⏳ កំពុងបង្កើតវិក្កយបត្រ... (Generating your receipt, please wait...)',
+          'Markdown'
+        );
+        loadingMessageId = loadingMsg.messageId;
+      } catch (error) {
+        logger.warn('Failed to send loading message', { error });
+      }
+
       // --- WAIT FOR SYNC LOGIC ---
       const SYNC_WAIT_TIMEOUT = 12000; // 12 seconds
 
@@ -325,14 +338,18 @@ export class TelegramAdminWebhookService {
           receiptNumber: validation.receipt_number,
         });
 
-        try {
-          await TelegramService.sendMessageByChatId(
-            chatId,
-            '⏳ កំពុងរៀបចំវិក្កយបត្រ... សូមរង់ចាំមួយភ្លែត (Preparing your receipt, please wait...)',
-            'Markdown'
-          );
-        } catch (error) {
-          logger.warn('Failed to send preparing message', { error });
+        // Update loading message to reflect we are waiting for sync
+        if (loadingMessageId) {
+          try {
+            await TelegramService.editMessageByChatId(
+              chatId,
+              loadingMessageId,
+              '⏳ កំពុងរៀបចំវិក្កយបត្រ... សូមរង់ចាំមួយភ្លែត (Preparing your receipt, please wait...)',
+              'Markdown'
+            );
+          } catch (error) {
+            logger.warn('Failed to edit loading message for sync wait', { error });
+          }
         }
 
         await new Promise<void>((resolve) => {
@@ -369,6 +386,15 @@ export class TelegramAdminWebhookService {
         `🧾 Receipt #${validation.receipt_number}`,
         receiptImage.filename
       );
+
+      // --- CLEANUP LOADING MESSAGE ---
+      if (loadingMessageId) {
+        try {
+          await TelegramService.deleteMessage(chatId, loadingMessageId);
+        } catch (error) {
+          logger.warn('Failed to delete loading message', { error });
+        }
+      }
 
       // Step 5: Mark the receipt as used
       await ReceiptLinkService.markReceiptAsUsed(code, {

@@ -2,6 +2,7 @@ import prisma from '@src/database/client';
 import { ValidationException } from '@src/shared/exceptions';
 import { fileStorageService } from '@src/shared/services/file-storage.service';
 import sharp from 'sharp';
+import { logger } from '@src/shared/utils/logger';
 import type { ReceiptData } from './receipt-canvas.renderer';
 import type { ReceiptQrPayload } from '@src/domains/Receipt/types/receipt-qr.types';
 
@@ -20,7 +21,29 @@ interface ReceiptImageBufferResult {
 const DEFAULT_LOGO_URL = 'https://sokly.sgp1.digitaloceanspaces.com/image-2022-07-02-164325-1656755040dyQxA.jpg';
 
 export class ReceiptImageService {
-  private static buildReceiptDataFromPayload(
+  /**
+   * Resolves a logo path to either a Buffer (if storage URL) or the string URL itself.
+   */
+  private static async resolveLogoSource(logoPath: string | null): Promise<string | Buffer | undefined> {
+    if (!logoPath || logoPath.trim() === '') return DEFAULT_LOGO_URL;
+
+    try {
+      const key = fileStorageService.extractKeyFromUrl(logoPath);
+      if (key) {
+        logger.info('Resolving logo from storage key', { key });
+        return await fileStorageService.downloadFileBuffer(key);
+      }
+    } catch (error: any) {
+      logger.warn('Failed to resolve logo from storage key, falling back to URL', {
+        logoPath,
+        error: error.message
+      });
+    }
+
+    return logoPath;
+  }
+
+  private static async buildReceiptDataFromPayload(
     payload: ReceiptQrPayload,
     settings: {
       storeName?: string | null;
@@ -31,10 +54,12 @@ export class ReceiptImageService {
       footerNote?: string | null;
       isFooterEnabled?: boolean | null;
     }
-  ): ReceiptData {
+  ): Promise<ReceiptData> {
+    const logoSource = await this.resolveLogoSource(settings.logoPath || null);
+
     return {
       storeName: payload.store_name || settings.storeName || 'Name',
-      logoPath: (settings.logoPath && settings.logoPath.trim() !== '') ? settings.logoPath : DEFAULT_LOGO_URL,
+      logoSource,
       isLogoEnabled: settings.isLogoEnabled ?? true,
       phone: payload.phone || settings.phone || '0978759989',
       address: payload.address || settings.address || 'Address',
@@ -69,10 +94,12 @@ export class ReceiptImageService {
 
     if (!order) throw new ValidationException('Order not found');
 
+    const logoSource = await this.resolveLogoSource(settings?.logoPath || null);
+
     const { renderReceiptToPng } = await import('./receipt-canvas.renderer.js');
     const receiptData: ReceiptData = {
       storeName: settings?.storeName || 'Name',
-      logoPath: (settings?.logoPath && settings.logoPath.trim() !== '') ? settings.logoPath : DEFAULT_LOGO_URL,
+      logoSource,
       isLogoEnabled: settings?.isLogoEnabled ?? true,
       phone: settings?.phone || '0978759989',
       address: settings?.address || 'Address',
@@ -137,7 +164,7 @@ export class ReceiptImageService {
     const settings = await prisma.receiptSetting.findFirst({
       orderBy: { updatedAt: 'desc' }
     });
-    const receiptData = this.buildReceiptDataFromPayload(payload, {
+    const receiptData = await this.buildReceiptDataFromPayload(payload, {
       storeName: settings?.storeName,
       logoPath: settings?.logoPath,
       isLogoEnabled: settings?.isLogoEnabled,
@@ -172,6 +199,7 @@ export class ReceiptImageService {
     // Generate a minimal receipt data for testing
     const testData: ReceiptData = {
       storeName: displayText,
+      logoSource: DEFAULT_LOGO_URL,
       receiptNumber: 'TEST-001',
       orderDate: new Date(),
       orderItems: [],

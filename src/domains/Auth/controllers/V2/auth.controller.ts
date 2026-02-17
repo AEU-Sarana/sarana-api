@@ -63,4 +63,43 @@ export class AuthV2Controller {
       message: 'Current user retrieved',
     });
   }
+
+  async forgotPassword(req: Request, res: Response): Promise<void> {
+    const { username, email } = req.body;
+    const identifier = username || email;
+
+    await service.requestPasswordReset(identifier);
+
+    res.status(200).json({
+      success: true,
+      message: 'If the identifier exists, a password reset email has been sent',
+    });
+  }
+
+  async verifyOtpResetPassword(req: Request, res: Response): Promise<void> {
+    const { email, otp_code } = req.body;
+
+    await service.verifyOtp({
+      email,
+      otpCode: otp_code,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'OTP verified successfully. You can now reset your password.',
+    });
+  }
+
+  async resetPassword(req: Request, res: Response): Promise<void> {
+    const { username, email, new_password } = req.body;
+    const adminUser = req.user as { userId: number } | undefined;
+    const identifier = username || email;
+
+    await service.resetPassword(identifier, new_password, adminUser?.userId || 0);
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successful',
+    });
+  }
 }

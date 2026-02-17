@@ -74,5 +74,5 @@ export interface SendPasswordResetEmailJobPayload {
   toEmail: string;
   username: string;
   fullName?: string | null;
-  resetToken: string;
+  otpCode: string;
 }

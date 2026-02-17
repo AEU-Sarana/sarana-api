@@ -33,7 +33,7 @@ const FONT_STACK = '"NotoSansKhmer", "DejaVuSans", sans-serif';
 
 export interface ReceiptData {
     storeName: string;
-    logoPath?: string;
+    logoSource?: string | Buffer;
     isLogoEnabled?: boolean;
     phone?: string;
     address?: string;
@@ -96,14 +96,15 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
 
     // 2. LOGO SECTION
     let currentY = 50;
-    if (data.isLogoEnabled && data.logoPath) {
+    if (data.isLogoEnabled && data.logoSource) {
         try {
-            const logo = await loadImage(data.logoPath);
+            const logo = await loadImage(data.logoSource);
             const logoW = 260;
             const logoH = (logo.height / logo.width) * logoW;
             ctx.drawImage(logo, (baseWidth - logoW) / 2, currentY, logoW, logoH);
             currentY += logoH + 25;
-        } catch (e) {
+        } catch (e: any) {
+            console.warn('Failed to load receipt logo:', e.message);
             currentY += 10;
         }
     }

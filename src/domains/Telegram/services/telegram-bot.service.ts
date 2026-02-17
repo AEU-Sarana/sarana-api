@@ -1,6 +1,7 @@
 import axios from 'axios';
 import FormData from 'form-data';
 import fs from 'fs';
+import { logger } from '@src/shared/utils/logger';
 import { TelegramAPIError, TelegramBotInfo, TelegramMessageResponse } from '@src/domains/Telegram/types/telegram.types';
 
 export class TelegramBotService {
@@ -178,5 +179,29 @@ export class TelegramBotService {
   static async getMe(botToken: string): Promise<TelegramBotInfo> {
     const response = await axios.get(`${this.BASE_URL}${botToken}/getMe`);
     return response.data.result;
+  }
+
+  /**
+   * Delete a message from a chat
+   */
+  static async deleteMessage(
+    botToken: string,
+    chatId: string,
+    messageId: number
+  ): Promise<boolean> {
+    try {
+      await axios.post(`${this.BASE_URL}${botToken}/deleteMessage`, {
+        chat_id: chatId,
+        message_id: messageId,
+      });
+      return true;
+    } catch (error: any) {
+      logger.error('Failed to delete Telegram message', {
+        chatId,
+        messageId,
+        error: error.message,
+      });
+      return false;
+    }
   }
 }

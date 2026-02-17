@@ -1,12 +1,20 @@
-import { body } from 'express-validator';
+import { body, oneOf } from 'express-validator';
 
 export const resetPasswordRequestValidator = [
-  body('username')
-    .trim()
-    .notEmpty()
-    .withMessage('Username is required')
-    .isLength({ min: 3, max: 50 })
-    .withMessage('Username must be between 3 and 50 characters'),
+  oneOf([
+    body('username')
+      .trim()
+      .notEmpty()
+      .withMessage('Username is required')
+      .isLength({ min: 3, max: 50 })
+      .withMessage('Username must be between 3 and 50 characters'),
+    body('email')
+      .trim()
+      .notEmpty()
+      .withMessage('Email is required')
+      .isEmail()
+      .withMessage('Invalid email format'),
+  ], { message: 'Username or Email is required' }),
 ];
 
 export const resetPasswordValidator = [
@@ -15,7 +23,7 @@ export const resetPasswordValidator = [
     .withMessage('User ID is required')
     .isInt({ min: 1 })
     .withMessage('User ID must be a positive integer'),
-  
+
   body('new_password')
     .notEmpty()
     .withMessage('New password is required')

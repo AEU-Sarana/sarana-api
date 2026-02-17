@@ -250,10 +250,15 @@ export class AuthService {
   /**
    * Request password reset
    */
-  static async requestPasswordReset(username: string): Promise<void> {
-    // Get user
-    const user = await prisma.user.findUnique({
-      where: { username },
+  static async requestPasswordReset(identifier: string): Promise<void> {
+    // Get user by username or email
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: identifier },
+          { email: identifier },
+        ],
+      },
       select: {
         userId: true,
         username: true,
@@ -266,7 +271,7 @@ export class AuthService {
 
     if (!user) {
       // Don't reveal if user exists (security best practice)
-      logger.warn('Password reset requested for non-existent user', { username });
+      logger.warn('Password reset requested for non-existent user', { identifier });
       return;
     }
 

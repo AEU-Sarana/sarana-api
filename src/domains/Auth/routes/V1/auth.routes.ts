@@ -26,9 +26,9 @@ router.post(
   AuthController.login
 );
 
-// POST /api/v1/auth/reset-password-request
+// POST /api/v1/auth/forgot-password
 router.post(
-  '/reset-password-request',
+  '/forgot-password',
   authRateLimiter,
   ...validateRequest(resetPasswordRequestValidator),
   AuthController.requestPasswordReset

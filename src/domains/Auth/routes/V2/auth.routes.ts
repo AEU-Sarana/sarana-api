@@ -6,7 +6,12 @@ import {
   loginValidator,
   refreshValidator,
   logoutValidator,
+  forgotPasswordValidator,
+  verifyOtpResetPasswordValidator,
+  resetPasswordValidator,
 } from '@src/domains/Auth/validators/V2';
+import { requirePermission } from '@src/shared/middleware/authorization.middleware';
+import { Permission } from '@src/shared/config/permissions';
 
 const router = Router();
 const controller = new AuthV2Controller();
@@ -18,6 +23,9 @@ router.post('/refresh', ...validateRequest(refreshValidator), controller.refresh
 router.post('/logout', authenticateToken, ...validateRequest(logoutValidator), controller.logout.bind(controller));
 
 router.post('/logout-all', authenticateToken, controller.logoutAll.bind(controller));
+router.post('/forgot-password', ...validateRequest(forgotPasswordValidator), controller.forgotPassword.bind(controller));
+router.post('/verify-otp-reset-password', ...validateRequest(verifyOtpResetPasswordValidator), controller.verifyOtpResetPassword.bind(controller));
+router.post('/reset-password', ...validateRequest(resetPasswordValidator), controller.resetPassword.bind(controller));
 router.get('/me', authenticateToken, controller.me.bind(controller));
 
 export default router;

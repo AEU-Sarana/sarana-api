@@ -859,4 +859,28 @@ export class TelegramService {
             ស្ថានភាព៖ ${status}
         `;
   }
+
+  /**
+   * Delete a message by its ID
+   */
+  static async deleteMessage(
+    chatId: number | string,
+    messageId: number
+  ): Promise<boolean> {
+    try {
+      const config = await this.getActiveConfigOrThrow();
+      return await TelegramBotService.deleteMessage(
+        config.bot_token,
+        String(chatId),
+        messageId
+      );
+    } catch (error: any) {
+      logger.warn('Failed to delete message via TelegramService', {
+        chatId,
+        messageId,
+        error: error.message,
+      });
+      return false;
+    }
+  }
 }

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthService } from '@src/domains/Auth/services/auth.service';
-import { 
-  LoginRequest, 
+import {
+  LoginRequest,
   RefreshTokenRequest,
   ChangePasswordRequest,
   ChangePINRequest,
@@ -137,14 +137,15 @@ export class AuthController {
    */
   static async requestPasswordReset(req: Request, res: Response): Promise<void> {
     try {
-      const { username } = req.body;
+      const { username, email } = req.body;
+      const identifier = username || email;
 
       // Don't reveal if user exists (security)
-      await AuthService.requestPasswordReset(username);
+      await AuthService.requestPasswordReset(identifier);
 
       res.status(200).json({
         success: true,
-        message: 'If the username exists, a password reset email has been sent',
+        message: 'If the identifier exists, a password reset email has been sent',
       });
     } catch (error: any) {
       logger.error('Request password reset error', { error: error.message });

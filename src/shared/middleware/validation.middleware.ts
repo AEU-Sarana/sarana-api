@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { validationResult, ValidationChain } from 'express-validator';
 import { ValidationException } from '@src/shared/exceptions';
 
-export function validate(validations: ValidationChain[]) {
+export function validate(validations: any[]) {
   return async (req: Request, res: Response, next: NextFunction) => {
     // Run all validations
     await Promise.all(validations.map((validation) => validation.run(req)));
@@ -16,6 +16,6 @@ export function validate(validations: ValidationChain[]) {
   };
 }
 
-export function validateRequest(validations: ValidationChain[]) {
+export function validateRequest(validations: any[]) {
   return [validations, validate(validations)];
 }
