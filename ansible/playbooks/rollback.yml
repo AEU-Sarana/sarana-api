@@ -1,117 +1,146 @@
 ---
-# Rollback Playbook
-# This playbook rolls back to a previous backup
+# Rollback Playbook (tag-based)
+# Re-deploys a previous container image tag using the existing app-deploy role.
 
 - name: Rollback Stock POS Application
   hosts: app_servers
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
+
+  vars_prompt:
+    - name: rollback_tag
+      prompt: "Enter image tag to rollback to (example: 10-2829db0)"
+      private: false
+
+    - name: confirm_rollback
+      prompt: "Confirm rollback to this tag? (yes/no)"
+      private: false
+      default: "no"
 
   pre_tasks:
     - name: Load production group variables
       include_vars:
-        file: "{{ playbook_dir }}/../inventories/production/group_vars/prod.yml"
+        file: "{{ playbook_dir }}/../inventories/production/group_vars/all.yml"
 
-  vars_prompt:
-    - name: backup_timestamp
-      prompt: "Enter backup timestamp to restore (format: YYYYMMDD_HHMMSS) or 'latest'"
-      private: no
-      default: "latest"
+    - name: Load vault variables (decrypted via --vault-password-file)
+      include_vars:
+        file: "{{ playbook_dir }}/../inventories/production/group_vars/vault.yml"
 
-    - name: confirm_rollback
-      prompt: "Are you sure you want to rollback? This will stop current containers. (yes/no)"
-      private: no
-      default: "no"
-
-  tasks:
     - name: Verify rollback confirmation
       fail:
         msg: "Rollback cancelled by user"
       when: confirm_rollback != "yes"
 
-    - name: List available backups
-      find:
-        paths: "{{ backup_directory }}"
-        patterns: "backup_*.tar.gz"
-      register: available_backups
+    - name: Validate rollback tag format
+      assert:
+        that:
+          - rollback_tag is defined
+          - rollback_tag | trim | length > 0
+          - rollback_tag is match('^[A-Za-z0-9._-]+$')
+        fail_msg: "Invalid rollback_tag. Use only letters, numbers, dot, underscore, dash."
 
-    - name: Display available backups
-      debug:
-        msg: "{{ available_backups.files | map(attribute='path') | list }}"
-
-    - name: Fail if no backups available
-      fail:
-        msg: "No backups found in {{ backup_directory }}"
-      when: available_backups.matched == 0
-
-    - name: Determine backup file to restore
-      set_fact:
-        restore_file: "{{ available_backups.files | sort(attribute='mtime', reverse=true) | first | json_query('path') }}"
-      when: backup_timestamp == "latest"
-
-    - name: Use specified backup
-      set_fact:
-        restore_file: "{{ backup_directory }}/backup_{{ backup_timestamp }}.tar.gz"
-      when: backup_timestamp != "latest"
-
-    - name: Verify backup file exists
+    - name: Check active color state file
       stat:
-        path: "{{ restore_file }}"
-      register: backup_stat
+        path: "{{ active_color_state_file }}"
+      register: rollback_active_color_state_stat
+      when: blue_green_enabled | bool
 
-    - name: Fail if backup doesn't exist
-      fail:
-        msg: "Backup file {{ restore_file }} does not exist"
-      when: not backup_stat.stat.exists
+    - name: Read active color state file
+      slurp:
+        src: "{{ active_color_state_file }}"
+      register: rollback_active_color_state_raw
+      when:
+        - blue_green_enabled | bool
+        - rollback_active_color_state_stat.stat.exists | default(false)
 
-    - name: Stop current containers
-      docker_compose:
-        project_src: "{{ app_directory }}"
-        state: absent
+    - name: Resolve active color for rollback
+      set_fact:
+        active_color: >-
+          {{
+            (((rollback_active_color_state_raw | default({})).get('content', '') | b64decode | trim))
+            if ((((rollback_active_color_state_raw | default({})).get('content', '') | b64decode | trim) in ['blue', 'green']))
+            else active_color_default
+          }}
+      when: blue_green_enabled | bool
 
-    - name: Create pre-rollback backup
-      shell: |
-        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-        tar -czf {{ backup_directory }}/pre_rollback_${TIMESTAMP}.tar.gz -C {{ app_directory }} .
+    - name: Detect currently running app image
+      shell: >-
+        docker inspect --format='{{ "{{" }}.Config.Image{{ "}}" }}'
+        "{{ app_name }}-app{{ '-' + active_color if blue_green_enabled | bool else '' }}"
+      register: current_image
       changed_when: false
+      failed_when: false
 
-    - name: Clear current deployment
-      file:
-        path: "{{ app_directory }}"
-        state: absent
+    - name: Derive current tag
+      set_fact:
+        current_tag: "{{ (current_image.stdout | trim).split(':')[-1] if current_image.rc == 0 else 'unknown' }}"
 
-    - name: Recreate application directory
+    - name: Display rollback plan
+      debug:
+        msg:
+          - "Target server: {{ inventory_hostname }} ({{ ansible_host }})"
+          - "Current tag: {{ current_tag }}"
+          - "Rollback tag: {{ rollback_tag }}"
+          - "Image: {{ docker_registry }}/{{ docker_registry_username | lower }}/{{ docker_image_name }}"
+
+    - name: Enforce rollback deployment flags
+      set_fact:
+        build_image: false
+        pull_images: true
+        force_recreate: false
+        run_db_migrations: false
+        run_db_seed: false
+        docker_image_tag: "{{ rollback_tag }}"
+
+  roles:
+    - role: app-deploy
+
+  post_tasks:
+    - name: Wait for app health endpoint after rollback
+      uri:
+        url: "http://127.0.0.1:{{ active_host_port | default(app_port) }}/api/health"
+        status_code: 200
+      register: rollback_health
+      retries: 12
+      delay: 10
+      until: rollback_health.status == 200
+
+    - name: Verify container health status is healthy
+      shell: >-
+        docker inspect --format='{{ "{{" }}if .State.Health{{ "}}" }}{{ "{{" }}.State.Health.Status{{ "}}" }}{{ "{{" }}else{{ "}}" }}unknown{{ "{{" }}end{{ "}}" }}'
+        "{{ app_name }}-app{{ '-' + active_color if blue_green_enabled | bool else '' }}"
+      register: container_health
+      changed_when: false
+      retries: 12
+      delay: 5
+      until: container_health.stdout | trim == "healthy"
+
+    - name: Ensure release log directory exists
       file:
         path: "{{ app_directory }}"
         state: directory
-        owner: "{{ app_user }}"
-        mode: '0755'
+        mode: "0755"
 
-    - name: Restore backup
-      unarchive:
-        src: "{{ restore_file }}"
-        dest: "{{ app_directory }}"
-        remote_src: yes
-        owner: "{{ app_user }}"
-
-    - name: Start containers from restored backup
-      docker_compose:
-        project_src: "{{ app_directory }}"
-        state: present
-
-    - name: Wait for services to be ready
-      command: docker compose -f {{ app_directory }}/docker-compose.yml ps
-      register: compose_ps
-      until: compose_ps.stdout.find("Up") != -1
-      retries: 10
-      delay: 5
-      changed_when: false
+    - name: Record rollback event
+      lineinfile:
+        path: "{{ app_directory }}/release-history.log"
+        create: true
+        mode: "0644"
+        line: >-
+          {{ ansible_date_time.iso8601 }} action=rollback app={{ app_name }}
+          from={{ current_tag }} to={{ rollback_tag }}
+          status=success host={{ inventory_hostname }}
 
     - name: Display rollback summary
       debug:
         msg:
           - "======================================"
-          - "Rollback completed successfully!"
-          - "Restored from: {{ restore_file }}"
-          - "Application: {{ app_name }}"
+          - "Rollback completed successfully"
+          - "App: {{ app_name }}"
+          - "Host: {{ inventory_hostname }}"
+          - "From tag: {{ current_tag }}"
+          - "To tag: {{ rollback_tag }}"
+          - "Active color: {{ active_color if blue_green_enabled | bool else 'single-service' }}"
+          - "Health endpoint: OK"
+          - "Container health: {{ container_health.stdout | trim }}"
           - "======================================"

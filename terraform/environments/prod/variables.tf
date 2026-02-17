@@ -94,7 +94,14 @@ variable "custom_firewall_rules" {
     port       = string
     source_ips = list(string)
   }))
-  default = []
+  default = [
+    {
+      direction  = "in"
+      protocol   = "tcp"
+      port       = "9100"
+      source_ips = ["37.27.180.31/32"]
+    }
+  ]
 }
 
 

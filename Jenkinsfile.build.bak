@@ -32,6 +32,7 @@ pipeline {
 
     triggers {
         githubPush()
+        pollSCM('H/5 * * * *')
     }
 
     options {
@@ -50,7 +51,7 @@ pipeline {
                     notifyTelegram("🔨 <b>Build started</b>\n• <b>App:</b> ${APP_NAME}\n• <b>Build:</b> #${BUILD_NUMBER}\n• <b>Jenkins:</b> <a href=\"${env.BUILD_URL}\">Open Build</a>")
                     def scmVars = checkout([
                         $class: 'GitSCM',
-                        branches: [[name: '*/main']],
+                        branches: [[name: '*/nan']],
                         userRemoteConfigs: [[
                             url: 'git@github.com:techey-solution/stock-pos-server.git',
                             credentialsId: 'deploy-ssh-key'
@@ -155,8 +156,8 @@ pipeline {
         stage('Security Scan') {
             when {
                 anyOf {
-                    branch 'main'
-                    branch 'origin/main'
+                    branch 'nan'
+                    branch 'origin/nan'
                 }
             }
             steps {
@@ -275,50 +276,12 @@ pipeline {
             }
         }
 
-        stage('Capture Current Release') {
-            when {
-                expression {
-                    env.GIT_BRANCH == 'main' ||
-                    env.GIT_BRANCH == 'origin/main' ||
-                    env.BRANCH_NAME == 'main'
-                }
-            }
-            steps {
-                script {
-                    echo "=== Capturing current release tag on target server ==="
-                    def previousImage = ''
-                    sshagent(['deploy-ssh-key']) {
-                        previousImage = sh(
-                            script: '''#!/bin/bash
-                                ssh -o StrictHostKeyChecking=no deployer@89.167.6.46 \
-                                  'set -e
-                                   ACTIVE_COLOR="$(cat /opt/stock-pos/.active_color 2>/dev/null || echo blue)"
-                                   if [ "$ACTIVE_COLOR" != "blue" ] && [ "$ACTIVE_COLOR" != "green" ]; then
-                                     ACTIVE_COLOR="blue"
-                                   fi
-                                   docker inspect --format="{{.Config.Image}}" "stock-pos-app-${ACTIVE_COLOR}" 2>/dev/null || \
-                                   docker inspect --format="{{.Config.Image}}" stock-pos-app 2>/dev/null || true'
-                            ''',
-                            returnStdout: true
-                        ).trim()
-                    }
-
-                    if (previousImage) {
-                        env.PREVIOUS_TAG = previousImage.tokenize(':')[-1]
-                    } else {
-                        env.PREVIOUS_TAG = 'unknown'
-                    }
-                    echo "Previous running tag: ${env.PREVIOUS_TAG}"
-                }
-            }
-        }
-
         stage('Deploy with Ansible') {
             when {
                 expression { 
-                    env.GIT_BRANCH == 'main' || 
-                    env.GIT_BRANCH == 'origin/main' ||
-                    env.BRANCH_NAME == 'main'
+                    env.GIT_BRANCH == 'nan' || 
+                    env.GIT_BRANCH == 'origin/nan' ||
+                    env.BRANCH_NAME == 'nan'
                 }
             }
             steps {
@@ -385,108 +348,6 @@ pipeline {
                 }
             }
         }
-
-        stage('Post-Deploy Health Gate / Auto Rollback') {
-            when {
-                expression {
-                    env.GIT_BRANCH == 'main' ||
-                    env.GIT_BRANCH == 'origin/main' ||
-                    env.BRANCH_NAME == 'main'
-                }
-            }
-            steps {
-                script {
-                    echo "=== Verifying deployment health on target server ==="
-                    int healthRc = 1
-                    sshagent(['deploy-ssh-key']) {
-                        healthRc = sh(
-                            script: '''#!/bin/bash
-                                set +e
-                                ssh -o StrictHostKeyChecking=no deployer@89.167.6.46 '
-                                  ACTIVE_COLOR="$(cat /opt/stock-pos/.active_color 2>/dev/null || echo blue)"
-                                  if [ "$ACTIVE_COLOR" = "green" ]; then
-                                    APP_PORT=3002
-                                  elif [ "$ACTIVE_COLOR" = "blue" ]; then
-                                    APP_PORT=3001
-                                  else
-                                    APP_PORT=3000
-                                  fi
-                                  for i in $(seq 1 12); do
-                                    curl -fsS "http://127.0.0.1:${APP_PORT}/api/health" >/dev/null && \
-                                    curl -fsS http://127.0.0.1/api/health >/dev/null && exit 0
-                                    sleep 10
-                                  done
-                                  exit 1
-                                '
-                            ''',
-                            returnStatus: true
-                        )
-                    }
-
-                    if (healthRc == 0) {
-                        env.RELEASE_STATUS = 'success'
-                        sh '''#!/bin/bash
-                            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) build=${BUILD_NUMBER} previous=${PREVIOUS_TAG:-unknown} new=${VERSION} status=${RELEASE_STATUS} url=${BUILD_URL}" >> release-history.log
-                        '''
-                        echo "Deployment health gate passed."
-                        return
-                    }
-
-                    echo "Deployment health gate failed."
-                    if (!env.PREVIOUS_TAG?.trim() || env.PREVIOUS_TAG == 'unknown') {
-                        env.RELEASE_STATUS = 'rollback_skipped_no_previous_tag'
-                        sh '''#!/bin/bash
-                            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) build=${BUILD_NUMBER} previous=${PREVIOUS_TAG:-unknown} new=${VERSION} status=${RELEASE_STATUS} url=${BUILD_URL}" >> release-history.log
-                        '''
-                        notifyTelegram("❌ <b>Deploy unhealthy</b>\n• <b>App:</b> ${APP_NAME}\n• <b>Build:</b> #${BUILD_NUMBER}\n• <b>Version:</b> ${VERSION}\n• <b>Rollback:</b> skipped (previous tag unknown)\n• <b>Jenkins:</b> <a href=\"${env.BUILD_URL}\">Open Build</a>")
-                        error("Deployment failed health gate and rollback was skipped because previous tag is unknown.")
-                    }
-
-                    notifyTelegram("⚠️ <b>Deploy unhealthy</b>\n• <b>App:</b> ${APP_NAME}\n• <b>Build:</b> #${BUILD_NUMBER}\n• <b>Failed Version:</b> ${VERSION}\n• <b>Rolling back to:</b> ${env.PREVIOUS_TAG}")
-
-                    int rollbackRc = 1
-                    withCredentials([
-                        string(credentialsId: 'ansible-vault-password', variable: 'VAULT_PASS')
-                    ]) {
-                        sshagent(['deploy-ssh-key']) {
-                            rollbackRc = sh(
-                                script: '''#!/bin/bash
-                                    set +e
-                                    printf '%s' "${VAULT_PASS}" > /tmp/vault_pass_${BUILD_NUMBER}.txt
-                                    chmod 600 /tmp/vault_pass_${BUILD_NUMBER}.txt
-                                    ansible-playbook ansible/playbooks/rollback.yml \
-                                        -i ansible/inventories/production/hosts.ini \
-                                        -l app_servers \
-                                        --vault-password-file /tmp/vault_pass_${BUILD_NUMBER}.txt \
-                                        -e "rollback_tag=${PREVIOUS_TAG}" \
-                                        -e "confirm_rollback=yes"
-                                    rc=$?
-                                    rm -f /tmp/vault_pass_${BUILD_NUMBER}.txt
-                                    exit $rc
-                                ''',
-                                returnStatus: true
-                            )
-                        }
-                    }
-
-                    if (rollbackRc == 0) {
-                        env.RELEASE_STATUS = 'rolled_back'
-                        sh '''#!/bin/bash
-                            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) build=${BUILD_NUMBER} previous=${PREVIOUS_TAG:-unknown} new=${VERSION} status=${RELEASE_STATUS} url=${BUILD_URL}" >> release-history.log
-                        '''
-                        notifyTelegram("⚠️ <b>Auto-rollback completed</b>\n• <b>App:</b> ${APP_NAME}\n• <b>Build:</b> #${BUILD_NUMBER}\n• <b>Failed Version:</b> ${VERSION}\n• <b>Rolled back to:</b> ${env.PREVIOUS_TAG}\n• <b>Jenkins:</b> <a href=\"${env.BUILD_URL}\">Open Build</a>")
-                        error("Deployment failed health gate. Auto-rollback completed to ${env.PREVIOUS_TAG}.")
-                    } else {
-                        env.RELEASE_STATUS = 'rollback_failed'
-                        sh '''#!/bin/bash
-                            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) build=${BUILD_NUMBER} previous=${PREVIOUS_TAG:-unknown} new=${VERSION} status=${RELEASE_STATUS} url=${BUILD_URL}" >> release-history.log
-                        '''
-                        notifyTelegram("🚨 <b>Auto-rollback failed</b>\n• <b>App:</b> ${APP_NAME}\n• <b>Build:</b> #${BUILD_NUMBER}\n• <b>Failed Version:</b> ${VERSION}\n• <b>Rollback target:</b> ${env.PREVIOUS_TAG}\n• <b>Jenkins:</b> <a href=\"${env.BUILD_URL}\">Open Build</a>")
-                        error("Deployment failed health gate and auto-rollback failed.")
-                    }
-                }
-            }
-        }
     }
 
     post {
@@ -526,7 +387,6 @@ pipeline {
                     echo "Cleanup skipped - node context not available: ${e.message}"
                 }
             }
-            archiveArtifacts artifacts: 'release-history.log', allowEmptyArchive: true
         }
     }
 }

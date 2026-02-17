@@ -45,7 +45,7 @@ resource "hcloud_firewall" "firewall" {
   }
 
   dynamic "rule" {
-    for_each = var.allow_http ? [1] : []  # Placeholder for future rules
+    for_each = var.allow_http ? [1] : [] # Placeholder for future rules
     content {
       direction  = "in"
       protocol   = "tcp"
@@ -55,7 +55,7 @@ resource "hcloud_firewall" "firewall" {
   }
 
   dynamic "rule" {
-    for_each = var.allow_http ? [1] : []  # Placeholder for future rules
+    for_each = var.allow_http ? [1] : [] # Placeholder for future rules
     content {
       direction  = "in"
       protocol   = "tcp"
@@ -65,13 +65,24 @@ resource "hcloud_firewall" "firewall" {
   }
 
   dynamic "rule" {
-    for_each = var.allow_http ? [1] : []  # Placeholder for future rules
+    for_each = var.allow_http ? [1] : [] # Placeholder for future rules
     content {
       direction  = "in"
       protocol   = "tcp"
       port       = "3000"
       source_ips = ["0.0.0.0/0", "::/0"]
-    
+
+    }
+  }
+
+  # Custom firewall rules from environment
+  dynamic "rule" {
+    for_each = var.custom_rules
+    content {
+      direction  = rule.value.direction
+      protocol   = rule.value.protocol
+      port       = rule.value.port
+      source_ips = rule.value.source_ips
     }
   }
 

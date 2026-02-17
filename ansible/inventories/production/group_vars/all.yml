@@ -20,7 +20,6 @@ deployer_home: /home/deployer
 
 # ===== APPLICATION CONFIGURATION =====
 app_env: production
-environment: production
 node_env: production
 app_name: stock-pos
 app_repo: "https://github.com/yourusername/stock-pos.git"
@@ -29,8 +28,15 @@ app_directory: /opt/stock-pos
 app_port: 3000
 app_host: 0.0.0.0
 
+# ===== BLUE/GREEN DEPLOYMENT =====
+blue_green_enabled: true
+active_color_default: blue
+active_color_state_file: "{{ app_directory }}/.active_color"
+blue_app_port: 3001
+green_app_port: 3002
+
 # ===== DOCKER CONFIGURATION (Production) =====
-docker_image_name: stock-pos-app
+docker_image_name: stock-pos-server
 docker_image_tag: latest
 docker_container_name: stock-pos-app
 docker_registry: "{{ vault_docker_registry_url }}"
@@ -157,6 +163,12 @@ health_check_interval: 30
 health_check_timeout: 10
 health_check_retries: 3
 health_check_start_period: 40
+
+# ===== MONITORING =====
+node_exporter_enabled: true
+node_exporter_port: 9100
+node_exporter_bind_address: 0.0.0.0
+node_exporter_allowed_source_ip: 37.27.180.31
 
 # ===== BACKUP =====
 backup_enabled: true

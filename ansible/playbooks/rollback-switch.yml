@@ -1,0 +1,135 @@
+---
+# Switch-only Rollback Playbook (blue/green)
+# No image pull/build. Only flips active color and reloads nginx.
+
+- name: Switch-Only Rollback (Blue/Green)
+  hosts: app_servers
+  become: true
+  gather_facts: true
+
+  vars_prompt:
+    - name: rollback_to_color
+      prompt: "Target color for rollback (blue/green/auto)"
+      private: false
+      default: "auto"
+
+    - name: confirm_switch_rollback
+      prompt: "Confirm switch-only rollback? (yes/no)"
+      private: false
+      default: "no"
+
+  pre_tasks:
+    - name: Load production group variables
+      include_vars:
+        file: "{{ playbook_dir }}/../inventories/production/group_vars/all.yml"
+
+    - name: Verify switch-only rollback confirmation
+      fail:
+        msg: "Switch-only rollback cancelled by user"
+      when: confirm_switch_rollback != "yes"
+
+    - name: Ensure blue/green mode is enabled
+      assert:
+        that:
+          - blue_green_enabled | bool
+        fail_msg: "Switch-only rollback requires blue_green_enabled=true"
+
+    - name: Check active color state file
+      stat:
+        path: "{{ active_color_state_file }}"
+      register: active_color_state_stat
+
+    - name: Read active color state file
+      slurp:
+        src: "{{ active_color_state_file }}"
+      register: active_color_state_raw
+      when: active_color_state_stat.stat.exists | default(false)
+
+    - name: Resolve current active color
+      set_fact:
+        current_active_color: >-
+          {{
+            (((active_color_state_raw | default({})).get('content', '') | b64decode | trim))
+            if ((((active_color_state_raw | default({})).get('content', '') | b64decode | trim) in ['blue', 'green']))
+            else active_color_default
+          }}
+
+    - name: Resolve target color
+      set_fact:
+        target_color: >-
+          {{
+            ('green' if current_active_color == 'blue' else 'blue')
+            if (rollback_to_color | lower == 'auto')
+            else (rollback_to_color | lower)
+          }}
+
+    - name: Validate target color
+      assert:
+        that:
+          - target_color in ['blue', 'green']
+        fail_msg: "rollback_to_color must be blue, green, or auto"
+
+    - name: Set runtime facts for nginx switch
+      set_fact:
+        active_color: "{{ target_color }}"
+        active_service_name: "app-{{ target_color }}"
+        active_host_port: "{{ blue_app_port if target_color == 'blue' else green_app_port }}"
+
+    - name: Display switch-only rollback plan
+      debug:
+        msg:
+          - "Current active color: {{ current_active_color }}"
+          - "Target rollback color: {{ target_color }}"
+          - "Target service: {{ active_service_name }}"
+          - "Target port: {{ active_host_port }}"
+
+  tasks:
+    - name: Update container nginx upstream to target color
+      template:
+        src: "{{ playbook_dir }}/../roles/app-deploy/templates/nginx-default.conf.j2"
+        dest: "{{ app_directory }}/docker/nginx/conf.d/default.conf"
+        mode: "0644"
+        force: yes
+
+    - name: Reload container nginx
+      command: >-
+        docker compose -f {{ app_directory }}/docker-compose.yml
+        -f {{ app_directory }}/docker-compose.prod.yml
+        exec -T nginx nginx -s reload
+
+    - name: Persist active color state
+      copy:
+        dest: "{{ active_color_state_file }}"
+        content: "{{ target_color }}\n"
+        mode: "0644"
+
+    - name: Verify target app health endpoint
+      uri:
+        url: "http://127.0.0.1:{{ active_host_port }}/api/health"
+        status_code: 200
+      register: rollback_switch_health
+      retries: 12
+      delay: 5
+      until: rollback_switch_health.status == 200
+
+    - name: Record switch-only rollback event
+      lineinfile:
+        path: "{{ app_directory }}/release-history.log"
+        create: true
+        mode: "0644"
+        line: >-
+          {{ ansible_date_time.iso8601 }} action=rollback-switch app={{ app_name }}
+          from={{ current_active_color }} to={{ target_color }}
+          status=success host={{ inventory_hostname }}
+
+    - name: Display switch-only rollback summary
+      debug:
+        msg:
+          - "======================================"
+          - "Switch-only rollback completed"
+          - "App: {{ app_name }}"
+          - "Host: {{ inventory_hostname }}"
+          - "From color: {{ current_active_color }}"
+          - "To color: {{ target_color }}"
+          - "Target health endpoint: OK"
+          - "======================================"

@@ -5,6 +5,49 @@
 # - external-network: Public network (only nginx exposed)
 
 services:
+{% if blue_green_enabled | default(false) | bool %}
+  # Application Service (Express) - Blue
+  app-blue:
+    image: "{{ docker_registry }}/{{ docker_registry_username | lower }}/{{ docker_image_name }}:{{ app_blue_image_tag | default(docker_image_tag) }}"
+    container_name: {{ app_name }}-app-blue
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - APP_PORT=3000
+    ports:
+      - "127.0.0.1:{{ blue_app_port }}:3000"
+    expose:
+      - "3000"
+    depends_on:
+      - db
+      - redis
+      - minio
+    restart: unless-stopped
+    networks:
+      - internal-network
+
+  # Application Service (Express) - Green
+  app-green:
+    image: "{{ docker_registry }}/{{ docker_registry_username | lower }}/{{ docker_image_name }}:{{ app_green_image_tag | default(docker_image_tag) }}"
+    container_name: {{ app_name }}-app-green
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - APP_PORT=3000
+    ports:
+      - "127.0.0.1:{{ green_app_port }}:3000"
+    expose:
+      - "3000"
+    depends_on:
+      - db
+      - redis
+      - minio
+    restart: unless-stopped
+    networks:
+      - internal-network
+{% else %}
   # Application Service (Express)
   app:
     image: "{{ docker_registry }}/{{ docker_registry_username | lower }}/{{ docker_image_name }}:{{ docker_image_tag }}"
@@ -22,6 +65,7 @@ services:
     restart: unless-stopped
     networks:
       - internal-network
+{% endif %}
 
   # Database (private network only)
   db:
@@ -79,6 +123,35 @@ services:
     networks:
       - internal-network
 
+{% if node_exporter_enabled | default(true) | bool %}
+  # Node Exporter for host metrics
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: {{ app_name }}-node-exporter
+    command:
+      - "--path.rootfs=/host"
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($|/)"
+    ports:
+      - "{{ node_exporter_bind_address | default('127.0.0.1') }}:{{ node_exporter_port | default(9100) }}:9100"
+    pid: host
+    restart: unless-stopped
+    read_only: true
+    volumes:
+      - /:/host:ro,rslave
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:9100/metrics || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    networks:
+      - internal-network
+{% endif %}
+
   # Nginx reverse proxy (both networks: internal for app, external for public)
   nginx:
     image: nginx:alpine
@@ -93,7 +166,12 @@ services:
       - nginx-cache:/var/cache/nginx
       - nginx-logs:/var/log/nginx
     depends_on:
+{% if blue_green_enabled | default(false) | bool %}
+      - app-blue
+      - app-green
+{% else %}
       - app
+{% endif %}
     restart: unless-stopped
     networks:
       - internal-network

@@ -61,11 +61,32 @@
     files:
       - docker-compose.yml
       - docker-compose.prod.yml
+    services:
+      - db
+      - redis
+      - minio
+      - node-exporter
+      - nginx
+      - "{{ deploy_service_name }}"
     state: present
     pull: "{{ 'always' if pull_images | bool else 'never' }}"
     build: "{{ 'always' if build_image | bool else 'never' }}"
     recreate: "{{ 'always' if force_recreate else 'auto' }}"
   register: compose_output
+  when: blue_green_enabled | bool
+
+- name: Deploy application with Docker Compose (single service mode)
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_directory }}"
+    files:
+      - docker-compose.yml
+      - docker-compose.prod.yml
+    state: present
+    pull: "{{ 'always' if pull_images | bool else 'never' }}"
+    build: "{{ 'always' if build_image | bool else 'never' }}"
+    recreate: "{{ 'always' if force_recreate else 'auto' }}"
+  register: compose_output
+  when: not (blue_green_enabled | bool)
 
 - name: Display Docker Compose output
   debug:
@@ -81,6 +102,16 @@
   delay: 5
   changed_when: false
   ignore_errors: true
+
+- name: Wait for target app container health
+  shell: >
+    docker inspect --format='{{ "{{" }}if .State.Health{{ "}}" }}{{ "{{" }}.State.Health.Status{{ "}}" }}{{ "{{" }}else{{ "}}" }}unknown{{ "{{" }}end{{ "}}" }}'
+    "{{ app_name }}-app{{ '-' + deploy_color if blue_green_enabled | bool else '' }}"
+  register: target_app_health
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: target_app_health.stdout | trim == "healthy"
 
 # ADDED - Wait specifically for database to be ready
 - name: Wait for database to accept connections
@@ -101,7 +132,7 @@
   shell: |
     docker compose -f {{ app_directory }}/docker-compose.yml \
     -f {{ app_directory }}/docker-compose.prod.yml \
-    ps app --format json
+    ps {{ app_runtime_service }} --format json
   register: app_status
   changed_when: false
   when: run_db_migrations | bool
@@ -159,7 +190,7 @@
   shell: >-
     docker compose -f {{ app_directory }}/docker-compose.yml
     -f {{ app_directory }}/docker-compose.prod.yml
-    exec -T app printenv | grep -i database || echo "DATABASE_URL not found"
+    exec -T {{ app_runtime_service }} printenv | grep -i database || echo "DATABASE_URL not found"
   register: app_env
   changed_when: false
   failed_when: false
@@ -175,7 +206,7 @@
   command: >-
     docker compose -f {{ app_directory }}/docker-compose.yml
     -f {{ app_directory }}/docker-compose.prod.yml
-    exec -T app pnpm migrate:apply
+    exec -T {{ app_runtime_service }} pnpm migrate:apply
   register: migrate_output
   changed_when: "'Applied' in migrate_output.stdout or 'migrate' in migrate_output.stdout or 'Success' in migrate_output.stdout"
   failed_when: migrate_output.rc != 0
@@ -192,7 +223,7 @@
   command: >-
     docker compose -f {{ app_directory }}/docker-compose.yml
     -f {{ app_directory }}/docker-compose.prod.yml
-    exec -T app pnpm seed
+    exec -T {{ app_runtime_service }} pnpm seed
   register: seed_output
   changed_when: "'seed' in seed_output.stdout or seed_output.rc == 0"
   failed_when: seed_output.rc != 0
@@ -204,6 +235,45 @@
   debug:
     var: seed_output.stdout_lines
   when: run_db_seed | bool and seed_output is defined
+
+- name: Switch active color after successful deploy
+  set_fact:
+    previous_active_color: "{{ active_color }}"
+    active_color: "{{ deploy_color }}"
+    active_service_name: "app-{{ deploy_color }}"
+    active_host_port: "{{ deploy_host_port }}"
+  when: blue_green_enabled | bool
+
+- name: Update container nginx upstream to new active color
+  template:
+    src: nginx-default.conf.j2
+    dest: "{{ app_directory }}/docker/nginx/conf.d/default.conf"
+    owner: "{{ app_user }}"
+    mode: "0644"
+    force: yes
+  when: blue_green_enabled | bool
+
+- name: Reload container nginx
+  command: >-
+    docker compose -f {{ app_directory }}/docker-compose.yml
+    -f {{ app_directory }}/docker-compose.prod.yml
+    exec -T nginx nginx -s reload
+  when: blue_green_enabled | bool
+
+- name: Persist active color state
+  copy:
+    dest: "{{ active_color_state_file }}"
+    content: "{{ active_color }}\n"
+    owner: "{{ app_user }}"
+    mode: "0644"
+  when: blue_green_enabled | bool
+
+- name: Remove legacy single-service app container if present
+  command: docker rm -f {{ app_name }}-app
+  register: remove_legacy_app
+  changed_when: remove_legacy_app.rc == 0
+  failed_when: false
+  when: blue_green_enabled | bool
 
 - name: Get running containers
   command: docker ps --filter "name={{ app_name }}" --format "table {% raw %}{{.Names}}\t{{.Status}}\t{{.Ports}}{% endraw %}"
