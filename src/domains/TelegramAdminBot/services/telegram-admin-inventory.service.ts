@@ -1,6 +1,8 @@
 import { InventoryReportService } from '@src/domains/Stock/services/inventory-report.service';
 import { ShiftService } from '@src/domains/Shift/services/shift.service';
 import { StockLotService } from '@src/domains/Stock/services/stock-lot.service';
+import { TelegramService } from '@src/domains/Telegram/services/telegram.service';
+import { logger } from '@src/shared/utils/logger';
 import { Role } from '@src/shared/config/permissions';
 import { formatDate } from '@src/shared/utils/date-utils';
 import { TelegramAdminFormatService } from './telegram-admin-format.service';
@@ -47,6 +49,79 @@ export class TelegramAdminInventoryService {
   static async sendShiftSummary(chatId: number, adminUserId: number) {
     const result = await this.buildShiftSummaryMessage(adminUserId);
     return TelegramAdminUiService.sendMessageWithNav(chatId, result.text);
+  }
+
+  static async sendTieredExpiryAlerts() {
+    try {
+      const config = await TelegramService.getTelegramConfig();
+      if (!config || !config.is_active) {
+        return;
+      }
+
+      // We check for 3 milestones: 30 days, 7 days, and 0 days (today)
+      const milestones = [
+        { days: 30, title: '⚠️ Stock Expiry Warning (30 Days)', type: 'Early warning' },
+        { days: 7, title: '⚠️ Stock Expiry Warning (7 Days)', type: 'Urgent warning' },
+        { days: 0, title: '🚨 Stock Expired Today', type: 'Mark as expired' },
+      ];
+
+      for (const milestone of milestones) {
+        const lots = await StockLotService.listLotsExpiringIn(milestone.days);
+        if (lots.length > 0) {
+          const message = this.formatTieredExpiryMessage(milestone.title, milestone.days, milestone.type, lots);
+          await TelegramService.sendCustomMessage(message, 'Markdown');
+          logger.info(`Telegram tiered expiry alert sent: ${milestone.title}`);
+        }
+      }
+    } catch (error: any) {
+      logger.error('Failed to send tiered expiry alerts', {
+        error: error.message,
+      });
+    }
+  }
+
+  private static formatTieredExpiryMessage(title: string, days: number, type: string, lots: any[]): string {
+    const lines = lots.map((lot, index) => {
+      const name = TelegramAdminFormatService.escapeMarkdown(lot.product_name);
+      const code = TelegramAdminFormatService.escapeMarkdown(lot.product_code ?? '-');
+      const expiredAt = lot.expired_at ? formatDate(new Date(lot.expired_at)) : '-';
+      return `${index + 1}) ${name} (${code})
+• Qty: ${lot.qty_on_hand}
+• Expiry Date: ${expiredAt}
+• Status: ${type}`;
+    });
+
+    return [
+      `*${title}*`,
+      '',
+      ...lines,
+    ].join('\n');
+  }
+
+  static async sendNearExpiryAlert() {
+    try {
+      const config = await TelegramService.getTelegramConfig();
+      if (!config || !config.is_active) {
+        return;
+      }
+
+      const report = await StockLotService.listNearExpiry(DEFAULT_NEAR_EXPIRY_DAYS);
+      if (!report.lots.length) {
+        return;
+      }
+
+      const result = await this.buildNearExpiryMessage(DEFAULT_NEAR_EXPIRY_DAYS);
+
+      // Cleanup message: remove navigation buttons for automated alerts
+      const message = result.text;
+
+      await TelegramService.sendCustomMessage(message, 'Markdown');
+      logger.info('Telegram near-expiry alert sent automatically');
+    } catch (error: any) {
+      logger.error('Failed to send automated near-expiry alert', {
+        error: error.message,
+      });
+    }
   }
 
   static async buildLowStockMessage(adminUserId: number): Promise<TelegramAdminCallbackResult> {
@@ -219,17 +294,17 @@ export class TelegramAdminInventoryService {
     const lines = response.shifts.map((shift, index) => {
       const start = shift.start_time
         ? new Date(shift.start_time).toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
-          })
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        })
         : '-';
       const end = shift.end_time
         ? new Date(shift.end_time).toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
-          })
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        })
         : '-';
       return `${index + 1}) ${shift.seller_name ?? 'Unknown'} - ${shift.status}
 • Sales: $${Number(shift.total_sales_amount).toLocaleString()} (${shift.total_sales_count} orders)

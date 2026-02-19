@@ -34,12 +34,12 @@ const authRateLimiterConfig = rateLimit({
 
 // Strict rate limit for receipt scanning (production only)
 const receiptScanRateLimiterConfig = rateLimit({
-  windowMs: 60 * 60 * 1000, 
-  max: 60, 
+  windowMs: 60 * 60 * 1000,
+  max: 60,
   keyGenerator: (req: Request) => {
     const receiptCode =
       typeof req.body?.receipt_code === 'string' ? req.body.receipt_code : 'unknown';
-    return `${ipKeyGenerator(req.ip)}:${receiptCode}`;
+    return `${ipKeyGenerator(req.ip || 'unknown')}:${receiptCode}`;
   },
   message: {
     success: false,
@@ -51,8 +51,8 @@ const receiptScanRateLimiterConfig = rateLimit({
 // Rate limit for telegram webhook (production only)
 // Even with a secret token, we want to prevent DDoS
 const telegramWebhookRateLimiterConfig = rateLimit({
-  windowMs: 1 * 60 * 1000, 
-  max: 300, 
+  windowMs: 1 * 60 * 1000,
+  max: 300,
   message: {
     success: false,
     message: 'Too many updates',

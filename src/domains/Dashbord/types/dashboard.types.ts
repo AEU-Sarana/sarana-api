@@ -2,6 +2,7 @@ export interface DashboardShiftSummary {
   shift_id: number;
   status: string;
   start_time: Date;
+  end_time: Date | null;
   opening_cash: number;
 }
 

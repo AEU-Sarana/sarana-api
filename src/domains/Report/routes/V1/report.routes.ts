@@ -1,6 +1,6 @@
 import { Router, type IRouter } from 'express';
 import { authenticateToken } from '@src/shared/middleware/auth.middleware';
-import { requireAdmin } from '@src/shared/middleware/authorization.middleware';
+import { requireAdmin, requireAdminOrSeller } from '@src/shared/middleware/authorization.middleware';
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
 import {
   getDailyReportValidator,
@@ -20,7 +20,7 @@ const router: IRouter = Router();
 router.get(
   '/daily',
   authenticateToken,
-  requireAdmin,
+  requireAdminOrSeller,
   ...validateRequest(getDailyReportValidator),
   ReportController.getDailyReport
 );

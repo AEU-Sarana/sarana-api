@@ -14,6 +14,7 @@ import { ValidationException, BusinessLogicException } from '@src/shared/excepti
 import { auditLogService } from '@src/shared/services/audit-log.service';
 import { eventBus } from '@src/shared/events/event-bus';
 import { ShiftClosedEvent } from '../events/shift-closed.event';
+import { ReportCacheService } from '@src/domains/Report/services/report-cache.service';
 
 export class ShiftService {
   /**
@@ -76,7 +77,12 @@ export class ShiftService {
             ? new Date(stockSnapshot.last_sync_time)
             : new Date(),
       },
+      include: { user: { select: { tenantId: true } } }
     });
+
+    if (shift.user.tenantId) {
+      await ReportCacheService.clearTenantCache(shift.user.tenantId);
+    }
 
     // Normalize stock snapshot into the contract shape
     let stockVersion: number | null = null;
@@ -204,7 +210,12 @@ export class ShiftService {
         closeMode,
         forceCloseReason: forceClose ? forceCloseReason : null,
       },
+      include: { user: { select: { tenantId: true } } }
     });
+
+    if (updated.user.tenantId) {
+      await ReportCacheService.clearTenantCache(updated.user.tenantId);
+    }
 
     await auditLogService.createAuditLog({
       userId: currentUserId,
@@ -351,7 +362,12 @@ export class ShiftService {
     currentUserId: number,
     currentUserRole: string
   ): Promise<GetShiftResponse> {
-    const where = { shiftId, sellerId: currentUserId };
+    const where: any = { shiftId };
+
+    // Sellers can only view their own shifts, Admins can view all
+    if (currentUserRole !== 'ADMIN') {
+      where.sellerId = currentUserId;
+    }
 
     const shift = await prisma.shift.findFirst({
       where,

@@ -100,18 +100,27 @@ export class ReportService {
   /**
    * Income Report
    */
-  static async getIncomeReport(period: IncomeReportPeriod): Promise<IncomeReportResponse> {
+  static async getIncomeReport(period: IncomeReportPeriod, tenantId?: number): Promise<IncomeReportResponse> {
     const normalizedPeriod = (period || 'daily') as IncomeReportPeriod;
     const { start, end } = this.resolvePeriodRange(normalizedPeriod);
+    const effectiveTenantId = tenantId ?? 1;
 
     const salesAgg = await prisma.order.aggregate({
-      where: { orderDate: { gte: start, lte: end } },
+      where: {
+        orderDate: { gte: start, lte: end },
+        tenantId: effectiveTenantId
+      },
       _sum: { totalAmount: true },
       _count: { orderId: true },
     });
 
     const cogsAgg = await prisma.orderItem.aggregate({
-      where: { order: { orderDate: { gte: start, lte: end } } },
+      where: {
+        order: {
+          orderDate: { gte: start, lte: end },
+          tenantId: effectiveTenantId
+        }
+      },
       _sum: { cogsLineTotal: true, quantity: true },
     });
 
@@ -119,12 +128,14 @@ export class ReportService {
       { total_cost: any; total_qty: any }[]
     >(Prisma.sql`
       SELECT
-        COALESCE(SUM(COALESCE(cost, 0) * COALESCE(quantity, 0)), 0) AS total_cost,
-        COALESCE(SUM(COALESCE(quantity, 0)), 0) AS total_qty
-      FROM stock_movements
-      WHERE movement_type = 'STOCK_IN'
-        AND created_at >= ${start}
-        AND created_at <= ${end}
+        COALESCE(SUM(COALESCE(sm.cost, 0) * COALESCE(sm.quantity, 0)), 0) AS total_cost,
+        COALESCE(SUM(COALESCE(sm.quantity, 0)), 0) AS total_qty
+      FROM stock_movements sm
+      JOIN users u ON u.user_id = sm.created_by
+      WHERE sm.movement_type = 'STOCK_IN'
+        AND sm.created_at >= ${start}
+        AND sm.created_at <= ${end}
+        AND u.tenant_id = ${effectiveTenantId}
     `);
 
     const totalSales = Number(salesAgg._sum.totalAmount || 0);
@@ -152,20 +163,23 @@ export class ReportService {
   static async getDailyReport(
     request: DailySalesReportRequest,
     currentUserId: number,
-    currentUserRole: string
+    currentUserRole: string,
+    tenantId?: number
   ): Promise<DailySalesReportResponse> {
     try {
       const { date, seller_id } = request;
+      const effectiveTenantId = tenantId ?? 1;
 
       // Validate date format
       if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         throw new ValidationException('Invalid date format. Expected YYYY-MM-DD');
       }
 
-      const effectiveSellerId = currentUserId;
+      const effectiveSellerId =
+        currentUserRole === 'ADMIN' ? (seller_id ?? null) : currentUserId;
 
       // Cache check
-      const cacheKey = `daily_report:${date}:${effectiveSellerId || 'all'}`;
+      const cacheKey = `tenant:${effectiveTenantId}:daily_report:${date}:${effectiveSellerId || 'all'}`;
       if (!request.bypass_cache) {
         const cached = await ReportCacheService.getCached(cacheKey);
         if (cached) return cached;
@@ -189,26 +203,12 @@ export class ReportService {
           gte: startOfDay,
           lte: endOfDay,
         },
+        tenantId: effectiveTenantId,
       };
       if (effectiveSellerId) {
         whereClause.sellerId = effectiveSellerId;
       }
 
-      const aggregations = await prisma.order.aggregate({
-        where: whereClause,
-        _sum: {
-          totalAmount: true,
-        },
-        _count: {
-          orderId: true,
-        },
-      });
-
-      const total_sales = Number(aggregations._sum.totalAmount || 0);
-      const total_orders = aggregations._count.orderId;
-      const average_order_value = total_orders > 0 ? total_sales / total_orders : 0;
-
-      // Shifts breakdown (single aggregated query)
       type ShiftRow = {
         seller_id: number;
         seller_name: string;
@@ -219,26 +219,134 @@ export class ReportService {
         end_time: Date | null;
       };
 
-      const shiftRows = await prisma.$queryRaw<ShiftRow[]>(Prisma.sql`
-        SELECT
-          s.seller_id,
-          u.full_name AS seller_name,
-          COUNT(DISTINCT s.shift_id) AS shift_count,
-          COALESCE(SUM(o.total_amount), 0) AS total_sales,
-          COUNT(DISTINCT o.order_id) AS total_orders,
-          MIN(s.start_time) AS start_time,
-          MAX(s.end_time) AS end_time
-        FROM shifts s
-        JOIN users u ON u.user_id = s.seller_id
-        LEFT JOIN orders o
-          ON o.shift_id = s.shift_id
-          AND o.order_date >= ${startOfDay}
-          AND o.order_date <= ${endOfDay}
-        WHERE s.shift_date >= ${startOfDay}::date
-          AND s.shift_date <= ${endOfDay}::date
-          AND (${effectiveSellerId}::int IS NULL OR s.seller_id = ${effectiveSellerId})
-        GROUP BY s.seller_id, u.full_name
-      `);
+      type LowStockRow = {
+        product_id: number;
+        product_name: string;
+        product_code: string;
+        current_stock: number;
+        low_stock_threshold: number | null;
+        updated_at: Date;
+      };
+
+      // 2. Execute independent queries in parallel
+      const [
+        aggregations,
+        shiftRows,
+        topProductsRaw,
+        lowStockRows,
+        totalProductsSold,
+        uniqueProductsSoldResult
+      ] = await Promise.all([
+        // Summary aggregations
+        prisma.order.aggregate({
+          where: whereClause,
+          _sum: {
+            totalAmount: true,
+          },
+          _count: {
+            orderId: true,
+          },
+        }),
+
+        // Shifts breakdown
+        prisma.$queryRaw<ShiftRow[]>(Prisma.sql`
+          SELECT
+            s.seller_id,
+            u.full_name AS seller_name,
+            COUNT(DISTINCT s.shift_id) AS shift_count,
+            COALESCE(SUM(o.total_amount), 0) AS total_sales,
+            COUNT(DISTINCT o.order_id) AS total_orders,
+            MIN(s.start_time) AS start_time,
+            MAX(s.end_time) AS end_time
+          FROM shifts s
+          JOIN users u ON u.user_id = s.seller_id
+          LEFT JOIN orders o
+            ON o.shift_id = s.shift_id
+            AND o.order_date >= ${startOfDay}
+            AND o.order_date <= ${endOfDay}
+          WHERE s.shift_date >= ${startOfDay}::date
+            AND s.shift_date <= ${endOfDay}::date
+            AND u.tenant_id = ${effectiveTenantId}
+            AND (${effectiveSellerId}::int IS NULL OR s.seller_id = ${effectiveSellerId})
+          GROUP BY s.seller_id, u.full_name
+        `),
+
+        // Top products consolidated
+        prisma.$queryRaw<any[]>(Prisma.sql`
+          SELECT
+            oi.product_id,
+            p.product_name,
+            p.product_code,
+            SUM(oi.quantity) AS quantity_sold,
+            SUM(oi.subtotal) AS revenue,
+            MIN(p.price) as product_price
+          FROM order_items oi
+          JOIN orders o ON o.order_id = oi.order_id
+          JOIN products p ON p.product_id = oi.product_id
+          WHERE o.order_date >= ${startOfDay}
+            AND o.order_date <= ${endOfDay}
+            AND o.tenant_id = ${effectiveTenantId}
+            AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
+          GROUP BY oi.product_id, p.product_name, p.product_code
+          ORDER BY revenue DESC
+          LIMIT 5
+        `),
+
+        // Low stock items
+        prisma.$queryRaw<LowStockRow[]>(Prisma.sql`
+          SELECT
+            s.product_id,
+            p.product_name,
+            p.product_code,
+            s.quantity AS current_stock,
+            p.low_stock_threshold,
+            s.updated_at
+          FROM stocks s
+          JOIN products p ON p.product_id = s.product_id
+          JOIN users u ON u.user_id = p.created_by
+          WHERE p.status = 'active'
+            AND u.tenant_id = ${effectiveTenantId}
+            AND (
+              s.quantity < 0
+              OR (p.low_stock_threshold IS NOT NULL AND s.quantity <= p.low_stock_threshold)
+            )
+          ORDER BY s.quantity ASC
+          LIMIT 10
+        `),
+
+        // Total products sold
+        prisma.orderItem.aggregate({
+          where: {
+            order: {
+              orderDate: {
+                gte: startOfDay,
+                lte: endOfDay,
+              },
+              tenantId: effectiveTenantId,
+              ...(effectiveSellerId ? { sellerId: effectiveSellerId } : {}),
+            },
+          },
+          _sum: {
+            quantity: true,
+          },
+        }),
+
+        // Unique products sold
+        prisma.$queryRaw<{ unique_products_sold: number | string }[]>(Prisma.sql`
+          SELECT COUNT(DISTINCT oi.product_id) AS unique_products_sold
+          FROM order_items oi
+          JOIN orders o ON o.order_id = oi.order_id
+          WHERE o.order_date >= ${startOfDay}
+            AND o.order_date <= ${endOfDay}
+            AND o.tenant_id = ${effectiveTenantId}
+            AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
+        `)
+      ]);
+
+      const total_sales = Number(aggregations._sum.totalAmount || 0);
+      const total_orders = aggregations._count.orderId;
+      const average_order_value = total_orders > 0 ? total_sales / total_orders : 0;
+      const unique_products_sold = uniqueProductsSoldResult[0]?.unique_products_sold;
 
       let shifts_breakdown: ShiftBreakdown[] = shiftRows.map(row => ({
         seller_id: row.seller_id,
@@ -250,94 +358,20 @@ export class ReportService {
         end_time: row.end_time ? new Date(row.end_time).toISOString() : null,
       }));
 
-      // Top products with product codes and average prices
-      const topProductsRaw = await prisma.orderItem.groupBy({
-        by: ['productId'],
-        where: {
-          order: {
-            orderDate: {
-              gte: startOfDay,
-              lte: endOfDay,
-            },
-            ...(effectiveSellerId ? { sellerId: effectiveSellerId } : {}),
-          },
-        },
-        _sum: {
-          quantity: true,
-          subtotal: true,
-        },
-        _count: {
-          orderItemId: true,
-        },
-        orderBy: {
-          _sum: {
-            subtotal: 'desc',
-          },
-        },
-        take: 5,
-      });
-
-      // Get product details for top products
-      const productIds = topProductsRaw.map(p => p.productId);
-      const products = await prisma.product.findMany({
-        where: {
-          productId: { in: productIds },
-        },
-        select: {
-          productId: true,
-          productName: true,
-          productCode: true,
-          price: true,
-        },
-      });
-
-      const productMap = new Map(products.map(p => [p.productId, p]));
-
-      const top_products: TopProduct[] = topProductsRaw.map(p => {
-        const product = productMap.get(p.productId);
-        const quantitySold = p._sum.quantity || 0;
-        const revenue = Number(p._sum.subtotal || 0);
-        const averagePrice = quantitySold > 0 ? revenue / quantitySold : Number(product?.price || 0);
+      const top_products: TopProduct[] = topProductsRaw.map((p: any) => {
+        const quantitySold = Number(p.quantity_sold || 0);
+        const revenue = Number(p.revenue || 0);
+        const averagePrice = quantitySold > 0 ? revenue / quantitySold : Number(p.product_price || 0);
 
         return {
-          product_id: p.productId,
-          product_name: product?.productName || 'Unknown Product',
-          product_code: product?.productCode || 'N/A',
+          product_id: p.product_id,
+          product_name: p.product_name || 'Unknown Product',
+          product_code: p.product_code || 'N/A',
           quantity_sold: quantitySold,
           revenue,
           average_price: Number(averagePrice.toFixed(2)),
         };
       });
-
-      // Low stock items (filter and limit in SQL)
-      type LowStockRow = {
-        product_id: number;
-        product_name: string;
-        product_code: string;
-        current_stock: number;
-        low_stock_threshold: number | null;
-        updated_at: Date;
-      };
-
-      const lowStockRows = await prisma.$queryRaw<LowStockRow[]>(Prisma.sql`
-        SELECT
-          s.product_id,
-          p.product_name,
-          p.product_code,
-          s.quantity AS current_stock,
-          p.low_stock_threshold,
-          s.updated_at
-        FROM stocks s
-        JOIN products p ON p.product_id = s.product_id
-        WHERE p.status = 'active'
-          AND p.created_by = ${currentUserId}
-          AND (
-            s.quantity < 0
-            OR (p.low_stock_threshold IS NOT NULL AND s.quantity <= p.low_stock_threshold)
-          )
-        ORDER BY s.quantity ASC
-        LIMIT 10
-      `);
 
       const low_stock_items: LowStockItem[] = lowStockRows.map(row => ({
         product_id: row.product_id,
@@ -348,34 +382,6 @@ export class ReportService {
         status: row.current_stock <= 0 ? 'out_of_stock' : 'low_stock',
         last_updated: row.updated_at.toISOString(),
       }));
-
-      // Calculate summary statistics
-      const totalProductsSold = await prisma.orderItem.aggregate({
-        where: {
-          order: {
-            orderDate: {
-              gte: startOfDay,
-              lte: endOfDay,
-            },
-            ...(effectiveSellerId ? { sellerId: effectiveSellerId } : {}),
-          },
-        },
-        _sum: {
-          quantity: true,
-        },
-        _count: {
-          _all: true,
-        },
-      });
-
-      const [{ unique_products_sold }] = await prisma.$queryRaw<{ unique_products_sold: number | string }[]>(Prisma.sql`
-        SELECT COUNT(DISTINCT oi.product_id) AS unique_products_sold
-        FROM order_items oi
-        JOIN orders o ON o.order_id = oi.order_id
-        WHERE o.order_date >= ${startOfDay}
-          AND o.order_date <= ${endOfDay}
-          AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
-      `);
 
       const averageItemsPerOrder = total_orders > 0 ? (totalProductsSold._sum.quantity || 0) / total_orders : 0;
 
@@ -449,10 +455,12 @@ export class ReportService {
   static async getSalesHistoryReport(
     request: SalesHistoryReportRequest,
     currentUserId: number,
-    currentUserRole: string
+    currentUserRole: string,
+    tenantId?: number
   ): Promise<SalesHistoryReportResponse> {
     try {
       const { start_date, end_date, seller_id, product_id, page = 1, limit = 50 } = request;
+      const effectiveTenantId = tenantId ?? 1;
       const effectiveSellerId =
         currentUserRole === 'ADMIN' ? (seller_id ?? null) : currentUserId;
 
@@ -465,8 +473,8 @@ export class ReportService {
       }
 
       // Validate date range
-      const startDate = new Date(`${start_date}T00:00:00Z`);
-      const endDate = new Date(`${end_date}T23:59:59Z`);
+      const startDate = new Date(`${start_date}T00:00:00+07:00`);
+      const endDate = new Date(`${end_date}T23:59:59+07:00`);
       if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
         throw new ValidationException('Invalid date range provided');
       }
@@ -508,6 +516,7 @@ export class ReportService {
           WHERE o.order_date >= ${startDate}
             AND o.order_date <= ${endDate}
             AND oi.product_id = ${product_id}
+            AND o.tenant_id = ${effectiveTenantId}
             AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
           GROUP BY 1
           ORDER BY 1 DESC
@@ -529,7 +538,8 @@ export class ReportService {
             WHERE o.order_date >= ${startDate}
               AND o.order_date <= ${endDate}
               AND oi.product_id = ${product_id}
-              AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
+              AND o.tenant_id = ${effectiveTenantId}
+            AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
             GROUP BY 1
           ) t
         `);
@@ -547,6 +557,7 @@ export class ReportService {
           FROM orders o
           WHERE o.order_date >= ${startDate}
             AND o.order_date <= ${endDate}
+            AND o.tenant_id = ${effectiveTenantId}
             AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
           GROUP BY 1
           ORDER BY 1 DESC
@@ -566,7 +577,8 @@ export class ReportService {
             FROM orders o
             WHERE o.order_date >= ${startDate}
               AND o.order_date <= ${endDate}
-              AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
+              AND o.tenant_id = ${effectiveTenantId}
+            AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
             GROUP BY 1
           ) t
         `);
@@ -620,9 +632,10 @@ export class ReportService {
   /**
    * Stock Report
    */
-  static async getStockReport(request: StockReportRequest, currentUserId: number): Promise<StockReportResponse> {
+  static async getStockReport(request: StockReportRequest, currentUserId: number, tenantId?: number): Promise<StockReportResponse> {
     try {
       const { low_stock_only, start_date, end_date } = request;
+      const effectiveTenantId = tenantId ?? 1;
       let rangeStart: Date | null = null;
       let rangeEnd: Date | null = null;
       if (start_date && end_date) {
@@ -654,8 +667,9 @@ export class ReportService {
                      p.product_name, p.product_code, p.image_path, p.category, p.low_stock_threshold, p.status as p_status
               FROM stocks s
               JOIN products p ON s.product_id = p.product_id
+              JOIN users u ON u.user_id = p.created_by
               WHERE p.status = 'active'
-                AND p.created_by = ${currentUserId}
+                AND u.tenant_id = ${effectiveTenantId}
                 ${rangeStart && rangeEnd ? Prisma.sql`AND s.updated_at >= ${rangeStart} AND s.updated_at <= ${rangeEnd}` : Prisma.empty}
                 AND (
                   s.quantity < 0
@@ -681,8 +695,9 @@ export class ReportService {
         const [{ total_active_products }] = await prisma.$queryRaw<{ total_active_products: number }[]>`
               SELECT COUNT(*)::int AS total_active_products
               FROM products p
+              JOIN users u ON u.user_id = p.created_by
               WHERE p.status = 'active'
-                AND p.created_by = ${currentUserId}
+                AND u.tenant_id = ${effectiveTenantId}
           `;
 
         const response = {
@@ -710,7 +725,10 @@ export class ReportService {
       const stocks = await prisma.stock.findMany({
         include: { product: true },
         where: {
-          product: { status: 'active', createdBy: currentUserId },
+          product: {
+            status: 'active',
+            createdByUser: { tenantId: effectiveTenantId }
+          },
           ...(rangeStart && rangeEnd ? { updatedAt: { gte: rangeStart, lte: rangeEnd } } : {}),
         },
       });
@@ -769,9 +787,11 @@ export class ReportService {
   static async exportReport(
     request: ExportReportRequest,
     currentUserId: number,
-    currentUserRole: string
+    currentUserRole: string,
+    tenantId?: number
   ): Promise<ExportReportResponse> {
     const { report_type, filters, format } = request;
+    const effectiveTenantId = tenantId ?? 1;
     let data: unknown[];
     let fileName: string;
 
@@ -783,7 +803,8 @@ export class ReportService {
           const dailyReport = await this.getDailyReport(
             dailyFilters,
             currentUserId,
-            currentUserRole
+            currentUserRole,
+            effectiveTenantId
           );
           // Transform daily report to flat structure for CSV
           data = this.transformDailyReportForExport(dailyReport);
@@ -804,7 +825,7 @@ export class ReportService {
         case 'stock':
         case 'stock_summary': // Support both enum and string for backward compatibility
           const stockFilters = filters as StockReportRequest;
-          const stockReport = await this.getStockReport(stockFilters, currentUserId);
+          const stockReport = await this.getStockReport(stockFilters, currentUserId, effectiveTenantId);
           data = stockReport.stock_report;
           fileName = `stock_report_${Date.now()}`;
           break;

@@ -392,4 +392,82 @@ export class AuthService {
       status: user.status,
     };
   }
+
+  async switchRole(input: {
+    userId: number;
+    targetRole: 'ADMIN' | 'SELLER';
+    device_id?: string;
+    ip?: string;
+    user_agent?: string;
+  }) {
+    const user = await prisma.user.findUnique({
+      where: { userId: input.userId },
+      select: {
+        userId: true,
+        username: true,
+        role: true,
+        tenantId: true,
+        status: true
+      },
+    });
+
+    if (!user || user.status !== 'active') {
+      throw new Error(AuthErrorCode.TOKEN_REVOKED);
+    }
+
+    // Security check: Only people with ADMIN as their real role in DB can switch to ADMIN
+    if (input.targetRole === 'ADMIN' && user.role !== 'ADMIN') {
+      throw new Error('Unauthorized: You do not have permission to switch to Admin role.');
+    }
+
+    // Generate new session (refresh token) for the new role context
+    const now = new Date();
+    const absoluteDays = Math.min(Math.max(env.JWT_V2_REFRESH_ABSOLUTE_DAYS || 30, 7), 30);
+    const idleDays = Math.min(Math.max(env.JWT_V2_REFRESH_IDLE_DAYS || 7, 1), 14);
+
+    const absoluteExpiresAt = addDaysToDate(now, absoluteDays);
+    const idleExpiresAt = addDaysToDate(now, idleDays);
+
+    const tokenFamilyId = crypto.randomUUID();
+    const refreshRaw = TokenService.generateOpaqueRefreshToken();
+    const refreshHash = TokenService.hashRefreshToken(refreshRaw);
+
+    await repo.createSession({
+      userId: user.userId,
+      refreshTokenHash: refreshHash,
+      tokenFamilyId,
+      absoluteExpiresAt,
+      idleExpiresAt,
+      deviceId: input.device_id ?? null,
+      ipAddress: input.ip ?? null,
+      userAgent: input.user_agent ?? null,
+    });
+
+    const accessToken = TokenService.generateAccessToken({
+      userId: user.userId,
+      role: input.targetRole,
+      tenantId: user.tenantId ?? 1,
+      deviceId: input.device_id,
+    });
+
+    logger.info('Role switched successfully', {
+      userId: user.userId,
+      originalRole: user.role,
+      switchedTo: input.targetRole
+    });
+
+    return {
+      token: accessToken,
+      refresh_token: refreshRaw,
+      token_type: 'Bearer',
+      expires_in_seconds: TokenService.getAccessTokenTtlSeconds(),
+      idle_expires_at: toPhnomPenhISOString(idleExpiresAt),
+      absolute_expires_at: toPhnomPenhISOString(absoluteExpiresAt),
+      user: {
+        user_id: user.userId,
+        username: user.username,
+        role: input.targetRole,
+      },
+    };
+  }
 }

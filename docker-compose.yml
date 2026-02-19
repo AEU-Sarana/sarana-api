@@ -95,6 +95,7 @@ volumes:
   nginx-logs:
   minio-data:
   redis-data:
+  app-logs:
 
 networks:
   internal-network:

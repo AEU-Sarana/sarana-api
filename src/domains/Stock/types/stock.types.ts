@@ -36,6 +36,7 @@ export interface StockListResponse {
   stock_version: number;
   status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative';
   last_sync_time: Date | null;
+  expired_at?: Date | null;
   updated_at: Date;
 }
 
@@ -62,6 +63,7 @@ export interface GetStockByProductResponse {
   stock_version: number;
   status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative';
   last_sync_time: Date | null;
+  expired_at?: Date | null;
   updated_at: Date;
 }
 

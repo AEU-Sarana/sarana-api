@@ -303,7 +303,7 @@ export class AuthService {
       toEmail: user.email,
       username: user.username,
       fullName: user.fullName,
-      resetToken,
+      otpCode: resetToken, // The job might expect otpCode instead of resetToken
     }).catch((error) => {
       logger.error('Failed to enqueue/send password reset email', {
         userId: user.userId,

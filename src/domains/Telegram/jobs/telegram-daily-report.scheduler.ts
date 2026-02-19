@@ -2,6 +2,7 @@ import prisma from '@src/database/client';
 import { TelegramService } from '@src/domains/Telegram/services/telegram.service';
 import { logger } from '@src/shared/utils/logger';
 import { Role } from '@src/shared/config/permissions';
+import { runTelegramAdminAlertsJob } from '@src/domains/TelegramAdminBot/jobs/telegram-admin-alert.job';
 
 const DEFAULT_TIMEZONE = 'Asia/Phnom_Penh';
 const DEFAULT_SEND_TIME = '23:30';
@@ -90,9 +91,13 @@ async function runOnce(): Promise<void> {
 
     const senderUserId = await resolveSenderUserId(settings.updatedBy);
     await TelegramService.sendDailyAggregateReport(now.date, senderUserId, true);
+
+    // Check for near-expiry stock alerts
+    await runTelegramAdminAlertsJob();
+
     lastSentDate = now.date;
 
-    logger.info('Telegram daily report sent', {
+    logger.info('Telegram daily report and alerts sent', {
       date: now.date,
       time: now.time,
       timeZone: settings.timeZone,

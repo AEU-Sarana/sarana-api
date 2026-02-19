@@ -22,12 +22,14 @@ function getTodayRange(): { start: Date; end: Date } {
 export class DashboardService {
   static async getOverview(
     currentUserId: number,
-    currentUserRole: Role
+    currentUserRole: Role,
+    tenantId?: number
   ): Promise<SellerDashboardOverview | AdminDashboardOverview> {
     const { start, end } = getTodayRange();
+    const effectiveTenantId = tenantId ?? 1;
 
     if (currentUserRole === Role.ADMIN) {
-      return this.getAdminOverview(currentUserId, start, end);
+      return this.getAdminOverview(currentUserId, effectiveTenantId, start, end);
     }
 
     return this.getSellerOverview(currentUserId, start, end);
@@ -35,26 +37,40 @@ export class DashboardService {
 
   private static async getSellerOverview(
     currentUserId: number,
-    start: Date,
-    end: Date
+    _start: Date,
+    _end: Date
   ): Promise<SellerDashboardOverview> {
+    // Find the most recent shift (active first, then latest closed)
     const activeShift = await prisma.shift.findFirst({
       where: { sellerId: currentUserId, status: 'ACTIVE' },
       orderBy: { startTime: 'desc' },
     });
 
-    const ordersAgg = await prisma.order.aggregate({
-      where: {
-        sellerId: currentUserId,
-        createdAt: { gte: start, lte: end },
-      },
-      _count: { orderId: true },
-      _sum: { totalAmount: true },
+    const latestShift = activeShift ?? await prisma.shift.findFirst({
+      where: { sellerId: currentUserId },
+      orderBy: { startTime: 'desc' },
     });
+
+    // Use shift window: startTime → now (active) or endTime (closed)
+    const shiftStart = latestShift?.startTime ?? null;
+    const shiftEnd = latestShift?.status === 'ACTIVE'
+      ? new Date()
+      : (latestShift?.endTime ?? new Date());
+
+    const ordersAgg = shiftStart
+      ? await prisma.order.aggregate({
+        where: {
+          sellerId: currentUserId,
+          createdAt: { gte: shiftStart, lte: shiftEnd },
+        },
+        _count: { orderId: true },
+        _sum: { totalAmount: true },
+      })
+      : { _count: { orderId: 0 }, _sum: { totalAmount: null } };
 
     const totalSalesCount = ordersAgg._count.orderId ?? 0;
     const totalSalesAmount = Number(ordersAgg._sum.totalAmount ?? 0);
-    const openingCash = activeShift ? Number(activeShift.openingCash) : 0;
+    const openingCash = latestShift ? Number(latestShift.openingCash) : 0;
 
     const recentOrders = await prisma.order.findMany({
       where: { sellerId: currentUserId },
@@ -71,11 +87,11 @@ export class DashboardService {
     const pendingOrders =
       activeShift && activeShift.lastSyncTime
         ? await prisma.order.count({
-            where: {
-              shiftId: activeShift.shiftId,
-              createdAt: { gt: activeShift.lastSyncTime },
-            },
-          })
+          where: {
+            shiftId: activeShift.shiftId,
+            createdAt: { gt: activeShift.lastSyncTime },
+          },
+        })
         : 0;
 
     await auditLogService.createAuditLog({
@@ -85,13 +101,14 @@ export class DashboardService {
     });
 
     return {
-      shift: activeShift
+      shift: latestShift
         ? {
-            shift_id: activeShift.shiftId,
-            status: activeShift.status,
-            start_time: activeShift.startTime,
-            opening_cash: Number(activeShift.openingCash),
-          }
+          shift_id: latestShift.shiftId,
+          status: latestShift.status,
+          start_time: latestShift.startTime,
+          end_time: latestShift.endTime ?? null,
+          opening_cash: Number(latestShift.openingCash),
+        }
         : null,
       today_summary: {
         total_sales_count: totalSalesCount,
@@ -116,13 +133,14 @@ export class DashboardService {
 
   private static async getAdminOverview(
     currentUserId: number,
+    tenantId: number,
     start: Date,
     end: Date
   ): Promise<AdminDashboardOverview> {
     const [ordersAgg, totalShifts, activeShifts] = await Promise.all([
       prisma.order.aggregate({
         where: {
-          sellerId: currentUserId,
+          tenantId: tenantId,
           createdAt: { gte: start, lte: end },
         },
         _count: { orderId: true },
@@ -130,18 +148,18 @@ export class DashboardService {
       }),
       prisma.shift.count({
         where: {
-          sellerId: currentUserId,
+          user: { tenantId: tenantId },
           shiftDate: { gte: start, lte: end },
         },
       }),
-      prisma.shift.count({ where: { sellerId: currentUserId, status: 'ACTIVE' } }),
+      prisma.shift.count({ where: { user: { tenantId: tenantId }, status: 'ACTIVE' } }),
     ]);
 
     const totalSalesCount = ordersAgg._count.orderId ?? 0;
     const totalSalesAmount = Number(ordersAgg._sum.totalAmount ?? 0);
 
     const recentOrders = await prisma.order.findMany({
-      where: { sellerId: currentUserId },
+      where: { tenantId: tenantId },
       orderBy: { createdAt: 'desc' },
       take: ACTIVITY_LIMIT,
       select: {
@@ -154,7 +172,7 @@ export class DashboardService {
     });
 
     const recentMovements = await prisma.stockMovement.findMany({
-      where: { createdBy: currentUserId },
+      where: { user: { tenantId: tenantId } },
       orderBy: { createdAt: 'desc' },
       take: ACTIVITY_LIMIT,
       select: {
@@ -202,6 +220,7 @@ export class DashboardService {
             productName: true,
             lowStockThreshold: true,
             createdBy: true,
+            createdByUser: { select: { tenantId: true } },
           },
         },
       },
@@ -210,7 +229,7 @@ export class DashboardService {
     const lowStockWarnings = stocks
       .filter(
         (stock) =>
-          stock.product.createdBy === currentUserId &&
+          stock.product.createdByUser.tenantId === tenantId &&
           stock.product.lowStockThreshold != null &&
           stock.quantity <= (stock.product.lowStockThreshold ?? 0)
       )
@@ -224,7 +243,7 @@ export class DashboardService {
       }));
 
     const activeShiftList = await prisma.shift.findMany({
-      where: { sellerId: currentUserId, status: 'ACTIVE' },
+      where: { user: { tenantId: tenantId }, status: 'ACTIVE' },
       select: { shiftId: true, lastSyncTime: true },
     });
 
@@ -232,11 +251,11 @@ export class DashboardService {
       activeShiftList.map((shift) =>
         shift.lastSyncTime
           ? prisma.order.count({
-              where: {
-                shiftId: shift.shiftId,
-                createdAt: { gt: shift.lastSyncTime },
-              },
-            })
+            where: {
+              shiftId: shift.shiftId,
+              createdAt: { gt: shift.lastSyncTime },
+            },
+          })
           : Promise.resolve(0)
       )
     );

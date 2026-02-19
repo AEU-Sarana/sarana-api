@@ -20,6 +20,7 @@ import { startTelegramAdminStockHistoryExportWorker } from '@src/domains/Telegra
 import { startBackupSchedulerJob } from '@src/domains/Backup/jobs/backup-scheduler.job';
 import { startBackupRetentionCleanupJob } from '@src/domains/Backup/jobs/backup-retention-cleanup.job';
 import { startBackupExportCleanupJob } from '@src/domains/Backup/jobs/backup-export-cleanup.job';
+import { startTelegramExpiryAlertScheduler } from '@src/domains/TelegramAdminBot/jobs/telegram-expiry-alert.scheduler';
 
 // Register event listeners
 registerStockEventListeners();
@@ -83,6 +84,13 @@ try {
   startBackupExportCleanupJob();
 } catch (error) {
   console.error('Failed to start backup export cleanup job:', error);
+}
+
+// Start tiered stock expiry alerts
+try {
+  startTelegramExpiryAlertScheduler();
+} catch (error) {
+  console.error('Failed to start telegram expiry alert scheduler:', error);
 }
 
 

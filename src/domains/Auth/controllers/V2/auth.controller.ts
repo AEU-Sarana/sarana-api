@@ -102,4 +102,23 @@ export class AuthV2Controller {
       message: 'Password reset successful',
     });
   }
+
+  async switchRole(req: Request, res: Response): Promise<void> {
+    const { role } = req.body;
+    const user = req.user as { userId: number };
+
+    const data = await service.switchRole({
+      userId: user.userId,
+      targetRole: role,
+      device_id: req.headers['x-device-id'] as string,
+      ip: req.ip,
+      user_agent: req.headers['user-agent'],
+    });
+
+    res.status(200).json({
+      success: true,
+      data,
+      message: `Successfully switched role to ${role}`,
+    });
+  }
 }

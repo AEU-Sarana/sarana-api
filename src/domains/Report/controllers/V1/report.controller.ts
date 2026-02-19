@@ -47,7 +47,9 @@ export class ReportController {
       if (sellerIdStr && Number.isNaN(sellerId)) {
         throw new ValidationException('Invalid seller_id');
       }
-      sellerId = user.userId;
+      if (user.role !== 'ADMIN') {
+        sellerId = user.userId;
+      }
 
       logger.info('Get daily report request', {
         userId: user.userId,
@@ -61,7 +63,7 @@ export class ReportController {
         seller_id: sellerId,
       };
 
-      const response = await ReportService.getDailyReport(request, user.userId, user.role);
+      const response = await ReportService.getDailyReport(request, user.userId, user.role, user.tenantId);
       const processingTime = Date.now() - startTime;
 
       const meta: DailyReportMeta = {
@@ -97,6 +99,7 @@ export class ReportController {
       let startDateStr = getStringValue(req.query.start_date);
       let endDateStr = getStringValue(req.query.end_date);
       if (periodParam || (!startDateStr && !endDateStr)) {
+        // Default to today (daily) when no date params are provided
         const resolved = ReportService.resolvePeriodRange((periodParam || 'daily') as any);
         startDateStr = ReportController.formatDateInTimezone(
           resolved.start,
@@ -130,8 +133,8 @@ export class ReportController {
       }
 
       const request = {
-        start_date: startDateStr,
-        end_date: endDateStr,
+        start_date: startDateStr!,
+        end_date: endDateStr!,
         seller_id: sellerId,
         product_id: productId,
         page: getStringValue(req.query.page)
@@ -148,7 +151,7 @@ export class ReportController {
         path: req.path,
       });
 
-      const response = await ReportService.getSalesHistoryReport(request, user.userId, user.role);
+      const response = await ReportService.getSalesHistoryReport(request, user.userId, user.role, user.tenantId);
 
       res.status(200).json({
         success: true,
@@ -200,7 +203,7 @@ export class ReportController {
         path: req.path,
       });
 
-      const response = await ReportService.getStockReport(request, user.userId);
+      const response = await ReportService.getStockReport(request, user.userId, user.tenantId);
 
       res.status(200).json({
         success: true,
@@ -222,8 +225,8 @@ export class ReportController {
   static async getIncomeReport(req: Request, res: Response): Promise<void> {
     try {
       const user = req.user as UserPayload;
-      const rawPeriod = (getStringValue(req.query.period) || 'today').toLowerCase();
-      const period = rawPeriod === 'today' ? 'daily' : rawPeriod;
+      const periodParam = getStringValue(req.query.period);
+      const period = periodParam || 'weekly';
 
       logger.info('Get income report request', {
         userId: user.userId,
@@ -231,7 +234,7 @@ export class ReportController {
         path: req.path,
       });
 
-      const response = await ReportService.getIncomeReport(period as any);
+      const response = await ReportService.getIncomeReport(period as any, user.tenantId);
 
       res.status(200).json({
         success: true,
@@ -316,6 +319,7 @@ export class ReportController {
       const result = await ReportController.processExportReport({
         userId: user.userId,
         userRole: user.role,
+        tenantId: user.tenantId ?? 1,
         reportType: report_type,
         filters,
         format: format || 'XLSX',
@@ -361,11 +365,12 @@ export class ReportController {
   private static async processExportReport(data: {
     userId: number;
     userRole: string;
+    tenantId: number;
     reportType: string;
     filters: any;
     format: string;
   }): Promise<{ fileUrl: string; fileName: string }> {
-    const { userId, userRole, reportType, filters, format } = data;
+    const { userId, userRole, tenantId, reportType, filters, format } = data;
 
     // Generate report data
     let reportData: any[];
@@ -376,7 +381,8 @@ export class ReportController {
         const dailyReport = await ReportService.getDailyReport(
           { date: filters.date },
           userId,
-          userRole
+          userRole,
+          tenantId
         );
         reportData = ReportService.transformDailyReportForExport(dailyReport);
         fileName = `daily_sales_${filters.date || Date.now()}`;
@@ -393,7 +399,8 @@ export class ReportController {
             limit: filters.limit || 100, // Use max limit for export
           },
           userId,
-          userRole
+          userRole,
+          tenantId
         );
         reportData = salesReport.sales;
         fileName = `sales_history_${filters.start_date}_${filters.end_date}`;
@@ -402,7 +409,8 @@ export class ReportController {
       case 'stock_summary': {
         const stockReport = await ReportService.getStockReport(
           { low_stock_only: filters.low_stock_only },
-          userId
+          userId,
+          tenantId
         );
         reportData = stockReport.stock_report;
         fileName = `stock_report_${Date.now()}`;
@@ -480,7 +488,7 @@ export class ReportController {
     const fileStorageService = new FileStorageService();
     const uploadResult = await fileStorageService.uploadFile(
       multerFile,
-      `reports/${Date.now()}`, 
+      `reports/${Date.now()}`,
       {
         filename: displayFileName,
         contentType: resolvedMimeType,
@@ -488,7 +496,7 @@ export class ReportController {
           reportType,
           userId: userId.toString(),
           format: actualFormat,
-          requestedFormat: normalizedFormat, 
+          requestedFormat: normalizedFormat,
         },
       }
     );

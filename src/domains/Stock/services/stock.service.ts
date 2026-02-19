@@ -1,4 +1,4 @@
-import  prisma  from '@src/database/client';
+import prisma from '@src/database/client';
 import type { PrismaTransaction } from '@src/shared/types/database.types';
 import { StockMovementType } from '@src/domains/Stock/enums/stock-movement-type.enum';
 import { ProductStatus } from '@src/domains/Product/enums/product-status.enum';
@@ -78,6 +78,18 @@ export class StockService {
           stockStatus = 'in_stock';
         }
 
+        // Fetch earliest expiry date for this product
+        const lots = await prisma.stockLot.findMany({
+          where: {
+            productId: product_id,
+            qtyOnHand: { gt: 0 },
+            expiredAt: { not: null },
+          },
+          orderBy: { expiredAt: 'asc' },
+          take: 1,
+        });
+        const expiredAt = lots.length > 0 ? lots[0].expiredAt : null;
+
         // Return flattened format for single stock
         return {
           stock_id: newStock.stockId,
@@ -93,6 +105,7 @@ export class StockService {
           stock_version: newStock.stockVersion,
           status: stockStatus,
           last_sync_time: newStock.lastSyncTime,
+          expired_at: expiredAt,
           updated_at: newStock.updatedAt,
         };
       }
@@ -119,6 +132,18 @@ export class StockService {
         stockStatus = 'in_stock';
       }
 
+      // Fetch earliest expiry date for this product
+      const lots = await prisma.stockLot.findMany({
+        where: {
+          productId: product_id,
+          qtyOnHand: { gt: 0 },
+          expiredAt: { not: null },
+        },
+        orderBy: { expiredAt: 'asc' },
+        take: 1,
+      });
+      const expiredAt = lots.length > 0 ? lots[0].expiredAt : null;
+
       // Return flattened format for single stock
       return {
         stock_id: stock.stockId,
@@ -134,13 +159,14 @@ export class StockService {
         stock_version: stock.stockVersion,
         status: stockStatus,
         last_sync_time: stock.lastSyncTime,
+        expired_at: expiredAt,
         updated_at: stock.updatedAt,
       };
     }
 
     // Get all stock levels (with pagination and filters)
-    const { page = 1, limit = 50, version: stockVersion, status, category, search,barcode } = request;
-    
+    const { page = 1, limit = 50, version: stockVersion, status, category, search, barcode } = request;
+
     // Build where clause for stock
     const stockWhere: any = {};
     if (stockVersion) {
@@ -163,7 +189,7 @@ export class StockService {
         !s.product.deactivatedDate &&
         (stockVersion === undefined || s.stockVersion === stockVersion)
     );
-    
+
 
     // Filter by product conditions (category, search, active products only)
     let filteredStocks = allStocks.filter((s) => {
@@ -245,6 +271,23 @@ export class StockService {
       details: { filters: { version: stockVersion, status, category, search } },
     });
 
+    // Fetch earliest expiry dates for paginated stocks
+    const productIds = paginatedStocks.map((s) => s.productId);
+    const expiryDates = await prisma.stockLot.groupBy({
+      by: ['productId'],
+      where: {
+        productId: { in: productIds },
+        qtyOnHand: { gt: 0 },
+        expiredAt: { not: null },
+      },
+      _min: {
+        expiredAt: true,
+      },
+    });
+    const expiryMap = new Map<number, Date | null>(
+      expiryDates.map((d) => [d.productId, d._min.expiredAt])
+    );
+
     // Build response object
     const response: GetStockResponse = {
       stocks: paginatedStocks.map((s) => ({
@@ -261,6 +304,7 @@ export class StockService {
         stock_version: s.stockVersion,
         status: s.stockStatus,
         last_sync_time: s.lastSyncTime,
+        expired_at: expiryMap.get(s.productId) || null,
         updated_at: s.updatedAt,
       })),
       summary,
@@ -454,7 +498,7 @@ export class StockService {
     request: StockAdjustRequest,
     currentUserId: number
   ): Promise<StockAdjustResponse> {
-    const { product_id, quantity, reason} = request;
+    const { product_id, quantity, reason } = request;
 
     // Validate product exists and is active
     const product = await prisma.product.findUnique({

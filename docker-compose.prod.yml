@@ -68,6 +68,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: ${PORT:-3000}
+      TZ: Asia/Phnom_Penh
     expose:
       - "3000"
     volumes:

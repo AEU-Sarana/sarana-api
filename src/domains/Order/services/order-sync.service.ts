@@ -15,6 +15,7 @@ import { ReceiptLinkService } from '@src/domains/Receipt/services/V1/receipt-lin
 import { ReceiptLinkStatus } from '@src/domains/Receipt/enums/V1/receipt-link-status.enum';
 import { add } from 'date-fns';
 import { eventBus } from '@src/shared/events/event-bus';
+import { ReportCacheService } from '@src/domains/Report/services/report-cache.service';
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -288,6 +289,12 @@ export class OrderSyncService {
           status: 'failed',
           error: errorMessage,
         });
+      }
+    }
+
+    if (syncedCount > 0 || updatedCount > 0) {
+      if (currentUserTenantId) {
+        await ReportCacheService.clearTenantCache(currentUserTenantId);
       }
     }
 
