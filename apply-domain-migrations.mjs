@@ -78,6 +78,7 @@ const migrationOrder = [
   'customer/20260210000004_create_customer_linking_tokens_table',
   'backup/20260211000005_create_backups_table',
   'backup/20260211000006_create_backup_runs_table',
+  'shift/20260220000001_add_exchange_rate_to_shifts',
 ];
 
 /* ================================

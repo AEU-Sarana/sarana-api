@@ -507,14 +507,14 @@ export class ReportService {
       if (product_id) {
         sales = await prisma.$queryRaw<SalesRow[]>(Prisma.sql`
           SELECT
-            to_char(date_trunc('day', o.order_date), 'YYYY-MM-DD') AS date,
+            to_char(date_trunc('day', o.created_at AT TIME ZONE 'Asia/Phnom_Penh'), 'YYYY-MM-DD') AS date,
             COALESCE(SUM(oi.subtotal), 0) AS total_sales,
             COUNT(DISTINCT o.order_id) AS total_orders,
             COUNT(DISTINCT o.shift_id) AS total_shifts
           FROM orders o
           JOIN order_items oi ON oi.order_id = o.order_id
-          WHERE o.order_date >= ${startDate}
-            AND o.order_date <= ${endDate}
+          WHERE o.created_at >= ${startDate}
+            AND o.created_at <= ${endDate}
             AND oi.product_id = ${product_id}
             AND o.tenant_id = ${effectiveTenantId}
             AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
@@ -530,13 +530,13 @@ export class ReportService {
             COALESCE(SUM(day_orders), 0) AS total_orders
           FROM (
             SELECT
-              date_trunc('day', o.order_date) AS day,
+              date_trunc('day', o.created_at AT TIME ZONE 'Asia/Phnom_Penh') AS day,
               COALESCE(SUM(oi.subtotal), 0) AS day_sales,
               COUNT(DISTINCT o.order_id) AS day_orders
             FROM orders o
             JOIN order_items oi ON oi.order_id = o.order_id
-            WHERE o.order_date >= ${startDate}
-              AND o.order_date <= ${endDate}
+            WHERE o.created_at >= ${startDate}
+              AND o.created_at <= ${endDate}
               AND oi.product_id = ${product_id}
               AND o.tenant_id = ${effectiveTenantId}
             AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
@@ -550,13 +550,13 @@ export class ReportService {
       } else {
         sales = await prisma.$queryRaw<SalesRow[]>(Prisma.sql`
           SELECT
-            to_char(date_trunc('day', o.order_date), 'YYYY-MM-DD') AS date,
+            to_char(date_trunc('day', o.created_at AT TIME ZONE 'Asia/Phnom_Penh'), 'YYYY-MM-DD') AS date,
             COALESCE(SUM(o.total_amount), 0) AS total_sales,
             COUNT(DISTINCT o.order_id) AS total_orders,
             COUNT(DISTINCT o.shift_id) AS total_shifts
           FROM orders o
-          WHERE o.order_date >= ${startDate}
-            AND o.order_date <= ${endDate}
+          WHERE o.created_at >= ${startDate}
+            AND o.created_at <= ${endDate}
             AND o.tenant_id = ${effectiveTenantId}
             AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
           GROUP BY 1
@@ -571,12 +571,12 @@ export class ReportService {
             COALESCE(SUM(day_orders), 0) AS total_orders
           FROM (
             SELECT
-              date_trunc('day', o.order_date) AS day,
+              date_trunc('day', o.created_at AT TIME ZONE 'Asia/Phnom_Penh') AS day,
               COALESCE(SUM(o.total_amount), 0) AS day_sales,
               COUNT(DISTINCT o.order_id) AS day_orders
             FROM orders o
-            WHERE o.order_date >= ${startDate}
-              AND o.order_date <= ${endDate}
+            WHERE o.created_at >= ${startDate}
+              AND o.created_at <= ${endDate}
               AND o.tenant_id = ${effectiveTenantId}
             AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
             GROUP BY 1

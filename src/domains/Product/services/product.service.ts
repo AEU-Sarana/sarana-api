@@ -24,9 +24,9 @@ export class ProductService {
   static normalizeImageUrl(imagePath: string | null): string | null {
     if (!imagePath) return null;
 
-    
+
     if (imagePath.startsWith('/storage/')) {
-    
+
       let baseUrl = env.API_BASE_URL || env.APP_URL;
       if (!baseUrl) {
         const protocol = env.STORAGE_USE_SSL ? 'https' : 'http';
@@ -39,13 +39,13 @@ export class ProductService {
       return imagePath.startsWith('http') ? imagePath : `${baseUrl}${imagePath}`;
     }
 
-    
+
     if (imagePath.includes('/storage/')) {
       try {
         const parsed = new URL(imagePath);
         const storageIndex = parsed.pathname.indexOf('/storage/');
         if (storageIndex !== -1) {
-          const storagePath = parsed.pathname.substring(storageIndex); 
+          const storagePath = parsed.pathname.substring(storageIndex);
           let baseUrl = env.API_BASE_URL || env.APP_URL;
           if (baseUrl) {
             baseUrl = baseUrl.replace(/\/$/, '');
@@ -59,16 +59,16 @@ export class ProductService {
       return imagePath;
     }
 
-    
+
     try {
       const url = new URL(imagePath);
       const pathParts = url.pathname.split('/').filter(Boolean);
-      
+
       // Find bucket (usually first part after domain)
       if (pathParts.length >= 2) {
         const bucket = pathParts[0];
         const key = pathParts.slice(1).join('/');
-        
+
         // Get base URL
         let baseUrl = env.API_BASE_URL || env.APP_URL || env.FRONTEND_URL;
         if (!baseUrl) {
@@ -79,7 +79,7 @@ export class ProductService {
           baseUrl = `${protocol}://${host}:${port}`;
         }
         baseUrl = baseUrl.replace(/\/$/, '');
-        
+
         // Return new format URL
         return `${baseUrl}/storage/${bucket}/${key}`;
       }
@@ -88,7 +88,7 @@ export class ProductService {
       if (match) {
         const bucket = match[1];
         const key = match[2];
-        
+
         let baseUrl = env.API_BASE_URL || env.APP_URL || env.FRONTEND_URL;
         if (!baseUrl) {
           const protocol = env.STORAGE_USE_SSL ? 'https' : 'http';
@@ -98,7 +98,7 @@ export class ProductService {
           baseUrl = `${protocol}://${host}:${port}`;
         }
         baseUrl = baseUrl.replace(/\/$/, '');
-        
+
         return `${baseUrl}/storage/${bucket}/${key}`;
       }
     }
@@ -141,7 +141,7 @@ export class ProductService {
       take: limit,
       orderBy: { createdAt: 'desc' },
       include: {
-        stock: true, 
+        stock: true,
       },
     });
 
@@ -188,7 +188,7 @@ export class ProductService {
     const product = await prisma.product.findUnique({
       where: { productId },
       include: {
-        stock: true, 
+        stock: true,
       },
     });
 
@@ -298,16 +298,47 @@ export class ProductService {
         ? (typeof has_expiry === 'string' ? has_expiry === 'true' : Boolean(has_expiry))
         : false;
 
-    // Uniqueness checks
-    const existingCode = await prisma.product.findFirst({
-      where: { productCode: product_code, deactivatedDate: null },
-    });
-    if (existingCode) throw new BusinessLogicException('Product code already exists');
+    // Generate product_code if not provided
+    let finalProductCode = product_code?.trim();
+    if (!finalProductCode) {
+      const slug = product_name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+      // Try to find a unique code
+      let isUnique = false;
+      let attempts = 0;
+      while (!isUnique && attempts < 10) {
+        const suffix = Math.floor(100 + Math.random() * 900); // 3-digit random
+        const candidate = `${slug}-${suffix}`;
+        const existing = await prisma.product.findFirst({
+          where: { productCode: candidate, deactivatedDate: null },
+        });
+        if (!existing) {
+          finalProductCode = candidate;
+          isUnique = true;
+        }
+        attempts++;
+      }
+
+      if (!finalProductCode) {
+        // Fallback to timestamp if random collisions occur multiple times
+        finalProductCode = `${slug}-${Date.now().toString().slice(-6)}`;
+      }
+    } else {
+      // Uniqueness check for provided code
+      const existingCode = await prisma.product.findFirst({
+        where: { productCode: finalProductCode, deactivatedDate: null },
+      });
+      if (existingCode) throw new BusinessLogicException('Product code already exists');
+    }
 
     const existingBarcode = await prisma.product.findFirst({
       where: { barcode: barcode, deactivatedDate: null },
     });
     if (existingBarcode) throw new BusinessLogicException('Barcode already exists');
+
 
     // Handle image upload if provided
     let finalImagePath = image_path || null;
@@ -317,18 +348,18 @@ export class ProductService {
           imageFile,
           'products',
           {
-            filename: `product-${product_code}`,
+            filename: `product-${finalProductCode}`,
             public: true,
             metadata: {
-              productCode: product_code,
+              productCode: finalProductCode,
               uploadedBy: currentUserId.toString(),
             },
           }
         );
         finalImagePath = uploadResult.url;
-        logger.info('Product image uploaded', { 
-          productCode: product_code, 
-          imageUrl: finalImagePath 
+        logger.info('Product image uploaded', {
+          productCode: finalProductCode,
+          imageUrl: finalImagePath
         });
       } catch (error) {
         logger.error('Failed to upload product image:', error);
@@ -340,8 +371,9 @@ export class ProductService {
     const product = await prisma.$transaction(async (tx) => {
       const newProduct = await tx.product.create({
         data: {
-          productCode: product_code,
+          productCode: finalProductCode as string,
           productName: product_name,
+
           barcode: barcode,
           price: priceNumber,
           category,
@@ -369,6 +401,7 @@ export class ProductService {
         productId: newProduct.productId,
         quantity: 0,
       });
+
 
       //Return product with stock relation
       return await tx.product.findUnique({
@@ -486,9 +519,9 @@ export class ProductService {
           }
         );
         finalImagePath = uploadResult.url;
-        logger.info('Product image updated', { 
-          productId, 
-          imageUrl: finalImagePath 
+        logger.info('Product image updated', {
+          productId,
+          imageUrl: finalImagePath
         });
 
         // Delete old image if it exists
@@ -497,10 +530,10 @@ export class ProductService {
             await fileStorageService.deleteFile(oldImageKey);
             logger.info('Old product image deleted', { productId, oldImageKey });
           } catch (deleteError) {
-            logger.warn('Failed to delete old product image', { 
-              productId, 
-              oldImageKey, 
-              error: deleteError 
+            logger.warn('Failed to delete old product image', {
+              productId,
+              oldImageKey,
+              error: deleteError
             });
             // Don't throw - image deletion failure shouldn't block update
           }
@@ -516,9 +549,9 @@ export class ProductService {
       ? (typeof request.price === 'string' ? parseFloat(request.price) : request.price)
       : undefined;
     const lowStockThresholdNumber = request.low_stock_threshold !== undefined
-      ? (typeof request.low_stock_threshold === 'string' 
-          ? parseInt(request.low_stock_threshold, 10) 
-          : request.low_stock_threshold)
+      ? (typeof request.low_stock_threshold === 'string'
+        ? parseInt(request.low_stock_threshold, 10)
+        : request.low_stock_threshold)
       : undefined;
 
     const updated = await prisma.product.update({
@@ -581,21 +614,21 @@ export class ProductService {
       try {
         // Extract key from URL using storage service helper
         const imageKey = fileStorageService.extractKeyFromUrl(existing.imagePath);
-        
+
         if (imageKey) {
           await fileStorageService.deleteFile(imageKey);
           logger.info('Product image deleted', { productId, imageKey });
         } else {
-          logger.warn('Could not extract image key from URL', { 
-            productId, 
-            imagePath: existing.imagePath 
+          logger.warn('Could not extract image key from URL', {
+            productId,
+            imagePath: existing.imagePath
           });
         }
       } catch (error) {
-        logger.warn('Failed to delete product image', { 
-          productId, 
-          imagePath: existing.imagePath, 
-          error 
+        logger.warn('Failed to delete product image', {
+          productId,
+          imagePath: existing.imagePath,
+          error
         });
         // Don't throw - image deletion failure shouldn't block product deletion
       }
@@ -643,7 +676,7 @@ export class ProductService {
 
     // Count products by category
     const categoryMap = new Map<string, number>();
-    
+
     products.forEach((product) => {
       if (product.category) {
         const count = categoryMap.get(product.category) || 0;

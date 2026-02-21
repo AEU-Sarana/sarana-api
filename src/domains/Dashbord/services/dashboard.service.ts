@@ -12,10 +12,31 @@ const ACTIVITY_LIMIT = 5;
 const LOW_STOCK_LIMIT = 10;
 
 function getTodayRange(): { start: Date; end: Date } {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date();
-  end.setHours(23, 59, 59, 999);
+  const timezone = 'Asia/Phnom_Penh';
+  const now = new Date();
+
+  // Use Intl.DateTimeFormat to get the current date string in Phnom Penh
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+
+  const dateStr = formatter.format(now); // "YYYY-MM-DD"
+
+  // Create range from midnight to midnight in PP time (+07:00)
+  const start = new Date(`${dateStr}T00:00:00+07:00`);
+  const end = new Date(`${dateStr}T23:59:59.999+07:00`);
+
+  // Log the range to verify it works as expected (especially across day transitions)
+  // console.debug('Calculated Dashboard Today Range:', {
+  //   now: now.toISOString(),
+  //   dateStr,
+  //   start: start.toISOString(),
+  //   end: end.toISOString(),
+  // });
+
   return { start, end };
 }
 
@@ -51,17 +72,13 @@ export class DashboardService {
       orderBy: { startTime: 'desc' },
     });
 
-    // Use shift window: startTime → now (active) or endTime (closed)
-    const shiftStart = latestShift?.startTime ?? null;
-    const shiftEnd = latestShift?.status === 'ACTIVE'
-      ? new Date()
-      : (latestShift?.endTime ?? new Date());
-
-    const ordersAgg = shiftStart
+    // Query orders by shiftId (direct FK) — more accurate than date range
+    // since order_date is the offline sale time and may not align with shift timestamps
+    const ordersAgg = latestShift
       ? await prisma.order.aggregate({
         where: {
           sellerId: currentUserId,
-          createdAt: { gte: shiftStart, lte: shiftEnd },
+          shiftId: latestShift.shiftId,
         },
         _count: { orderId: true },
         _sum: { totalAmount: true },
@@ -149,7 +166,7 @@ export class DashboardService {
       prisma.shift.count({
         where: {
           user: { tenantId: tenantId },
-          shiftDate: { gte: start, lte: end },
+          startTime: { gte: start, lte: end },
         },
       }),
       prisma.shift.count({ where: { user: { tenantId: tenantId }, status: 'ACTIVE' } }),

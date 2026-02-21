@@ -27,7 +27,7 @@ export interface ProductResponse {
 }
 
 export interface ListProductsResponse {
-    products : ProductResponse[];
+    products: ProductResponse[];
     pagination: {
         page: number;
         limit: number;
@@ -36,10 +36,10 @@ export interface ListProductsResponse {
     }
 }
 
-export interface GetProductResponse extends ProductResponse {}
+export interface GetProductResponse extends ProductResponse { }
 
 export interface CreateProductRequest {
-    product_code: string;
+    product_code?: string;
     product_name: string;
     barcode: string;
     price: number;
@@ -51,7 +51,7 @@ export interface CreateProductRequest {
     status: ProductStatus;
 }
 
-export interface CreateProductResponse extends ProductResponse {}
+export interface CreateProductResponse extends ProductResponse { }
 
 export interface UpdateProductRequest {
     product_code?: string;
@@ -65,13 +65,13 @@ export interface UpdateProductRequest {
     status?: ProductStatus;
 }
 
-export interface UpdateProductResponse extends ProductResponse {}
+export interface UpdateProductResponse extends ProductResponse { }
 
 export interface CategoryCount {
-  category: string;
-  count: number;
+    category: string;
+    count: number;
 }
 
 export interface GetCategoriesResponse {
-  categories: CategoryCount[];
+    categories: CategoryCount[];
 }
