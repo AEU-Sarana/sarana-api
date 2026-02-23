@@ -148,7 +148,7 @@ pipeline {
                             .
                         
                         echo "Built image: ${DOCKER_IMAGE}:${VERSION}"
-                        docker image inspect ${DOCKER_IMAGE}:${VERSION}
+                        docker image inspect --format "Image ID: {{.Id}} | Size: {{.Size}} | Created: {{.Created}}" ${DOCKER_IMAGE}:${VERSION}
                     '''
                 }
             }
@@ -184,94 +184,60 @@ pipeline {
                         string(credentialsId: 'ghcr-classic', variable: 'GHCR_TOKEN')
                     ]) {
                         sh '''#!/bin/bash
-                            set -e
-                            
-                            echo "=========================================="
-                            echo "Docker Image Push to GHCR"
-                            echo "=========================================="
-                            echo "Registry: ${REGISTRY}"
-                            echo "Username: ${GITHUB_USERNAME}"
-                            echo "Namespace: ${GHCR_NAMESPACE}"
-                            echo "Image: ${DOCKER_IMAGE}"
-                            echo "Tag: ${VERSION}"
-                            echo "=========================================="
-                            
-                            # Login to GitHub Container Registry
-                            echo "Logging into GHCR..."
-                            echo "${GHCR_TOKEN}" | docker login ${REGISTRY} -u ${GITHUB_USERNAME} --password-stdin
-                            
-                            if [ $? -ne 0 ]; then
-                                echo "✗ GHCR login failed!"
+                            set -euo pipefail
+
+                            auth_hint() {
+                                echo "ERROR: Invalid or insufficient GHCR credential (ghcr-classic)."
+                                echo "Required: write:packages, read:packages, and org SSO authorization if enabled."
+                            }
+
+                            push_tag() {
+                                local tag="$1"
+                                echo "Pushing ${DOCKER_IMAGE}:${tag}"
+                                if ! docker push "${DOCKER_IMAGE}:${tag}"; then
+                                    echo "ERROR: Push failed for ${DOCKER_IMAGE}:${tag}"
+                                    auth_hint
+                                    docker logout ${REGISTRY} >/dev/null 2>&1 || true
+                                    exit 1
+                                fi
+                            }
+
+                            echo "GHCR push"
+                            echo "Image: ${DOCKER_IMAGE}:${VERSION}"
+                            echo "Actor: ${GITHUB_USERNAME}"
+
+                            if ! echo "${GHCR_TOKEN}" | docker login ${REGISTRY} -u ${GITHUB_USERNAME} --password-stdin >/dev/null 2>&1; then
+                                auth_hint
                                 exit 1
                             fi
-                            echo "✓ GHCR login successful"
+                            echo "GHCR login successful"
 
-                            # Preflight GHCR permission check for target namespace/package.
-                            # 200 => package exists and readable, 404 => package not found yet (first push path), both acceptable.
-                            # 401/403 => token or namespace access issue and push will fail anyway.
-                            echo ""
-                            echo "Validating GHCR token access for namespace/package..."
                             GHCR_CHECK_STATUS=$(curl -sS -o /tmp/ghcr_preflight.json -w "%{http_code}" \
                                 -H "Authorization: Bearer ${GHCR_TOKEN}" \
                                 "https://${REGISTRY}/v2/${GHCR_NAMESPACE}/${APP_NAME}/tags/list" || true)
+
                             if [ "${GHCR_CHECK_STATUS}" = "200" ] || [ "${GHCR_CHECK_STATUS}" = "404" ]; then
-                                echo "✓ GHCR preflight check passed (HTTP ${GHCR_CHECK_STATUS})"
+                                echo "GHCR preflight: HTTP ${GHCR_CHECK_STATUS}"
                             elif [ "${GHCR_CHECK_STATUS}" = "401" ] || [ "${GHCR_CHECK_STATUS}" = "403" ]; then
-                                echo "⚠ GHCR preflight failed (HTTP ${GHCR_CHECK_STATUS})"
-                                echo "Token can login but cannot access/push ${REGISTRY}/${GHCR_NAMESPACE}/${APP_NAME}."
-                                echo "Verify PAT has at least 'write:packages' (and typically 'read:packages')."
-                                echo "If SSO is enabled on org ${GHCR_NAMESPACE}, authorize this PAT for the org."
-                                echo "Continuing to docker push for final verification..."
+                                echo "WARNING: GHCR preflight HTTP ${GHCR_CHECK_STATUS} for ${DOCKER_IMAGE}"
+                                auth_hint
+                                echo "Continuing to push for confirmation..."
                             else
-                                echo "⚠ GHCR preflight returned HTTP ${GHCR_CHECK_STATUS}; continuing to push."
+                                echo "WARNING: GHCR preflight unexpected HTTP ${GHCR_CHECK_STATUS}; continuing."
                             fi
-                            
-                            # Push versioned tag
-                            echo ""
-                            echo "Pushing versioned image: ${DOCKER_IMAGE}:${VERSION}"
-                            docker push ${DOCKER_IMAGE}:${VERSION}
-                            
-                            if [ $? -ne 0 ]; then
-                                echo "✗ Failed to push ${DOCKER_IMAGE}:${VERSION}"
-                                echo "Likely GHCR permission issue with credential ghcr-classic (scope/org access)."
-                                docker logout ${REGISTRY}
+
+                            push_tag "${VERSION}"
+                            push_tag "latest"
+
+                            if ! docker pull ${DOCKER_IMAGE}:${VERSION} >/dev/null 2>&1; then
+                                echo "ERROR: Push verification failed for ${DOCKER_IMAGE}:${VERSION}"
+                                auth_hint
+                                docker logout ${REGISTRY} >/dev/null 2>&1 || true
                                 exit 1
                             fi
-                            echo "✓ Successfully pushed ${DOCKER_IMAGE}:${VERSION}"
-                            
-                            # Push latest tag
-                            echo ""
-                            echo "Pushing latest tag: ${DOCKER_IMAGE}:latest"
-                            docker push ${DOCKER_IMAGE}:latest
-                            
-                            if [ $? -ne 0 ]; then
-                                echo "✗ Failed to push ${DOCKER_IMAGE}:latest"
-                                echo "Likely GHCR permission issue with credential ghcr-classic (scope/org access)."
-                                docker logout ${REGISTRY}
-                                exit 1
-                            fi
-                            echo "✓ Successfully pushed ${DOCKER_IMAGE}:latest"
-                            
-                            # Verify the push
-                            echo ""
-                            echo "Verifying image in GHCR..."
-                            docker pull ${DOCKER_IMAGE}:${VERSION}
-                            
-                            if [ $? -ne 0 ]; then
-                                echo "✗ Image verification failed - cannot pull from GHCR"
-                                docker logout ${REGISTRY}
-                                exit 1
-                            fi
-                            echo "✓ Image verification successful"
-                            
-                            # Logout
-                            docker logout ${REGISTRY}
-                            
-                            echo ""
-                            echo "=========================================="
-                            echo "✓ Push completed successfully!"
-                            echo "Image: ${DOCKER_IMAGE}:${VERSION}"
-                            echo "=========================================="
+
+                            docker logout ${REGISTRY} >/dev/null 2>&1 || true
+                            echo "Push completed: ${DOCKER_IMAGE}:${VERSION} and latest"
                         '''
                     }
                 }
