@@ -59,7 +59,7 @@ export const env = {
   // Encryption
   ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
 
-  TELEGRAM_WEBHOOK_SECRET : process.env.TELEGRAM_WEBHOOK_SECRET,
+  TELEGRAM_WEBHOOK_SECRET: process.env.TELEGRAM_WEBHOOK_SECRET,
   RECEIPT_QR_HMAC_SECRET: process.env.RECEIPT_QR_HMAC_SECRET,
 
   // Password
@@ -85,13 +85,13 @@ export const env = {
   API_BASE_URL: process.env.API_BASE_URL,
 
   // Storage
-  STORAGE_PROVIDER: process.env.STORAGE_PROVIDER || 'minio',
-  STORAGE_ENDPOINT: process.env.STORAGE_ENDPOINT,
-  STORAGE_ACCESS_KEY: process.env.STORAGE_ACCESS_KEY,
-  STORAGE_SECRET_KEY: process.env.STORAGE_SECRET_KEY,
-  STORAGE_BUCKET: process.env.STORAGE_BUCKET || 'stock-pos-storage',
-  STORAGE_REGION: process.env.STORAGE_REGION || 'us-east-1',
-  STORAGE_USE_SSL: process.env.STORAGE_USE_SSL === 'true',
+  STORAGE_PROVIDER: process.env.STORAGE_PROVIDER || (process.env.R2_ENDPOINT ? 'r2' : 'minio'),
+  STORAGE_ENDPOINT: process.env.STORAGE_ENDPOINT || process.env.R2_ENDPOINT,
+  STORAGE_ACCESS_KEY: process.env.STORAGE_ACCESS_KEY || process.env.R2_ACCESS_KEY_ID,
+  STORAGE_SECRET_KEY: process.env.STORAGE_SECRET_KEY || process.env.R2_SECRET_ACCESS_KEY,
+  STORAGE_BUCKET: process.env.STORAGE_BUCKET || process.env.R2_BUCKET_NAME?.replace(/['"]/g, '') || 'stock-pos-storage',
+  STORAGE_REGION: process.env.STORAGE_REGION || (process.env.R2_ENDPOINT ? 'auto' : 'us-east-1'),
+  STORAGE_USE_SSL: process.env.STORAGE_USE_SSL === 'true' || !!process.env.R2_ENDPOINT,
   STORAGE_PUBLIC_URL: process.env.STORAGE_PUBLIC_URL,
 
   // MinIO
@@ -104,7 +104,7 @@ export const env = {
   NGINX_HTTP_PORT: int('NGINX_HTTP_PORT', 8080),
   NGINX_HTTPS_PORT: int('NGINX_HTTPS_PORT', 8443),
 
-  
+
 } as const;
 
 // Validate required environment variables

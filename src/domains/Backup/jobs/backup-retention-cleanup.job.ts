@@ -2,7 +2,7 @@ import { Client } from 'pg';
 import { buildS3Client, deleteObject } from '../utils/s3.util';
 import { logger } from '@src/shared/utils/logger';
 
-const BUCKET = process.env.S3_BUCKET || process.env.STORAGE_BUCKET || 'stock-pos-storage';
+const BUCKET = process.env.S3_BUCKET || process.env.STORAGE_BUCKET || process.env.R2_BUCKET_NAME?.replace(/['"]/g, '') || 'stock-pos-storage';
 const MAX_BACKUPS = Number(process.env.MAX_BACKUPS || 7);
 const RETENTION_CLEANUP_INTERVAL_MS = Number(
   process.env.BACKUP_RETENTION_CLEANUP_INTERVAL_MS || 6 * 60 * 60 * 1000
