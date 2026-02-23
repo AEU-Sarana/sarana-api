@@ -95,14 +95,14 @@ minio_use_ssl: false
 minio_bucket_name: "{{ app_name }}-storage"
 
 # ===== STORAGE CONFIGURATION (S3/MinIO) =====
-storage_provider: minio
-storage_endpoint: "http://{{ minio_endpoint }}:{{ minio_api_port }}"
-storage_access_key: "{{ minio_root_user }}"
-storage_secret_key: "{{ minio_root_password }}"
-storage_bucket: "{{ minio_bucket_name }}"
-storage_region: "us-east-1"
-storage_use_ssl: "false"
-storage_public_url: ""
+storage_provider: r2
+storage_endpoint: "https://{{ vault_prod_r2_account_id }}.r2.cloudflarestorage.com"
+storage_access_key: "{{ vault_prod_r2_access_key_id }}"
+storage_secret_key: "{{ vault_prod_r2_secret_access_key }}"
+storage_bucket: "{{ vault_prod_r2_bucket }}"
+storage_region: "auto"
+storage_use_ssl: "true"
+storage_public_url: "{{ vault_prod_r2_public_url }}"
 
 # ===== NGINX CONFIGURATION =====
 nginx_http_port: 80

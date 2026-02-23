@@ -64,7 +64,9 @@
     services:
       - db
       - redis
+{% if (storage_provider | default('minio') | lower) == 'minio' %}
       - minio
+{% endif %}
       - node-exporter
       - nginx
       - "{{ deploy_service_name }}"
