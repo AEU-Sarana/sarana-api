@@ -102,6 +102,19 @@ WORKDIR /app
 # Copy Prisma config (required for schema location)
 COPY --from=build /app/prisma.config.ts ./
 
+# Install build dependencies required by native modules (canvas on musl)
+RUN apk add --no-cache \
+    build-base \
+    python3 \
+    pkgconf \
+    cairo-dev \
+    pango-dev \
+    pixman-dev \
+    harfbuzz-dev \
+    freetype-dev \
+    libjpeg-turbo-dev \
+    giflib-dev
+
 # Install production dependencies (frozen-lockfile to avoid mutations)
 RUN pnpm install --prod --frozen-lockfile
 
@@ -117,8 +130,8 @@ COPY --from=build /app/db-generate.mjs ./
 # Copy built application
 COPY --from=build /app/dist ./dist
 
-# Regenerate Prisma Client in production
-RUN pnpm db:generate
+# Copy pre-generated Prisma client artifacts from build stage
+COPY --from=build /app/src/database/generated ./src/database/generated
 
 # Copy generated Prisma client to dist for module resolution
 RUN mkdir -p dist/database/generated && \
