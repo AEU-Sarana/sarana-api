@@ -25,10 +25,10 @@ pipeline {
         // GitHub Container Registryy
         REGISTRY = 'ghcr.io'
         REPO_OWNER = 'techey-solution'
-        GHCR_NAMESPACE = 'techey-solution'
         GITHUB_USERNAME = credentials('github-username')
         GITHUB_TOKEN = credentials('ghcr-classic')
         APP_NAME = 'stock-pos-server'
+        GHCR_NAMESPACE = "${GITHUB_USERNAME.toLowerCase()}"
         DOCKER_IMAGE = "${REGISTRY}/${GHCR_NAMESPACE}/${APP_NAME}"
     }
 
@@ -217,12 +217,11 @@ pipeline {
                             if [ "${GHCR_CHECK_STATUS}" = "200" ] || [ "${GHCR_CHECK_STATUS}" = "404" ]; then
                                 echo "✓ GHCR preflight check passed (HTTP ${GHCR_CHECK_STATUS})"
                             elif [ "${GHCR_CHECK_STATUS}" = "401" ] || [ "${GHCR_CHECK_STATUS}" = "403" ]; then
-                                echo "✗ GHCR preflight failed (HTTP ${GHCR_CHECK_STATUS})"
+                                echo "⚠ GHCR preflight failed (HTTP ${GHCR_CHECK_STATUS})"
                                 echo "Token can login but cannot access/push ${REGISTRY}/${GHCR_NAMESPACE}/${APP_NAME}."
                                 echo "Verify PAT has at least 'write:packages' (and typically 'read:packages')."
                                 echo "If SSO is enabled on org ${GHCR_NAMESPACE}, authorize this PAT for the org."
-                                docker logout ${REGISTRY}
-                                exit 1
+                                echo "Continuing to docker push for final verification..."
                             else
                                 echo "⚠ GHCR preflight returned HTTP ${GHCR_CHECK_STATUS}; continuing to push."
                             fi
@@ -234,6 +233,7 @@ pipeline {
                             
                             if [ $? -ne 0 ]; then
                                 echo "✗ Failed to push ${DOCKER_IMAGE}:${VERSION}"
+                                echo "Likely GHCR permission issue with credential ghcr-classic (scope/org access)."
                                 docker logout ${REGISTRY}
                                 exit 1
                             fi
@@ -246,6 +246,7 @@ pipeline {
                             
                             if [ $? -ne 0 ]; then
                                 echo "✗ Failed to push ${DOCKER_IMAGE}:latest"
+                                echo "Likely GHCR permission issue with credential ghcr-classic (scope/org access)."
                                 docker logout ${REGISTRY}
                                 exit 1
                             fi
