@@ -22,38 +22,42 @@ async function main() {
   const seeders = [
     // 1. Base data (no dependencies)
     new UserSeeder(),
-    
-    // 2. Products (depends on users)
-    new ProductSeeder(),
-    
-    // 3. Stock lots (depends on products)
-    new StockLotSeeder(),
-    
-    // 4. Shifts (depends on users)
-    new ShiftSeeder(),
-    
-    // 5. Orders (depends on users, shifts, products)
-    new OrderSeeder(),
-    new OrderItemSeeder(), // Order items are created with orders, but keeping for consistency
-    
-    // 6. Stock Movements (depends on products, orders, shifts, users, stock lots)
-    new StockMovementSeeder(),
-
-    // 7. Stock totals (sync from stock lots)
-    new StockSeeder(),
-    
-    // 8. Device Bindings (depends on users)
-    new DeviceBindingSeeder(),
-    
-    // 9. Settings (depends on users)
-    new AppSettingsSeeder(),
-    
-    // 10. Telegram Config (depends on users)
-    new TelegramConfigSeeder(),
-    
-    // 11. Audit Logs (depends on users, but can be independent)
-    new AuditLogSeeder(),
   ];
+
+  if (process.env.SEED_USERS_ONLY !== 'true') {
+    seeders.push(
+      // 2. Products (depends on users)
+      new ProductSeeder(),
+
+      // 3. Stock lots (depends on products)
+      new StockLotSeeder(),
+
+      // 4. Shifts (depends on users)
+      new ShiftSeeder(),
+
+      // 5. Orders (depends on users, shifts, products)
+      new OrderSeeder(),
+      new OrderItemSeeder(), // Order items are created with orders, but keeping for consistency
+
+      // 6. Stock Movements (depends on products, orders, shifts, users, stock lots)
+      new StockMovementSeeder(),
+
+      // 7. Stock totals (sync from stock lots)
+      new StockSeeder(),
+
+      // 8. Device Bindings (depends on users)
+      new DeviceBindingSeeder(),
+
+      // 9. Settings (depends on users)
+      new AppSettingsSeeder(),
+
+      // 10. Telegram Config (depends on users)
+      new TelegramConfigSeeder(),
+
+      // 11. Audit Logs (depends on users, but can be independent)
+      new AuditLogSeeder(),
+    );
+  }
 
   try {
     for (const seeder of seeders) {
@@ -61,7 +65,7 @@ async function main() {
     }
 
     console.log('✨ Database seeding completed successfully!');
-    
+
     // Print summary
     const counts = await Promise.all([
       prisma.user.count(),

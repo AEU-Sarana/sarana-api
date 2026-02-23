@@ -24,9 +24,10 @@ const calculateDuration = (start: Date | string, end: Date | string | null): num
 const formatShortOver = (shift: GetShiftResponse): string => {
   const short = shift.short_amount ?? 0;
   const over = shift.over_amount ?? 0;
+  const rate = shift.exchange_rate ?? 4000;
 
-  if (over > 0) return `លើស $${over.toFixed(2)}`;
-  if (short > 0) return `ខ្វះ -$${short.toFixed(2)}`;
+  if (over > 0) return `លើស $${over.toFixed(2)} (${(over * rate).toLocaleString()}៛)`;
+  if (short > 0) return `ខ្វះ -$${short.toFixed(2)} (-${(short * rate).toLocaleString()}៛)`;
   return '$0.00';
 };
 
@@ -42,6 +43,8 @@ export function buildDailyReportMessage(
     ? totalSales / shift.total_sales_count
     : 0;
 
+  const rate = shift.exchange_rate ?? 4000;
+
   return `
 📊 *របាយការណ៍លក់ប្រចាំវេន*
 
@@ -50,14 +53,14 @@ export function buildDailyReportMessage(
 
 💰 *សេចក្តីសង្ខេបការលក់*
 • ការបញ្ជាទិញសរុប៖ ${shift.total_sales_count}
-• ចំនួនទឹកប្រាក់សរុប៖ $${totalSales.toLocaleString()}
-• មធ្យមភាគក្នុងការកម្មង់៖ $${average_order_value.toFixed(2)}
+• ចំនួនទឹកប្រាក់សរុប៖ $${totalSales.toLocaleString()} (${(totalSales * rate).toLocaleString()}៛)
+• មធ្យមភាគក្នុងការកម្មង់៖ $${average_order_value.toFixed(2)} (${(average_order_value * rate).toLocaleString()}៛)
 
 💵 *ស្ថានភាពសាច់ប្រាក់*
-• សាច់ប្រាក់បើកដំណើរ៖ $${openingCash.toFixed(2)}
-• សរុបទឹកប្រាក់លក់៖ $${totalSales.toFixed(2)}
-• សាច់ប្រាក់រំពឹងទុក៖ $${expectedCash.toFixed(2)}
-• សាច់ប្រាក់ជាក់ស្តែង៖ $${(shift.actual_cash ?? 0).toFixed(2)}
+• សាច់ប្រាក់បើកដំណើរ៖ $${openingCash.toFixed(2)} (${(openingCash * rate).toLocaleString()}៛)
+• សរុបទឹកប្រាក់លក់៖ $${totalSales.toFixed(2)} (${(totalSales * rate).toLocaleString()}៛)
+• សាច់ប្រាក់រំពឹងទុក៖ $${expectedCash.toFixed(2)} (${(expectedCash * rate).toLocaleString()}៛)
+• សាច់ប្រាក់ជាក់ស្តែង៖ $${(shift.actual_cash ?? 0).toFixed(2)} (${((shift.actual_cash ?? 0) * rate).toLocaleString()}៛)
 • ខ្វះ/លើស៖ ${shortOverText}
 
 ⏰ *ព័ត៌មានវេនការងារ*
@@ -67,5 +70,6 @@ export function buildDailyReportMessage(
     shift.start_time,
     shift.end_time
   )} ម៉ោង
+• អត្រាប្តូរប្រាក់៖ 1$ = ${rate.toLocaleString()}៛
 `.trim();
 }

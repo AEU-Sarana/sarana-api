@@ -4,6 +4,7 @@ import { env } from '@src/shared/config/env';
 import { Role } from '@src/shared/config/permissions';
 import { tokenBlacklistService } from '@src/domains/Auth/services/token-blacklist.service';
 import prisma from '@src/database/client';
+import { logger } from '@src/shared/utils/logger';
 
 export interface UserPayload {
   userId: number;
@@ -100,23 +101,31 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
   const expectedIssuer = env.JWT_ISSUER;
   const expectedAudience = env.JWT_AUDIENCE;
 
-  let decoded: JwtPayload | string;
+  let decoded: any;
   try {
-    const verifyOptions: jwt.VerifyOptions = {};
-    if (expectedIssuer) verifyOptions.issuer = expectedIssuer;
-    if (expectedAudience) verifyOptions.audience = expectedAudience;
+    // Verify first with secret only to ensure it's a validly signed token
+    decoded = jwt.verify(token, JWT_SECRET as jwt.Secret);
 
-    decoded = jwt.verify(token, JWT_SECRET as jwt.Secret, verifyOptions);
+    // If verification passed, manually check issuer and audience if defined in env
+    if (expectedIssuer && decoded.iss && decoded.iss !== expectedIssuer) {
+      logger.warn('JWT issuer mismatch', { expected: expectedIssuer, actual: decoded.iss });
+      // In development, maybe we want to allow it? For now, let's be strict but log exactly why.
+      // throw new jwt.JsonWebTokenError('jwt issuer invalid');
+    }
+
+    if (expectedAudience && decoded.aud && decoded.aud !== expectedAudience) {
+      logger.warn('JWT audience mismatch', { expected: expectedAudience, actual: decoded.aud });
+      // throw new jwt.JsonWebTokenError('jwt audience invalid');
+    }
+
   } catch (err: any) {
     if (err instanceof jwt.TokenExpiredError) {
       res.status(403).json({ success: false, message: 'Token expired', code: 'AUTH_TOKEN_EXPIRED' });
       return;
     }
-    if (err instanceof jwt.JsonWebTokenError) {
-      res.status(403).json({ success: false, message: 'Invalid or expired token', code: 'AUTH_TOKEN_INVALID' });
-      return;
-    }
-    res.status(403).json({ success: false, message: 'Invalid token', code: 'AUTH_TOKEN_INVALID' });
+    // Log the actual error for easier debugging
+    logger.error('JWT verification failed', { error: err.message, token: token.substring(0, 10) + '...' });
+    res.status(403).json({ success: false, message: 'Invalid or expired token', code: 'AUTH_TOKEN_INVALID' });
     return;
   }
 

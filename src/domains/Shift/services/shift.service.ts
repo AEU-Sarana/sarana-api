@@ -14,6 +14,7 @@ import { ValidationException, BusinessLogicException } from '@src/shared/excepti
 import { auditLogService } from '@src/shared/services/audit-log.service';
 import { eventBus } from '@src/shared/events/event-bus';
 import { ShiftClosedEvent } from '../events/shift-closed.event';
+import { ReportCacheService } from '@src/domains/Report/services/report-cache.service';
 
 export class ShiftService {
   /**
@@ -47,7 +48,7 @@ export class ShiftService {
     currentUserId: number,
     currentUserRole: string
   ): Promise<StartShiftResponse> {
-    const { opening_cash } = request;
+    const { opening_cash, exchange_rate } = request;
 
     // Seller starts their own shift; Admin can start for self (or implement start-for-seller if needed)
     const sellerId = currentUserId;
@@ -68,6 +69,7 @@ export class ShiftService {
         shiftDate: new Date(),
         startTime: new Date(),
         openingCash: opening_cash,
+        exchangeRate: exchange_rate,
         status: 'ACTIVE',
         // `getStock()` returns a union. Only list responses include version metadata.
         stockVersion: 'version' in stockSnapshot ? (stockSnapshot.version ?? null) : null,
@@ -76,7 +78,12 @@ export class ShiftService {
             ? new Date(stockSnapshot.last_sync_time)
             : new Date(),
       },
+      include: { user: { select: { tenantId: true } } }
     });
+
+    if (shift.user.tenantId) {
+      await ReportCacheService.clearTenantCache(shift.user.tenantId);
+    }
 
     // Normalize stock snapshot into the contract shape
     let stockVersion: number | null = null;
@@ -204,7 +211,12 @@ export class ShiftService {
         closeMode,
         forceCloseReason: forceClose ? forceCloseReason : null,
       },
+      include: { user: { select: { tenantId: true } } }
     });
+
+    if (updated.user.tenantId) {
+      await ReportCacheService.clearTenantCache(updated.user.tenantId);
+    }
 
     await auditLogService.createAuditLog({
       userId: currentUserId,
@@ -335,6 +347,7 @@ export class ShiftService {
         actual_cash: s.actualCash != null ? Number(s.actualCash) : null,
         total_sales_count: s.totalSalesCount ?? 0,
         total_sales_amount: Number(s.totalSalesAmount ?? 0),
+        exchange_rate: Number(s.exchangeRate ?? 4000),
         status: s.status,
         created_at: s.createdAt,
       })),
@@ -351,7 +364,12 @@ export class ShiftService {
     currentUserId: number,
     currentUserRole: string
   ): Promise<GetShiftResponse> {
-    const where = { shiftId, sellerId: currentUserId };
+    const where: any = { shiftId };
+
+    // Sellers can only view their own shifts, Admins can view all
+    if (currentUserRole !== 'ADMIN') {
+      where.sellerId = currentUserId;
+    }
 
     const shift = await prisma.shift.findFirst({
       where,
@@ -387,6 +405,7 @@ export class ShiftService {
       over_amount: shift.overAmount != null ? Number(shift.overAmount) : null,
       total_sales_count: shift.totalSalesCount ?? 0,
       total_sales_amount: Number(shift.totalSalesAmount ?? 0),
+      exchange_rate: Number(shift.exchangeRate ?? 4000),
       status: shift.status,
       report_sent_status: shift.reportSentStatus ?? 'PENDING',
       orders: shift.orders.map((o: any) => ({

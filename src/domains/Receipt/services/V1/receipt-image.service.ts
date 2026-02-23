@@ -76,8 +76,10 @@ export class ReceiptImageService {
       serviceFee: payload.service_fee ? Number(payload.service_fee) : undefined,
       footerNote: payload.footer_note || settings.footerNote || undefined,
       footerEnabled: settings.isFooterEnabled ?? true,
+      exchangeRate: payload.exchange_rate ? Number(payload.exchange_rate) : undefined,
     };
   }
+
   private static async buildReceiptJpg(orderId: number): Promise<{
     buffer: Buffer;
     receiptNumber: string;
@@ -88,9 +90,10 @@ export class ReceiptImageService {
       }),
       prisma.order.findUnique({
         where: { orderId },
-        include: { order_items: true },
+        include: { order_items: true, shift: true },
       }),
     ]);
+
 
     if (!order) throw new ValidationException('Order not found');
 
@@ -115,8 +118,10 @@ export class ReceiptImageService {
       discountAmount: Number(order.discountAmount || 0),
       serviceFee: Number(order.serviceFee || 0),
       footerNote: settings?.footerNote || undefined,
-      footerEnabled: settings?.isFooterEnabled ?? true
+      footerEnabled: settings?.isFooterEnabled ?? true,
+      exchangeRate: (order as any).shift?.exchangeRate ? Number((order as any).shift.exchangeRate) : 4000
     };
+
 
     const pngBuffer = await renderReceiptToPng(receiptData);
     const jpgBuffer = await sharp(pngBuffer)

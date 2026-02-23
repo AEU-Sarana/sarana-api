@@ -102,8 +102,8 @@ export class StockLotService {
         WHERE product_id = ${params.productId}
           AND qty_on_hand > 0
           ${params.allowExpired
-            ? Prisma.empty
-            : Prisma.sql`AND (expired_at IS NULL OR expired_at >= ${today}::date)`}
+          ? Prisma.empty
+          : Prisma.sql`AND (expired_at IS NULL OR expired_at >= ${today}::date)`}
         ORDER BY (expired_at IS NULL) ASC, expired_at ASC, received_at ASC
         FOR UPDATE
       `);
@@ -234,5 +234,28 @@ export class StockLotService {
     return {
       lots: lots.map((lot) => this.mapLotInfo(lot)),
     };
+  }
+
+  static async listLotsExpiringIn(days: number): Promise<StockLotInfo[]> {
+    const targetDate = startOfDay(addDays(new Date(), days));
+    const nextDate = addDays(targetDate, 1);
+
+    const lots = await prisma.stockLot.findMany({
+      where: {
+        qtyOnHand: { gt: 0 },
+        expiredAt: {
+          gte: targetDate,
+          lt: nextDate,
+        },
+      },
+      include: {
+        product: { select: { productName: true, productCode: true } },
+      },
+      orderBy: [
+        { receivedAt: 'asc' },
+      ],
+    });
+
+    return lots.map((lot) => this.mapLotInfo(lot));
   }
 }

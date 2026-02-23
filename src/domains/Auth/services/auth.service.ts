@@ -307,7 +307,7 @@ export class AuthService {
       toEmail: user.email,
       username: user.username,
       fullName: user.fullName,
-      otpCode,
+      otpCode: resetToken, 
     }).catch((error) => {
       logger.error('Failed to enqueue/send password reset email', {
         userId: user.userId,

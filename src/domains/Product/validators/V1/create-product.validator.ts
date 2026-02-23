@@ -2,9 +2,8 @@ import { body } from 'express-validator';
 
 export const createProductValidator = [
   body('product_code')
+    .optional()
     .trim()
-    .notEmpty()
-    .withMessage('Product code is required')
     .isLength({ min: 1, max: 50 })
     .withMessage('Product code must be 1-50 characters'),
   body('product_name')

@@ -37,6 +37,16 @@ export const userSeedData: UserSeedData[] = [
     tenantId: 2,
   },
   {
+    username: 'test-admin',
+    email: 'testadmin@stockpos.com',
+    passwordHash: bcrypt.hashSync('Admin123!', 10),
+    fullName: 'Test Administrator',
+    role: 'ADMIN',
+    phone: '0123456711',
+    status: 'active',
+    tenantId: 3,
+  },
+  {
     username: 'seller1',
     email: 'seller1@stockpos.com',
     passwordHash: bcrypt.hashSync('Seller123!', 10),

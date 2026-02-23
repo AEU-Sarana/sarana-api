@@ -15,6 +15,7 @@ import { ReceiptLinkService } from '@src/domains/Receipt/services/V1/receipt-lin
 import { ReceiptLinkStatus } from '@src/domains/Receipt/enums/V1/receipt-link-status.enum';
 import { add } from 'date-fns';
 import { eventBus } from '@src/shared/events/event-bus';
+import { ReportCacheService } from '@src/domains/Report/services/report-cache.service';
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -105,6 +106,7 @@ export class OrderSyncService {
                 discountAmount: orderData.discount_amount || 0,
                 taxAmount: orderData.tax_amount || 0,
                 serviceFee: orderData.service_fee || 0,
+                exchangeRate: orderData.exchange_rate || existingOrder.exchangeRate,
                 paymentMethod: orderData.payment_method,
                 updatedAt: new Date(),
               },
@@ -180,6 +182,7 @@ export class OrderSyncService {
                 discountAmount: orderData.discount_amount || 0,
                 taxAmount: orderData.tax_amount || 0,
                 serviceFee: orderData.service_fee || 0,
+                exchangeRate: orderData.exchange_rate || (await tx.shift.findUnique({ where: { shiftId: orderData.shift_id }, select: { exchangeRate: true } }))?.exchangeRate || 4000,
                 paymentMethod: orderData.payment_method,
               },
             });
@@ -288,6 +291,12 @@ export class OrderSyncService {
           status: 'failed',
           error: errorMessage,
         });
+      }
+    }
+
+    if (syncedCount > 0 || updatedCount > 0) {
+      if (currentUserTenantId) {
+        await ReportCacheService.clearTenantCache(currentUserTenantId);
       }
     }
 

@@ -9,6 +9,7 @@ import {
   forgotPasswordValidator,
   verifyOtpResetPasswordValidator,
   resetPasswordValidator,
+  switchRoleValidator,
 } from '@src/domains/Auth/validators/V2';
 import { requirePermission } from '@src/shared/middleware/authorization.middleware';
 import { Permission } from '@src/shared/config/permissions';
@@ -26,6 +27,7 @@ router.post('/logout-all', authenticateToken, controller.logoutAll.bind(controll
 router.post('/forgot-password', ...validateRequest(forgotPasswordValidator), controller.forgotPassword.bind(controller));
 router.post('/verify-otp-reset-password', ...validateRequest(verifyOtpResetPasswordValidator), controller.verifyOtpResetPassword.bind(controller));
 router.post('/reset-password', ...validateRequest(resetPasswordValidator), controller.resetPassword.bind(controller));
+router.post('/switch-role', authenticateToken, ...validateRequest(switchRoleValidator), controller.switchRole.bind(controller));
 router.get('/me', authenticateToken, controller.me.bind(controller));
 
 export default router;

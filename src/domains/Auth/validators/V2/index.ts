@@ -4,3 +4,4 @@ export { logoutValidator } from './logout.validator';
 export { forgotPasswordValidator } from './forgot-password.validator';
 export { verifyOtpResetPasswordValidator } from './verify-otp-reset-password.validator';
 export { resetPasswordValidator } from './reset-password.validator';
+export { switchRoleValidator } from './switch-role.validator';

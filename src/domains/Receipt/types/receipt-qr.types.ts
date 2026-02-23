@@ -17,6 +17,7 @@ export interface ReceiptQrPayload {
   phone?: string;
   address?: string;
   footer_note?: string;
+  exchange_rate?: number;
 }
 
 export interface ReceiptQrEnvelope {

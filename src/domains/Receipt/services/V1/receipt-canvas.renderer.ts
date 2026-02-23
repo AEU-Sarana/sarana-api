@@ -50,6 +50,7 @@ export interface ReceiptData {
     serviceFee?: number;
     footerNote?: string;
     footerEnabled?: boolean;
+    exchangeRate?: number;
 }
 
 export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
@@ -220,8 +221,8 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
     // 6. TOTALS (Grand)
     currentY += 30;
 
-    const renderTotalLine = (label: string, amount: number, color: string = '#444444', isBold: boolean = false) => {
-        if (amount === 0 && label !== 'តម្លៃសរុប (GRAND TOTAL)') return;
+    const renderTotalLine = (label: string, amount: number, color: string = '#444444', isBold: boolean = false, isKhr: boolean = false) => {
+        if (amount === 0 && label !== 'តម្លៃសរុប (GRAND TOTAL)' && label !== 'សរុបជាប្រាក់រៀល (TOTAL KHR)') return;
 
         ctx.textAlign = 'left';
         setFont(isBold ? 22 : 16, isBold ? 'bold' : '400');
@@ -229,9 +230,14 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
         ctx.fillText(label, padding, currentY);
 
         ctx.textAlign = 'right';
-        ctx.fillText(`$${amount.toFixed(2)}`, baseWidth - padding, currentY);
+        if (isKhr) {
+            ctx.fillText(`${Math.round(amount).toLocaleString()}៛`, baseWidth - padding, currentY);
+        } else {
+            ctx.fillText(`$${amount.toFixed(2)}`, baseWidth - padding, currentY);
+        }
         currentY += isBold ? 50 : 30;
     };
+
 
     if (data.discountAmount && data.discountAmount > 0) {
         renderTotalLine('បញ្ចុះតម្លៃ (DISCOUNT)', -data.discountAmount, '#d32f2f');
@@ -243,8 +249,29 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
         renderTotalLine('សេវា (SERVICE FEE)', data.serviceFee);
     }
 
+    if (data.exchangeRate) {
+        ctx.textAlign = 'left';
+        setFont(14, '400');
+        ctx.fillStyle = '#666666';
+        ctx.fillText('អត្រាប្តូរប្រាក់ (EXC RATE)', padding, currentY);
+
+        ctx.textAlign = 'right';
+        ctx.fillText(`$1 = ${Number(data.exchangeRate).toLocaleString()}៛`, baseWidth - padding, currentY);
+        currentY += 25;
+    }
+
     currentY += 10;
     renderTotalLine('តម្លៃសរុប (GRAND TOTAL)', data.totalAmount, '#1f8f3a', true);
+
+    if (data.exchangeRate) {
+        const rawKhr = data.totalAmount * data.exchangeRate;
+        // Round up to the nearest 100 KHR (e.g., 7240 -> 7300)
+        const khrAmount = Math.ceil(rawKhr / 100) * 100;
+        renderTotalLine('សរុបជាប្រាក់រៀល (TOTAL KHR)', khrAmount, '#1f8f3a', true, true);
+    }
+
+
+
     currentY += 40;
 
     // 7. FOOTER SECTION (Modern Cleanup)
