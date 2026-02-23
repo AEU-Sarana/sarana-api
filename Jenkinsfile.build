@@ -28,7 +28,7 @@ pipeline {
         GITHUB_USERNAME = credentials('github-username')
         GITHUB_TOKEN = credentials('ghcr-classic')
         APP_NAME = 'stock-pos-server'
-        GHCR_NAMESPACE = "${GITHUB_USERNAME.toLowerCase()}"
+        GHCR_NAMESPACE = "${REPO_OWNER.toLowerCase()}"
         DOCKER_IMAGE = "${REGISTRY}/${GHCR_NAMESPACE}/${APP_NAME}"
     }
 
