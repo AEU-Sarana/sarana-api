@@ -301,16 +301,44 @@ export class ProductService {
     // Generate product_code if not provided
     let finalProductCode = product_code?.trim();
     if (!finalProductCode) {
-      const slug = product_name
+      let slug = product_name
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/[^\p{L}\p{M}\p{N}-]/gu, '') // Keep unicode letters (\p{L}), marks (\p{M}), numbers (\p{N}), and hyphens
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-+/g, '-')
         .replace(/(^-|-$)/g, '');
 
-      // Try to find a unique code
+      if (!slug) {
+        slug = 'prd'; // Fallback if name is stripped empty
+      }
+
+      // Find highest existing numerical suffix for this slug
+      const similarProducts = await prisma.product.findMany({
+        where: {
+          productCode: { startsWith: `${slug}-` },
+        },
+        select: { productCode: true },
+      });
+
+      let maxSuffix = 0;
+      for (const p of similarProducts) {
+        const suffixStr = p.productCode.substring(slug.length + 1);
+        if (/^\d{3,}$/.test(suffixStr)) {
+          const suffixNum = parseInt(suffixStr, 10);
+          if (suffixNum > maxSuffix) {
+            maxSuffix = suffixNum;
+          }
+        }
+      }
+
+      // Try to find a unique code starting from maxSuffix + 1
       let isUnique = false;
+      let counter = maxSuffix + 1;
       let attempts = 0;
+
       while (!isUnique && attempts < 10) {
-        const suffix = Math.floor(100 + Math.random() * 900); // 3-digit random
+        const suffix = String(counter).padStart(3, '0');
         const candidate = `${slug}-${suffix}`;
         const existing = await prisma.product.findFirst({
           where: { productCode: candidate, deactivatedDate: null },
@@ -319,11 +347,12 @@ export class ProductService {
           finalProductCode = candidate;
           isUnique = true;
         }
+        counter++;
         attempts++;
       }
 
       if (!finalProductCode) {
-        // Fallback to timestamp if random collisions occur multiple times
+        // Fallback to timestamp if collisions still occur
         finalProductCode = `${slug}-${Date.now().toString().slice(-6)}`;
       }
     } else {
