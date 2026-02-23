@@ -27,7 +27,7 @@ pipeline {
         REPO_OWNER = 'techey-solution'
         GHCR_NAMESPACE = 'techey-solution'
         GITHUB_USERNAME = credentials('github-username')
-        GITHUB_TOKEN = credentials('github-pat-global')
+        GITHUB_TOKEN = credentials('ghcr-classic')
         APP_NAME = 'stock-pos-server'
         DOCKER_IMAGE = "${REGISTRY}/${GHCR_NAMESPACE}/${APP_NAME}"
     }
@@ -181,7 +181,7 @@ pipeline {
                     echo "Branch: ${env.GIT_BRANCH ?: env.BRANCH_NAME}"
                     
                     withCredentials([
-                        string(credentialsId: 'github-pat-global', variable: 'GHCR_TOKEN')
+                        string(credentialsId: 'ghcr-classic', variable: 'GHCR_TOKEN')
                     ]) {
                         sh '''#!/bin/bash
                             set -e
