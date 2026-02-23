@@ -24,10 +24,12 @@ pipeline {
     environment {
         // GitHub Container Registryy
         REGISTRY = 'ghcr.io'
+        REPO_OWNER = 'techey-solution'
+        GHCR_NAMESPACE = 'techey-solution'
         GITHUB_USERNAME = credentials('github-username')
         GITHUB_TOKEN = credentials('github-pat-global')
         APP_NAME = 'stock-pos-server'
-        DOCKER_IMAGE = "${REGISTRY}/${GITHUB_USERNAME.toLowerCase()}/${APP_NAME}"
+        DOCKER_IMAGE = "${REGISTRY}/${GHCR_NAMESPACE}/${APP_NAME}"
     }
 
     triggers {
@@ -139,7 +141,7 @@ pipeline {
                             --target production \
                             -t ${DOCKER_IMAGE}:${VERSION} \
                             -t ${DOCKER_IMAGE}:latest \
-                            --label "org.opencontainers.image.source=https://github.com/${GITHUB_USERNAME}/stock-pos-server" \
+                            --label "org.opencontainers.image.source=https://github.com/${REPO_OWNER}/${APP_NAME}" \
                             --label "org.opencontainers.image.description=Stock POS Server Application" \
                             --label "org.opencontainers.image.version=${VERSION}" \
                             -f Dockerfile \
@@ -189,6 +191,7 @@ pipeline {
                             echo "=========================================="
                             echo "Registry: ${REGISTRY}"
                             echo "Username: ${GITHUB_USERNAME}"
+                            echo "Namespace: ${GHCR_NAMESPACE}"
                             echo "Image: ${DOCKER_IMAGE}"
                             echo "Tag: ${VERSION}"
                             echo "=========================================="
@@ -202,6 +205,27 @@ pipeline {
                                 exit 1
                             fi
                             echo "✓ GHCR login successful"
+
+                            # Preflight GHCR permission check for target namespace/package.
+                            # 200 => package exists and readable, 404 => package not found yet (first push path), both acceptable.
+                            # 401/403 => token or namespace access issue and push will fail anyway.
+                            echo ""
+                            echo "Validating GHCR token access for namespace/package..."
+                            GHCR_CHECK_STATUS=$(curl -sS -o /tmp/ghcr_preflight.json -w "%{http_code}" \
+                                -H "Authorization: Bearer ${GHCR_TOKEN}" \
+                                "https://${REGISTRY}/v2/${GHCR_NAMESPACE}/${APP_NAME}/tags/list" || true)
+                            if [ "${GHCR_CHECK_STATUS}" = "200" ] || [ "${GHCR_CHECK_STATUS}" = "404" ]; then
+                                echo "✓ GHCR preflight check passed (HTTP ${GHCR_CHECK_STATUS})"
+                            elif [ "${GHCR_CHECK_STATUS}" = "401" ] || [ "${GHCR_CHECK_STATUS}" = "403" ]; then
+                                echo "✗ GHCR preflight failed (HTTP ${GHCR_CHECK_STATUS})"
+                                echo "Token can login but cannot access/push ${REGISTRY}/${GHCR_NAMESPACE}/${APP_NAME}."
+                                echo "Verify PAT has at least 'write:packages' (and typically 'read:packages')."
+                                echo "If SSO is enabled on org ${GHCR_NAMESPACE}, authorize this PAT for the org."
+                                docker logout ${REGISTRY}
+                                exit 1
+                            else
+                                echo "⚠ GHCR preflight returned HTTP ${GHCR_CHECK_STATUS}; continuing to push."
+                            fi
                             
                             # Push versioned tag
                             echo ""
