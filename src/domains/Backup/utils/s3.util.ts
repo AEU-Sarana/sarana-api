@@ -5,10 +5,10 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import fs from 'fs';
 
 export function buildS3Client(): S3Client {
-  const region = process.env.S3_REGION || process.env.STORAGE_REGION || 'us-east-1';
-  const endpoint = process.env.S3_ENDPOINT || process.env.STORAGE_ENDPOINT;
-  const accessKeyId = process.env.S3_ACCESS_KEY_ID || process.env.STORAGE_ACCESS_KEY || '';
-  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || process.env.STORAGE_SECRET_KEY || '';
+  const region = process.env.S3_REGION || process.env.STORAGE_REGION || (process.env.R2_ENDPOINT ? 'auto' : 'us-east-1');
+  const endpoint = process.env.S3_ENDPOINT || process.env.STORAGE_ENDPOINT || process.env.R2_ENDPOINT;
+  const accessKeyId = process.env.S3_ACCESS_KEY_ID || process.env.STORAGE_ACCESS_KEY || process.env.R2_ACCESS_KEY_ID || '';
+  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || process.env.STORAGE_SECRET_KEY || process.env.R2_SECRET_ACCESS_KEY || '';
 
   return new S3Client({
     region,

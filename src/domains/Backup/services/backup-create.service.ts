@@ -10,7 +10,7 @@ import { CreateBackupRequest, CreateBackupResponse, ListBackupsResponse } from '
 
 const BACKUP_LOCK_KEY = 9235001;
 
-const BUCKET = process.env.S3_BUCKET || process.env.STORAGE_BUCKET || 'stock-pos-storage';
+const BUCKET = process.env.S3_BUCKET || process.env.STORAGE_BUCKET || process.env.R2_BUCKET_NAME?.replace(/['"]/g, '') || 'stock-pos-storage';
 const BACKUP_PREFIX = 'backups/';
 
 export class BackupCreateService {
@@ -131,7 +131,7 @@ export class BackupCreateService {
         const encPath = `${dumpPath}.enc`;
         if (fs.existsSync(dumpPath)) fs.unlinkSync(dumpPath);
         if (fs.existsSync(encPath)) fs.unlinkSync(encPath);
-      } catch {}
+      } catch { }
 
       await client.query('SELECT pg_advisory_unlock($1)', [BACKUP_LOCK_KEY]);
       await client.end();

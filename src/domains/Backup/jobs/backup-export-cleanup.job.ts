@@ -2,7 +2,7 @@ import { ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { buildS3Client, deleteObject } from '../utils/s3.util';
 import { logger } from '@src/shared/utils/logger';
 
-const BUCKET = process.env.S3_BUCKET || process.env.STORAGE_BUCKET || 'stock-pos-storage';
+const BUCKET = process.env.S3_BUCKET || process.env.STORAGE_BUCKET || process.env.R2_BUCKET_NAME?.replace(/['"]/g, '') || 'stock-pos-storage';
 const EXPORT_PREFIX = 'exports/';
 const EXPORT_TTL_HOURS = Number(process.env.BACKUP_EXPORT_TTL_HOURS || 24);
 const EXPORT_CLEANUP_INTERVAL_MS = Number(

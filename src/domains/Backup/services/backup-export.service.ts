@@ -9,7 +9,7 @@ import { env } from '@src/shared/config/env';
 
 const PDFDocument = require('pdfkit');
 
-const EXPORT_BUCKET = process.env.S3_BUCKET || process.env.STORAGE_BUCKET || 'stock-pos-storage';
+const EXPORT_BUCKET = process.env.S3_BUCKET || process.env.STORAGE_BUCKET || process.env.R2_BUCKET_NAME?.replace(/['"]/g, '') || 'stock-pos-storage';
 const EXPORT_PREFIX = 'exports/';
 
 const EXPORT_TABLES: Record<string, string[]> = {
@@ -96,7 +96,7 @@ export class BackupExportService {
         fileBuffer = fs.readFileSync(tmpPath);
         try {
           fs.unlinkSync(tmpPath);
-        } catch {}
+        } catch { }
       } else {
         const err = new Error('Invalid format');
         (err as any).code = 'BACKUP_EXPORT_ERROR';

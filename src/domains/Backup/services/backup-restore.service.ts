@@ -9,7 +9,7 @@ import { decryptFile } from '../utils/crypto.util';
 import { RestoreBackupRequest, RestoreBackupResponse } from '../types/backup.types';
 
 const RESTORE_LOCK_KEY = 9235002;
-const BUCKET = process.env.S3_BUCKET || process.env.STORAGE_BUCKET || 'stock-pos-storage';
+const BUCKET = process.env.S3_BUCKET || process.env.STORAGE_BUCKET || process.env.R2_BUCKET_NAME?.replace(/['"]/g, '') || 'stock-pos-storage';
 
 export class BackupRestoreService {
   static async restoreBackup(input: RestoreBackupRequest): Promise<RestoreBackupResponse> {
@@ -85,7 +85,7 @@ export class BackupRestoreService {
         const sqlPath = path.join('/tmp', `restore_${input.backup_id}.sql`);
         if (fs.existsSync(encPath)) fs.unlinkSync(encPath);
         if (fs.existsSync(sqlPath)) fs.unlinkSync(sqlPath);
-      } catch {}
+      } catch { }
 
       await client.query('SELECT pg_advisory_unlock($1)', [RESTORE_LOCK_KEY]);
       await client.end();
