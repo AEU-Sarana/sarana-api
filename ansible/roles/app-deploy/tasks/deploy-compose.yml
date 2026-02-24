@@ -61,15 +61,12 @@
     files:
       - docker-compose.yml
       - docker-compose.prod.yml
-    services:
-      - db
-      - redis
-{% if (storage_provider | default('minio') | lower) == 'minio' %}
-      - minio
-{% endif %}
-      - node-exporter
-      - nginx
-      - "{{ deploy_service_name }}"
+    services: >-
+      {{
+        ['db', 'redis']
+        + (['minio'] if (storage_provider | default('minio') | lower) == 'minio' else [])
+        + ['node-exporter', 'nginx', deploy_service_name]
+      }}
     state: present
     pull: "{{ 'always' if pull_images | bool else 'never' }}"
     build: "{{ 'always' if build_image | bool else 'never' }}"
