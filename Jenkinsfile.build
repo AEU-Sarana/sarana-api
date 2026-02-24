@@ -28,7 +28,7 @@ pipeline {
         GITHUB_USERNAME = credentials('github-username')
         GITHUB_TOKEN = credentials('ghcr-classic')
         APP_NAME = 'stock-pos-server'
-        GHCR_NAMESPACE = "${GITHUB_USERNAME.toLowerCase()}"
+        GHCR_NAMESPACE = "${REPO_OWNER.toLowerCase()}"
         DOCKER_IMAGE = "${REGISTRY}/${GHCR_NAMESPACE}/${APP_NAME}"
     }
 
@@ -361,6 +361,7 @@ pipeline {
                                     -e "run_db_migrations=true" \
                                     -e "run_db_seed=false" \
                                     -e "docker_registry=${REGISTRY}" \
+                                    -e "docker_registry_namespace=${GHCR_NAMESPACE}" \
                                     -e "docker_registry_username=${GITHUB_USERNAME}" \
                                     -e "docker_registry_password=${GITHUB_TOKEN}" \
                                     -e "docker_image_name=${APP_NAME}" \
