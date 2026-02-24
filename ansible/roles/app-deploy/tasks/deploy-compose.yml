@@ -50,6 +50,15 @@
 - name: Pull Docker images from registry
   community.docker.docker_compose_v2:
     project_src: "{{ app_directory }}"
+    files:
+      - docker-compose.yml
+      - docker-compose.prod.yml
+    services: >-
+      {{
+        ['db', 'redis']
+        + (['minio'] if (storage_provider | default('minio') | lower) == 'minio' else [])
+        + ['node-exporter', 'nginx', deploy_service_name]
+      }}
     pull: always
   when: 
     - pull_images | bool
