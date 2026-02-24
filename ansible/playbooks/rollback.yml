@@ -81,7 +81,7 @@
           - "Target server: {{ inventory_hostname }} ({{ ansible_host }})"
           - "Current tag: {{ current_tag }}"
           - "Rollback tag: {{ rollback_tag }}"
-          - "Image: {{ docker_registry }}/{{ docker_registry_username | lower }}/{{ docker_image_name }}"
+          - "Image: {{ docker_registry }}/{{ (docker_registry_namespace | default(docker_registry_username)) | lower }}/{{ docker_image_name }}"
 
     - name: Enforce rollback deployment flags
       set_fact:

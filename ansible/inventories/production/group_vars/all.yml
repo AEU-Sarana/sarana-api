@@ -42,9 +42,10 @@ docker_container_name: stock-pos-app
 docker_registry: "{{ vault_docker_registry_url }}"
 docker_registry_username: "{{ vault_docker_registry_username }}"
 docker_registry_password: "{{ vault_docker_registry_password }}"
+docker_registry_namespace: "techey-solution"
 
 # Full image path for GHCR
-docker_image_full: "{{ docker_registry }}/{{ vault_docker_registry_username }}/{{ docker_image_name }}"
+docker_image_full: "{{ docker_registry }}/{{ docker_registry_namespace }}/{{ docker_image_name }}"
 
 # Docker resource limits (production)
 docker_cpu_limit: "2"
