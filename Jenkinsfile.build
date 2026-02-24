@@ -49,15 +49,11 @@ pipeline {
             steps {
                 script {
                     echo "=== Checking out code from repository ==="
+                    // Ensure stale workspace content is removed before checkout
+                    deleteDir()
                     notifyTelegram("🔨 <b>Build started</b>\n• <b>App:</b> ${APP_NAME}\n• <b>Build:</b> #${BUILD_NUMBER}\n• <b>Jenkins:</b> <a href=\"${env.BUILD_URL}\">Open Build</a>")
-                    def scmVars = checkout([
-                        $class: 'GitSCM',
-                        branches: [[name: '*/main']],
-                        userRemoteConfigs: [[
-                            url: 'git@github.com:techey-solution/stock-pos-server.git',
-                            credentialsId: 'deploy-ssh-key'
-                        ]]
-                    ])
+                    // Respect branch configured in Jenkins job/SCM
+                    def scmVars = checkout(scm)
                     env.GIT_BRANCH = scmVars?.GIT_BRANCH ?: sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
                     env.GIT_COMMIT = scmVars?.GIT_COMMIT ?: sh(script: "git rev-parse HEAD", returnStdout: true).trim()
                     env.SHORT_COMMIT = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
@@ -159,6 +155,8 @@ pipeline {
                 anyOf {
                     branch 'main'
                     branch 'origin/main'
+                    branch 'nan'
+                    branch 'origin/nan'
                 }
             }
             steps {
@@ -271,7 +269,10 @@ pipeline {
                 expression {
                     env.GIT_BRANCH == 'main' ||
                     env.GIT_BRANCH == 'origin/main' ||
-                    env.BRANCH_NAME == 'main'
+                    env.GIT_BRANCH == 'nan' ||
+                    env.GIT_BRANCH == 'origin/nan' ||
+                    env.BRANCH_NAME == 'main' ||
+                    env.BRANCH_NAME == 'nan'
                 }
             }
             steps {
@@ -309,7 +310,10 @@ pipeline {
                 expression { 
                     env.GIT_BRANCH == 'main' || 
                     env.GIT_BRANCH == 'origin/main' ||
-                    env.BRANCH_NAME == 'main'
+                    env.GIT_BRANCH == 'nan' ||
+                    env.GIT_BRANCH == 'origin/nan' ||
+                    env.BRANCH_NAME == 'main' ||
+                    env.BRANCH_NAME == 'nan'
                 }
             }
             steps {
@@ -325,6 +329,15 @@ pipeline {
                         sshagent(['deploy-ssh-key']) {
                             sh '''
                                 set -e
+
+                                echo "=== Verify checked out deploy-compose.yml ==="
+                                git rev-parse --short HEAD
+                                git log -1 --oneline
+                                nl -ba ansible/roles/app-deploy/tasks/deploy-compose.yml | sed -n '58,75p'
+                                if rg -n "\\{% if \\(storage_provider \\| default\\('minio'\\) \\| lower\\) == 'minio' %\\}" ansible/roles/app-deploy/tasks/deploy-compose.yml >/dev/null; then
+                                    echo "ERROR: Stale deploy-compose.yml detected in Jenkins workspace (old Jinja control block still present)."
+                                    exit 1
+                                fi
                                 
                                 # Validate vault password credential
                                 if [ -z "${VAULT_PASS}" ]; then
@@ -382,7 +395,10 @@ pipeline {
                 expression {
                     env.GIT_BRANCH == 'main' ||
                     env.GIT_BRANCH == 'origin/main' ||
-                    env.BRANCH_NAME == 'main'
+                    env.GIT_BRANCH == 'nan' ||
+                    env.GIT_BRANCH == 'origin/nan' ||
+                    env.BRANCH_NAME == 'main' ||
+                    env.BRANCH_NAME == 'nan'
                 }
             }
             steps {
