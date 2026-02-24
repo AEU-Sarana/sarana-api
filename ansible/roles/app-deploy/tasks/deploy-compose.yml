@@ -60,6 +60,7 @@
         + ['node-exporter', 'nginx', deploy_service_name]
       }}
     pull: always
+    build: never
   when: 
     - pull_images | bool
     - not (build_image | bool)
