@@ -26,7 +26,7 @@ pipeline {
         REGISTRY = 'ghcr.io'
         REPO_OWNER = 'techey-solution'
         GITHUB_USERNAME = credentials('github-username')
-        GITHUB_TOKEN = credentials('ghcr-nan')
+        GITHUB_TOKEN = credentials('ghcr-classic')
         APP_NAME = 'stock-pos-server'
         GHCR_NAMESPACE = "${GITHUB_USERNAME.toLowerCase()}"
         DOCKER_IMAGE = "${REGISTRY}/${GHCR_NAMESPACE}/${APP_NAME}"
@@ -179,13 +179,13 @@ pipeline {
                     echo "Branch: ${env.GIT_BRANCH ?: env.BRANCH_NAME}"
                     
                     withCredentials([
-                        string(credentialsId: 'ghcr-nan', variable: 'GHCR_TOKEN')
+                        string(credentialsId: 'ghcr-classic', variable: 'GHCR_TOKEN')
                     ]) {
                         sh '''#!/bin/bash
                             set -euo pipefail
 
                             auth_hint() {
-                                echo "ERROR: Invalid or insufficient GHCR credential (ghcr-nan)."
+                                echo "ERROR: Invalid or insufficient GHCR credential (ghcr-classic)."
                                 echo "Required: write:packages, read:packages, and org SSO authorization if enabled."
                             }
 
