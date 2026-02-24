@@ -116,6 +116,8 @@ nginx_internal_port: 8080  # Container nginx port
 domain: techey.tech
 subdomain: familypos
 app_domain: "{{ subdomain }}.{{ domain }}"  # familypos.techey.tech
+api_base_url: "https://{{ app_domain }}"
+app_url: "https://{{ app_domain }}"
 enable_ssl: true
 letsencrypt_email: admin@{{ domain }}
 letsencrypt_staging: false  # Set to true for first test run
