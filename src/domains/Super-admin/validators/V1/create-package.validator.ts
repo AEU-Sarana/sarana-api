@@ -1,0 +1,23 @@
+import { body } from 'express-validator';
+
+export const createPackageValidator = [
+    body('name')
+        .isString()
+        .trim()
+        .notEmpty()
+        .withMessage('Package name is required')
+        .isLength({ max: 100 })
+        .withMessage('Package name must not exceed 100 characters'),
+
+    body('description')
+        .optional()
+        .isString()
+        .trim()
+        .isLength({ max: 500 })
+        .withMessage('Description must not exceed 500 characters'),
+
+    body('is_active')
+        .optional()
+        .isBoolean()
+        .withMessage('is_active must be a boolean'),
+];

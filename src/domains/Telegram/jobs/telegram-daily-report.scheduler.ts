@@ -92,8 +92,8 @@ async function runOnce(): Promise<void> {
     const senderUserId = await resolveSenderUserId(settings.updatedBy);
     await TelegramService.sendDailyAggregateReport(now.date, senderUserId, true);
 
-    // Check for near-expiry stock alerts
-    await runTelegramAdminAlertsJob();
+    // Check for near-expiry stock alerts (Disabled: user prefers milestone-only alerts)
+    // await runTelegramAdminAlertsJob();
 
     lastSentDate = now.date;
 

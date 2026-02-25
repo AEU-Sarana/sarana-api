@@ -2,8 +2,21 @@ import prisma from '@src/database/client';
 import {
     DashboardSummaryResponse,
     UserGrowthResponse,
-    CreateTenantRequest
+    CreateTenantRequest,
+    ListPackagesResponse,
+    CreatePackageRequest,
+    CreatePackageResponse,
+    ListPlansResponse,
+    CreatePlanRequest,
+    CreatePlanResponse,
+    ListPaymentsResponse,
+    UpgradePlanRequest,
+    UpgradePlanResponse,
+    RenewSubscriptionRequest,
+    RenewSubscriptionResponse
 } from '../types/V1';
+
+
 import { GroupByType, PlanType, TenantStatus } from '../enums/V1';
 
 export class SuperAdminService {
@@ -175,4 +188,217 @@ export class SuperAdminService {
             }
         });
     }
+
+    /**
+     * List all SaaS packages
+     */
+    static async listPackages(): Promise<ListPackagesResponse> {
+        const packages = await prisma.package.findMany({
+            orderBy: { id: 'asc' }
+        });
+
+        return {
+            packages: packages.map(pkg => ({
+                id: pkg.id,
+                name: pkg.name,
+                description: pkg.description,
+                is_active: pkg.isActive,
+                created_at: pkg.createdAt,
+            }))
+        };
+    }
+
+    /**
+     * Create a new SaaS package
+     */
+    static async createPackage(data: CreatePackageRequest): Promise<CreatePackageResponse> {
+        const pkg = await prisma.package.create({
+            data: {
+                name: data.name,
+                description: data.description,
+                isActive: data.is_active ?? true,
+            },
+            select: { id: true }
+        });
+        return { id: pkg.id };
+    }
+
+    /**
+     * List all SaaS plans
+     */
+    static async listPlans(): Promise<ListPlansResponse> {
+        const plans = await prisma.plan.findMany({
+            include: {
+                package: true
+            },
+            orderBy: { id: 'asc' }
+        });
+
+        return {
+            plans: plans.map((p: any) => ({
+                id: p.id,
+                package_name: p.package.name,
+                name: p.name,
+                price: Number(p.price),
+                duration_days: p.type === PlanType.MONTHLY ? 30 : 365,
+            }))
+        };
+    }
+
+    /**
+     * Create a new SaaS plan
+     */
+    static async createPlan(data: CreatePlanRequest): Promise<CreatePlanResponse> {
+        return prisma.$transaction(async (tx) => {
+            const plan = await tx.plan.create({
+                data: {
+                    name: data.plan_name,
+                    packageId: data.package_id,
+                    type: data.plan_type,
+                    price: data.price,
+                }
+            });
+
+            let feature = null;
+            if (data.feature_code) {
+                feature = await tx.packageFeature.create({
+                    data: {
+                        packageId: data.package_id,
+                        featureCode: data.feature_code,
+                        featureValue: data.feature_value,
+                        isEnabled: true
+                    }
+                });
+            }
+
+            return {
+                id: plan.id,
+                plan_name: plan.name,
+                package_id: plan.packageId,
+                plan_type: plan.type,
+                price: Number(plan.price),
+                feature_code: feature?.featureCode,
+                feature_value: feature?.featureValue,
+                created_at: plan.createdAt
+            };
+        });
+    }
+
+    /**
+     * List all subscription payments
+     */
+    static async listPayments(): Promise<ListPaymentsResponse> {
+        const [payments, summaryData] = await Promise.all([
+            prisma.subscriptionPayment.findMany({
+                include: {
+                    subscription: {
+                        include: {
+                            plan: true,
+                            user: true
+                        }
+                    }
+                },
+                orderBy: { paymentDate: 'desc' }
+            }),
+            prisma.subscriptionPayment.aggregate({
+                _sum: {
+                    amount: true
+                },
+                where: {
+                    status: 'COMPLETED'
+                }
+            }),
+        ]);
+
+        const pendingCount = await prisma.subscriptionPayment.count({
+            where: {
+                status: 'PENDING'
+            }
+        });
+
+        return {
+            payments: payments.map((p: any) => ({
+                id: p.id,
+                paid_at: p.paymentDate,
+                tenant_name: p.subscription.user.businessName || p.subscription.user.fullName,
+                plan_name: p.subscription.plan.name,
+                amount: Number(p.amount),
+                payment_method: p.paymentMethod,
+                status: p.status,
+            })),
+            summary: {
+                total_revenue: Number(summaryData._sum.amount || 0),
+                pending_count: pendingCount
+            }
+        };
+    }
+
+    /**
+     * Upgrade a subscription plan
+     */
+    static async upgradeSubscription(id: number, data: UpgradePlanRequest): Promise<UpgradePlanResponse> {
+        return prisma.$transaction(async (tx) => {
+            // Find the targeted plan
+            const plan = await tx.plan.findFirst({
+                where: {
+                    packageId: data.package_id,
+                    type: data.plan_type
+                }
+            });
+
+            if (!plan) {
+                throw new Error(`Plan not found for package ID ${data.package_id} and type ${data.plan_type}`);
+            }
+
+            // Update subscription
+            const updatedSubscription = await tx.subscription.update({
+                where: { id },
+                data: {
+                    planId: plan.id,
+                    status: 'ACTIVE',
+                    startDate: new Date(data.start_date),
+                    endDate: new Date(data.end_date),
+                    updatedAt: new Date()
+                },
+                include: {
+                    plan: true
+                }
+            });
+
+            return {
+                tenant_id: updatedSubscription.tenantId,
+                new_plan: updatedSubscription.plan.name,
+                status: updatedSubscription.status,
+                start_date: updatedSubscription.startDate,
+                end_date: updatedSubscription.endDate
+            };
+        });
+    }
+
+    /**
+     * Renew a subscription
+     */
+    static async renewSubscription(id: number, data: RenewSubscriptionRequest): Promise<RenewSubscriptionResponse> {
+        const updatedSubscription = await prisma.subscription.update({
+            where: { id },
+            data: {
+                status: 'ACTIVE',
+                startDate: new Date(data.start_date),
+                endDate: new Date(data.end_date),
+                updatedAt: new Date()
+            },
+            include: {
+                plan: true
+            }
+        });
+
+        return {
+            plan_id: updatedSubscription.planId,
+            plan_type: updatedSubscription.plan.type,
+            start_date: updatedSubscription.startDate,
+            end_date: updatedSubscription.endDate
+        };
+    }
 }
+
+

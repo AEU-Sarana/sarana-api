@@ -100,4 +100,134 @@ export class SuperAdminController {
             throw error;
         }
     }
+
+    /**
+     * GET /api/v1/super-admin/saas/packages
+     */
+    static async listPackages(req: Request, res: Response): Promise<void> {
+        try {
+            const data = await SuperAdminService.listPackages();
+
+            res.status(200).json({
+                success: true,
+                data,
+                message: 'Packages retrieved successfully',
+            });
+        } catch (error: any) {
+            logger.error('List packages error', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * POST /api/v1/super-admin/saas/packages
+     */
+    static async createPackage(req: Request, res: Response): Promise<void> {
+        try {
+            const data = await SuperAdminService.createPackage(req.body);
+
+            res.status(201).json({
+                success: true,
+                data,
+                message: 'Package created successfully',
+            });
+        } catch (error: any) {
+            logger.error('Create package error', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * GET /api/v1/super-admin/saas/plans
+     */
+    static async listPlans(req: Request, res: Response): Promise<void> {
+        try {
+            const data = await SuperAdminService.listPlans();
+
+            res.status(200).json({
+                success: true,
+                data,
+                message: 'Plans retrieved successfully',
+            });
+        } catch (error: any) {
+            logger.error('List plans error', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * POST /api/v1/super-admin/saas/plans
+     */
+    static async createPlan(req: Request, res: Response): Promise<void> {
+        try {
+            const data = await SuperAdminService.createPlan(req.body);
+
+            res.status(201).json({
+                success: true,
+                data,
+                message: 'Plan created successfully',
+            });
+        } catch (error: any) {
+            logger.error('Create plan error', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * GET /api/v1/super-admin/saas/payments
+     */
+    static async listPayments(req: Request, res: Response): Promise<void> {
+        try {
+            const data = await SuperAdminService.listPayments();
+
+            res.status(200).json({
+                success: true,
+                data,
+                message: 'Subscription payments retrieved successfully',
+            });
+        } catch (error: any) {
+            logger.error('List payments error', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * POST /api/v1/super-admin/subscriptions/:id/upgrade-plan
+     */
+    static async upgradePlan(req: Request, res: Response): Promise<void> {
+        try {
+            const { id } = req.params;
+            const data = await SuperAdminService.upgradeSubscription(Number(id), req.body);
+
+            res.status(200).json({
+                success: true,
+                data,
+                message: 'Plan upgraded successfully',
+            });
+        } catch (error: any) {
+            logger.error('Upgrade plan error', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * POST /api/v1/super-admin/subscriptions/:id/renew
+     */
+    static async renewSubscription(req: Request, res: Response): Promise<void> {
+        try {
+            const { id } = req.params;
+            const data = await SuperAdminService.renewSubscription(Number(id), req.body);
+
+            res.status(200).json({
+                success: true,
+                data,
+                message: 'Subscription renewed successfully',
+            });
+        } catch (error: any) {
+            logger.error('Renew subscription error', { error: error.message });
+            throw error;
+        }
+    }
 }
+
+

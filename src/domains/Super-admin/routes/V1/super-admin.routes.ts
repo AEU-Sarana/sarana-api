@@ -3,7 +3,8 @@ import { SuperAdminController } from '../../controllers/V1/super-admin.controlle
 import { authenticateToken } from '@src/shared/middleware/auth.middleware';
 import { requireRole } from '@src/shared/middleware/authorization.middleware';
 import { Role } from '@src/shared/config/permissions';
-import { dashboardSummaryValidator, userGrowthValidator, tenantListValidator, createTenantValidator, closeSubscriptionValidator } from '../../validators/V1';
+import { dashboardSummaryValidator, userGrowthValidator, tenantListValidator, createTenantValidator, closeSubscriptionValidator, createPackageValidator, createPlanValidator, upgradePlanValidator, renewSubscriptionValidator } from '../../validators/V1';
+
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
 
 const router = Router();
@@ -43,6 +44,46 @@ router.post(
     '/subscriptions/:id/close',
     ...validateRequest(closeSubscriptionValidator),
     SuperAdminController.closeSubscription
+);
+
+router.post(
+    '/subscriptions/:id/upgrade-plan',
+    ...validateRequest(upgradePlanValidator),
+    SuperAdminController.upgradePlan
+);
+
+router.post(
+    '/subscriptions/:id/renew',
+    ...validateRequest(renewSubscriptionValidator),
+    SuperAdminController.renewSubscription
+);
+
+// SaaS Routes
+router.get(
+    '/saas/packages',
+    SuperAdminController.listPackages
+);
+
+router.get(
+    '/saas/plans',
+    SuperAdminController.listPlans
+);
+
+router.get(
+    '/saas/payments',
+    SuperAdminController.listPayments
+);
+
+router.post(
+    '/saas/packages',
+    ...validateRequest(createPackageValidator),
+    SuperAdminController.createPackage
+);
+
+router.post(
+    '/saas/plans',
+    ...validateRequest(createPlanValidator),
+    SuperAdminController.createPlan
 );
 
 
