@@ -67,6 +67,13 @@ export interface UpdateProductRequest {
 
 export interface UpdateProductResponse extends ProductResponse { }
 
+export interface ToggleProductStatusResponse {
+    product_id: number;
+    status: ProductStatus;
+    created_at: Date;
+    updated_at: Date;
+}
+
 export interface CategoryCount {
     category: string;
     count: number;

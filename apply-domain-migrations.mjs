@@ -47,7 +47,7 @@ const domainConfig = {
     tables: ['backups', 'backup_runs'],
   },
   'super-admin': {
-    tables: ['packages', 'plans', 'subscriptions'],
+    tables: ['packages', 'plans', 'subscriptions', 'package_features', 'subscription_payments'],
   },
 };
 
@@ -85,6 +85,8 @@ const migrationOrder = [
   'super-admin/20260224000001_create_packages_table',
   'super-admin/20260224000002_create_plans_table',
   'super-admin/20260224000003_create_subscriptions_table',
+  'super-admin/20260224000004_create_package_features_table',
+  'super-admin/20260224000005_create_subscription_payments_table',
 ];
 
 /* ================================

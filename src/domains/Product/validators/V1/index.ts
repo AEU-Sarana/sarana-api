@@ -3,3 +3,4 @@ export { getProductValidator } from './get-product.validator';
 export { createProductValidator } from './create-product.validator';
 export { updateProductValidator } from './update-product.validator';
 export { deleteProductValidator } from './delete-product.validator';
+export { toggleStatusValidator } from './toggle-status.validator';

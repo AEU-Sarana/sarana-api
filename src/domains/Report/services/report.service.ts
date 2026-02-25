@@ -235,7 +235,8 @@ export class ReportService {
         topProductsRaw,
         lowStockRows,
         totalProductsSold,
-        uniqueProductsSoldResult
+        uniqueProductsSoldResult,
+        activeProductsCount
       ] = await Promise.all([
         // Summary aggregations
         prisma.order.aggregate({
@@ -340,13 +341,24 @@ export class ReportService {
             AND o.order_date <= ${endOfDay}
             AND o.tenant_id = ${effectiveTenantId}
             AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
-        `)
+        `),
+
+        // Active products count
+        prisma.product.count({
+          where: {
+            status: 'active',
+            createdByUser: {
+              tenantId: effectiveTenantId,
+            },
+          },
+        }),
       ]);
 
       const total_sales = Number(aggregations._sum.totalAmount || 0);
       const total_orders = aggregations._count.orderId;
       const average_order_value = total_orders > 0 ? total_sales / total_orders : 0;
       const unique_products_sold = uniqueProductsSoldResult[0]?.unique_products_sold;
+      const total_products = Number(activeProductsCount || 0);
 
       let shifts_breakdown: ShiftBreakdown[] = shiftRows.map(row => ({
         seller_id: row.seller_id,
@@ -397,6 +409,7 @@ export class ReportService {
       const summary: DailyReportSummary = {
         total_products_sold: totalProductsSold._sum.quantity || 0,
         unique_products_sold: Number(unique_products_sold || 0),
+        total_products: total_products,
         average_items_per_order: Number(averageItemsPerOrder.toFixed(2)),
         peak_sales_hour: peakSalesHour,
         cash_collected: cashCollected,
