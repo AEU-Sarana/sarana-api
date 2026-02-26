@@ -36,9 +36,8 @@ export interface LowStockItem {
 export interface DailyReportSummary {
   total_products_sold: number;
   unique_products_sold: number;
-  total_products: number;
   average_items_per_order: number;
-  peak_sales_hour: string;
+  exchange_rate: number;
   cash_collected: number;
   short_over_amount: number;
 }

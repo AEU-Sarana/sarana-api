@@ -1,4 +1,5 @@
 import { StockMovementType } from '../enums/stock-movement-type.enum';
+import { ProductStatus } from '@src/domains/Product/enums/product-status.enum';
 
 export interface GetStockRequest {
   product_id?: number;
@@ -9,6 +10,7 @@ export interface GetStockRequest {
   barcode?: string;
   page?: number;
   limit?: number;
+  product_status?: ProductStatus;
 }
 
 export interface StockResponse {
@@ -36,6 +38,8 @@ export interface StockListResponse {
   stock_version: number;
   status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative';
   last_sync_time: Date | null;
+  product_status: ProductStatus;
+  has_expiry: boolean;
   expired_at?: Date | null;
   updated_at: Date;
 }
@@ -63,6 +67,7 @@ export interface GetStockByProductResponse {
   stock_version: number;
   status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative';
   last_sync_time: Date | null;
+  product_status: ProductStatus;
   expired_at?: Date | null;
   updated_at: Date;
 }
@@ -169,7 +174,7 @@ export interface StockMovementResponse {
   cost?: number | null;
   supplier?: string | null;
   image_path?: string | null;
-  created_by: number;
+  expired_at?: Date | null;
   created_at: Date;
 }
 

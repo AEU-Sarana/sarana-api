@@ -55,6 +55,7 @@ export interface OrderResponse {
   discount_amount: number;
   tax_amount: number;
   service_fee: number;
+  exchange_rate: number;
   payment_method: string;
   has_receipt_link: boolean;
   receipt_link_status: string | null;

@@ -5,6 +5,7 @@ export interface TenantListItem {
     email: string;
     status: string;
     subscription?: {
+        id: number;
         plan_name: string;
         plan_type: string;
         plan_status: string;

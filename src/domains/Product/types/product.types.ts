@@ -21,6 +21,7 @@ export interface ProductResponse {
     low_stock_threshold: number | null;
     has_expiry?: boolean;
     stock_quantity: number;
+    expired_at?: Date | null;
     status: ProductStatus;
     created_at: Date;
     updated_at: Date;
@@ -63,6 +64,7 @@ export interface UpdateProductRequest {
     image_path?: string;
     low_stock_threshold?: number;
     status?: ProductStatus;
+    has_expiry?: boolean;
 }
 
 export interface UpdateProductResponse extends ProductResponse { }

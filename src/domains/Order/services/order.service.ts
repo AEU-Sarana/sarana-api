@@ -142,7 +142,7 @@ export class OrderService {
     return {
       orders: orders.map((o) => {
         const latestReceiptLink = o.receipt_links[0] || null;
-        
+
         return {
           order_id: o.orderId,
           order_uuid: o.orderUuid,
@@ -155,6 +155,7 @@ export class OrderService {
           discount_amount: Number(o.discountAmount),
           tax_amount: Number(o.taxAmount),
           service_fee: Number(o.serviceFee),
+          exchange_rate: Number(o.exchangeRate),
           payment_method: o.paymentMethod,
           has_receipt_link: !!latestReceiptLink,
           receipt_link_status: latestReceiptLink?.linkStatus || null,
@@ -272,6 +273,7 @@ export class OrderService {
       discount_amount: Number(order.discountAmount),
       tax_amount: Number(order.taxAmount),
       service_fee: Number(order.serviceFee),
+      exchange_rate: Number(order.exchangeRate),
       payment_method: order.paymentMethod,
       has_receipt_link: !!latestReceiptLink,
       receipt_link_status: latestReceiptLink?.linkStatus || null,

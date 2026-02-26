@@ -3,7 +3,7 @@ import { SuperAdminController } from '../../controllers/V1/super-admin.controlle
 import { authenticateToken } from '@src/shared/middleware/auth.middleware';
 import { requireRole } from '@src/shared/middleware/authorization.middleware';
 import { Role } from '@src/shared/config/permissions';
-import { dashboardSummaryValidator, userGrowthValidator, tenantListValidator, createTenantValidator, closeSubscriptionValidator, createPackageValidator, createPlanValidator, upgradePlanValidator, renewSubscriptionValidator } from '../../validators/V1';
+import { dashboardSummaryValidator, userGrowthValidator, tenantListValidator, createTenantValidator, closeSubscriptionValidator, createPackageValidator, createPlanValidator, upgradePlanValidator, renewSubscriptionValidator, updateTenantValidator } from '../../validators/V1';
 
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
 
@@ -33,6 +33,22 @@ router.get(
     SuperAdminController.listTenants
 );
 
+router.get(
+    '/tenants/:id',
+    SuperAdminController.getTenantById
+);
+
+router.patch(
+    '/tenants/:id/toggle-status',
+    SuperAdminController.toggleTenantStatus
+);
+
+router.patch(
+    '/tenants/:id',
+    ...validateRequest(updateTenantValidator),
+    SuperAdminController.updateTenant
+);
+
 router.post(
     '/tenants',
     ...validateRequest(createTenantValidator),
@@ -40,6 +56,11 @@ router.post(
 );
 
 // Subscription Routes
+router.get(
+    '/subscriptions',
+    SuperAdminController.listSubscriptions
+);
+
 router.post(
     '/subscriptions/:id/close',
     ...validateRequest(closeSubscriptionValidator),

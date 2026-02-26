@@ -44,6 +44,24 @@ export class SuperAdminController {
     }
 
     /**
+     * GET /api/v1/super-admin/subscriptions
+     */
+    static async listSubscriptions(req: Request, res: Response): Promise<void> {
+        try {
+            const data = await SuperAdminService.listSubscriptions(req.query);
+
+            res.status(200).json({
+                success: true,
+                data,
+                message: 'Subscriptions retrieved successfully',
+            });
+        } catch (error: any) {
+            logger.error('List subscriptions error', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
      * GET /api/v1/super-admin/tenants
      */
     static async listTenants(req: Request, res: Response): Promise<void> {
@@ -62,6 +80,44 @@ export class SuperAdminController {
     }
 
     /**
+     * GET /api/v1/super-admin/tenants/:id
+     */
+    static async getTenantById(req: Request, res: Response): Promise<void> {
+        try {
+            const { id } = req.params;
+            const data = await SuperAdminService.getTenantById(Number(id));
+
+            res.status(200).json({
+                success: true,
+                data,
+                message: 'Tenant retrieved successfully',
+            });
+        } catch (error: any) {
+            logger.error('Get tenant by ID error', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * PATCH /api/v1/super-admin/tenants/:id
+     */
+    static async updateTenant(req: Request, res: Response): Promise<void> {
+        try {
+            const { id } = req.params;
+            const data = await SuperAdminService.updateTenant(Number(id), req.body);
+
+            res.status(200).json({
+                success: true,
+                data,
+                message: 'Tenant updated successfully',
+            });
+        } catch (error: any) {
+            logger.error('Update tenant error', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
      * POST /api/v1/super-admin/tenants
      */
     static async createTenant(req: Request, res: Response): Promise<void> {
@@ -75,6 +131,25 @@ export class SuperAdminController {
             });
         } catch (error: any) {
             logger.error('Create tenant error', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * PATCH /api/v1/super-admin/tenants/:id/toggle-status
+     */
+    static async toggleTenantStatus(req: Request, res: Response): Promise<void> {
+        try {
+            const { id } = req.params;
+            const data = await SuperAdminService.toggleTenantStatus(Number(id));
+
+            res.status(200).json({
+                success: true,
+                data,
+                message: `Tenant status updated to ${data.status}`,
+            });
+        } catch (error: any) {
+            logger.error('Toggle tenant status error', { error: error.message });
             throw error;
         }
     }

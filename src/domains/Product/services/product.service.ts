@@ -143,6 +143,11 @@ export class ProductService {
       orderBy: { createdAt: 'desc' },
       include: {
         stock: true,
+        stock_lots: {
+          where: { qtyOnHand: { gt: 0 }, expiredAt: { not: null } },
+          orderBy: { expiredAt: 'asc' },
+          take: 1
+        }
       },
     });
 
@@ -166,6 +171,7 @@ export class ProductService {
         low_stock_threshold: p.lowStockThreshold,
         has_expiry: p.hasExpiry,
         stock_quantity: p.stock?.quantity || 0,
+        expired_at: p.hasExpiry ? (p.stock_lots?.[0]?.expiredAt || null) : null,
         status: (p.status as any) as ProductStatus,
         created_at: p.createdAt,
         updated_at: p.updatedAt,
@@ -190,6 +196,11 @@ export class ProductService {
       where: { productId },
       include: {
         stock: true,
+        stock_lots: {
+          where: { qtyOnHand: { gt: 0 }, expiredAt: { not: null } },
+          orderBy: { expiredAt: 'asc' },
+          take: 1
+        }
       },
     });
 
@@ -216,6 +227,7 @@ export class ProductService {
       low_stock_threshold: product.lowStockThreshold,
       has_expiry: product.hasExpiry,
       stock_quantity: product.stock?.quantity || 0,
+      expired_at: product.hasExpiry ? (product.stock_lots?.[0]?.expiredAt || null) : null,
       status: (product.status as any) as ProductStatus,
       created_at: product.createdAt,
       updated_at: product.updatedAt,
@@ -233,6 +245,11 @@ export class ProductService {
       where: { productCode, deactivatedDate: null },
       include: {
         stock: true,
+        stock_lots: {
+          where: { qtyOnHand: { gt: 0 }, expiredAt: { not: null } },
+          orderBy: { expiredAt: 'asc' },
+          take: 1
+        }
       },
     });
 
@@ -259,6 +276,7 @@ export class ProductService {
       low_stock_threshold: product.lowStockThreshold,
       has_expiry: product.hasExpiry,
       stock_quantity: product.stock?.quantity || 0,
+      expired_at: product.hasExpiry ? (product.stock_lots?.[0]?.expiredAt || null) : null,
       status: (product.status as any) as ProductStatus,
       created_at: product.createdAt,
       updated_at: product.updatedAt,
@@ -490,6 +508,7 @@ export class ProductService {
       low_stock_threshold: product.lowStockThreshold,
       has_expiry: product.hasExpiry,
       stock_quantity: product.stock?.quantity || 0,
+      expired_at: null,
       status: (product.status as any) as ProductStatus,
       created_at: product.createdAt,
       updated_at: product.updatedAt,
@@ -594,26 +613,52 @@ export class ProductService {
         ? parseInt(request.low_stock_threshold, 10)
         : request.low_stock_threshold)
       : undefined;
+    const hasExpiryBoolean = request.has_expiry !== undefined && request.has_expiry !== null
+      ? (typeof request.has_expiry === 'string' ? request.has_expiry === 'true' : Boolean(request.has_expiry))
+      : undefined;
 
-    const updated = await prisma.product.update({
-      where: { productId },
-      data: {
-        productCode: undefined,
-        productName: request.product_name ?? undefined,
-        barcode: request.barcode ?? undefined,
-        price: priceNumber,
-        category: request.category ?? undefined,
-        description: request.description ?? undefined,
-        imagePath: finalImagePath ?? undefined,
-        lowStockThreshold: lowStockThresholdNumber,
-        status: request.status ? (request.status === 'active' ? 'active' : 'inactive') : undefined,
-        updatedBy: currentUserId,
-        updatedAt: new Date(),
-      },
-      include: {
-        stock: true, // Include stock relation to get quantity
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedProduct = await tx.product.update({
+        where: { productId },
+        data: {
+          productCode: undefined,
+          productName: request.product_name ?? undefined,
+          barcode: request.barcode ?? undefined,
+          price: priceNumber,
+          category: request.category ?? undefined,
+          description: request.description ?? undefined,
+          imagePath: finalImagePath ?? undefined,
+          lowStockThreshold: lowStockThresholdNumber,
+          hasExpiry: hasExpiryBoolean,
+          status: request.status ? (request.status === 'active' ? 'active' : 'inactive') : undefined,
+          updatedBy: currentUserId,
+          updatedAt: new Date(),
+        },
+      });
+
+      // If toggled from true to false, clear expiry dates in stock_lots
+      if (hasExpiryBoolean === false) {
+        await tx.stockLot.updateMany({
+          where: { productId },
+          data: { expiredAt: null },
+        });
+      }
+
+      // Re-fetch with needed relations
+      return await tx.product.findUnique({
+        where: { productId },
+        include: {
+          stock: true,
+          stock_lots: {
+            where: { qtyOnHand: { gt: 0 }, expiredAt: { not: null } },
+            orderBy: { expiredAt: 'asc' },
+            take: 1
+          }
+        },
+      });
     });
+
+    if (!updated) throw new ValidationException('Product not found after update');
 
     await auditLogService.createAuditLog({
       userId: currentUserId,
@@ -637,6 +682,7 @@ export class ProductService {
       low_stock_threshold: updated.lowStockThreshold,
       has_expiry: updated.hasExpiry,
       stock_quantity: updated.stock?.quantity || 0,
+      expired_at: updated.hasExpiry ? (updated.stock_lots?.[0]?.expiredAt || null) : null,
       status: (updated.status as any) as ProductStatus,
       created_at: updated.createdAt,
       updated_at: updated.updatedAt,

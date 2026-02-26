@@ -8,3 +8,5 @@ export * from './package.types';
 export * from './plan.types';
 export * from './payment.types';
 export * from './renew-subscription.types';
+export * from './subscription-list.types';
+export * from './update-tenant.types';

@@ -1,6 +1,7 @@
 export interface PlanResponse {
     id: number;
     package_name: string;
+    plan_type: string;
     name: string;
     price: number;
     duration_days: number;

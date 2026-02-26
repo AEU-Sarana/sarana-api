@@ -25,18 +25,19 @@ export class StockController {
       const pageStr = getStringValue(req.query.page as string | string[] | undefined);
       const limitStr = getStringValue(req.query.limit as string | string[] | undefined);
       const barcodeStr = getStringValue(req.query.barcode as string | string[] | undefined);
+      const productStatusStr = getStringValue(req.query.product_status as string | string[] | undefined);
 
       logger.info('Get stock request', {
         productId: productIdStr,
         userId: user.userId,
         path: req.path,
         url: req.url,
-        filters: { stock_version: stockVersionStr, status: statusStr, category: categoryStr, search: searchStr, barcode: barcodeStr },
+        filters: { stock_version: stockVersionStr, status: statusStr, category: categoryStr, search: searchStr, barcode: barcodeStr, product_status: productStatusStr },
       });
 
       const normalize = (v?: string) => (v && v.trim() !== '' ? v.trim() : undefined);
 
-      const request : GetStockRequest = {
+      const request: GetStockRequest = {
         product_id: productIdStr ? parseInt(productIdStr, 10) : undefined,
         version: normalize(stockVersionStr) ? parseInt(stockVersionStr!, 10) : undefined,
         status: statusStr as 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative' | undefined,
@@ -45,6 +46,7 @@ export class StockController {
         barcode: barcodeStr,
         page: pageStr ? parseInt(pageStr, 10) : 1,
         limit: limitStr ? parseInt(limitStr, 10) : 50,
+        product_status: productStatusStr as any,
       };
 
       const response = await StockService.getStock(request, user.userId);
@@ -61,7 +63,7 @@ export class StockController {
         message: 'Stock retrieved successfully',
       });
     } catch (error: any) {
-      logger.error('Get stock error', { 
+      logger.error('Get stock error', {
         error: error.message,
         stack: error.stack,
         productId: req.params.productId,

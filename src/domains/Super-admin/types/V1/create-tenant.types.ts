@@ -12,4 +12,7 @@ export interface CreateTenantRequest {
     plan_type: PlanType;
     start_time: string;
     end_time: string;
+    payment_method?: string;
+    price?: number;
+    transaction_id?: string;
 }

@@ -1,4 +1,4 @@
-import { Router ,type IRouter} from 'express';
+import { Router, type IRouter } from 'express';
 import { authenticateToken } from '@src/shared/middleware/auth.middleware';
 import { requireAdmin, requirePermission } from '@src/shared/middleware/authorization.middleware';
 import { validateRequest } from '@src/shared/middleware/validation.middleware';

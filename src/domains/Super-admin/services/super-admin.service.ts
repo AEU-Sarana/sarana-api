@@ -13,7 +13,10 @@ import {
     UpgradePlanRequest,
     UpgradePlanResponse,
     RenewSubscriptionRequest,
-    RenewSubscriptionResponse
+    RenewSubscriptionResponse,
+    ListSubscriptionsResponse,
+    UpdateTenantRequest,
+    UpdateTenantResponse
 } from '../types/V1';
 
 
@@ -65,6 +68,64 @@ export class SuperAdminService {
     }
 
     /**
+     * List all subscriptions with tenant and plan info
+     */
+    static async listSubscriptions(params: any): Promise<ListSubscriptionsResponse> {
+        const { page = 1, limit = 20, status, search } = params;
+        const skip = (Number(page) - 1) * Number(limit);
+
+        const where: any = {};
+        if (status) where.status = status;
+        if (search) {
+            where.user = {
+                OR: [
+                    { businessName: { contains: search, mode: 'insensitive' } },
+                    { username: { contains: search, mode: 'insensitive' } },
+                ],
+            };
+        }
+
+        const [subscriptions, total] = await Promise.all([
+            prisma.subscription.findMany({
+                where,
+                skip,
+                take: Number(limit),
+                include: {
+                    plan: true,
+                    user: { select: { userId: true, businessName: true, username: true } },
+                },
+                orderBy: { createdAt: 'desc' },
+            }),
+            prisma.subscription.count({ where }),
+        ]);
+
+        return {
+            subscriptions: subscriptions.map((s) => ({
+                id: s.id,
+                tenant_id: s.tenantId,
+                business_name: s.user.businessName ?? null,
+                username: s.user.username,
+                plan_id: s.planId,
+                plan_name: s.plan.name,
+                plan_type: s.plan.type,
+                plan_price: Number(s.plan.price),
+                status: s.status,
+                start_date: s.startDate,
+                end_date: s.endDate ?? null,
+                close_reason: s.closeReason ?? null,
+                created_at: s.createdAt,
+                updated_at: s.updatedAt,
+            })),
+            pagination: {
+                page: Number(page),
+                limit: Number(limit),
+                total,
+                totalPages: Math.ceil(total / Number(limit)),
+            },
+        };
+    }
+
+    /**
      * List all tenants
      */
     static async listTenants(params: any) {
@@ -106,6 +167,7 @@ export class SuperAdminService {
                 email: t.email,
                 status: t.status,
                 subscription: t.subscriptions[0] ? {
+                    id: t.subscriptions[0].id,
                     plan_name: t.subscriptions[0].plan.name,
                     plan_type: t.subscriptions[0].plan.type,
                     plan_status: t.subscriptions[0].status,
@@ -119,6 +181,160 @@ export class SuperAdminService {
                 total,
                 totalPages: Math.ceil(total / limit)
             }
+        };
+    }
+
+    /**
+     * Get a single tenant by ID (user_id with role ADMIN)
+     */
+    static async getTenantById(tenantId: number) {
+        const tenant = await prisma.user.findFirst({
+            where: { userId: tenantId, role: 'ADMIN' },
+            include: {
+                telegram_admin_links: {
+                    orderBy: { linkedAt: 'desc' },
+                    take: 1,
+                },
+                subscriptions: {
+                    include: {
+                        plan: { include: { package: true } },
+                        subscription_payments: {
+                            orderBy: { paymentDate: 'desc' },
+                            take: 1,
+                        },
+                    },
+                    orderBy: { createdAt: 'desc' },
+                }
+            }
+        });
+
+        if (!tenant) {
+            throw new Error(`Tenant with ID ${tenantId} not found`);
+        }
+
+        const activeSubscription = tenant.subscriptions.find(s => s.status === 'ACTIVE') ?? tenant.subscriptions[0] ?? null;
+        const latestPayment = activeSubscription?.subscription_payments[0] ?? null;
+        const telegramLink = tenant.telegram_admin_links[0] ?? null;
+
+        return {
+            personal_information: {
+                id: tenant.userId,
+                business_name: tenant.businessName,
+                username: tenant.username,
+                full_name: tenant.fullName,
+                email: tenant.email,
+                phone: tenant.phone,
+                address: tenant.address,
+                status: tenant.status,
+                created_at: tenant.createdAt,
+                updated_at: tenant.updatedAt,
+            },
+            telegram_bot: telegramLink ? {
+                telegram_user_id: telegramLink.telegramUserId.toString(),
+                chat_id: telegramLink.chatId.toString(),
+                status: telegramLink.status,
+                linked_at: telegramLink.linkedAt,
+                last_seen_at: telegramLink.lastSeenAt,
+                revoked_at: telegramLink.revokedAt,
+            } : null,
+            payment: latestPayment ? {
+                id: latestPayment.id,
+                amount: Number(latestPayment.amount),
+                payment_method: latestPayment.paymentMethod,
+                status: latestPayment.status,
+                transaction_id: latestPayment.transactionId,
+                paid_at: latestPayment.paymentDate,
+            } : null,
+            subscription: activeSubscription ? {
+                id: activeSubscription.id,
+                plan_id: activeSubscription.planId,
+                plan_name: activeSubscription.plan.name,
+                plan_type: activeSubscription.plan.type,
+                package_name: activeSubscription.plan.package.name,
+                plan_price: Number(activeSubscription.plan.price),
+                plan_status: activeSubscription.status,
+                start_date: activeSubscription.startDate,
+                end_date: activeSubscription.endDate,
+                close_reason: activeSubscription.closeReason,
+            } : null,
+            subscription_history: tenant.subscriptions.map(s => ({
+                id: s.id,
+                plan_name: s.plan.name,
+                plan_type: s.plan.type,
+                plan_price: Number(s.plan.price),
+                status: s.status,
+                start_date: s.startDate,
+                end_date: s.endDate,
+                created_at: s.createdAt,
+            })),
+        };
+    }
+
+    /**
+     * Toggle tenant status: active → inactive / inactive → active
+     */
+    static async toggleTenantStatus(tenantId: number) {
+        const tenant = await prisma.user.findFirst({
+            where: { userId: tenantId, role: 'ADMIN' },
+            select: { userId: true, status: true },
+        });
+
+        if (!tenant) {
+            throw new Error(`Tenant with ID ${tenantId} not found`);
+        }
+
+        const newStatus = tenant.status === 'active' ? 'inactive' : 'active';
+
+        const updated = await prisma.user.update({
+            where: { userId: tenantId },
+            data: { status: newStatus },
+            select: { userId: true, username: true, businessName: true, status: true, updatedAt: true },
+        });
+
+        return {
+            id: updated.userId,
+            username: updated.username,
+            business_name: updated.businessName,
+            status: updated.status,
+            updated_at: updated.updatedAt,
+        };
+    }
+
+    /**
+     * Update an existing tenant
+     */
+    static async updateTenant(tenantId: number, data: UpdateTenantRequest): Promise<UpdateTenantResponse> {
+        const tenant = await prisma.user.findFirst({
+            where: { userId: tenantId, role: 'ADMIN' }
+        });
+
+        if (!tenant) {
+            throw new Error(`Tenant with ID ${tenantId} not found`);
+        }
+
+        const updated = await prisma.user.update({
+            where: { userId: tenantId },
+            data: {
+                businessName: data.business_name,
+                username: data.username,
+                fullName: data.full_name,
+                email: data.email,
+                phone: data.phone,
+                address: data.address,
+                status: data.status,
+            }
+        });
+
+        return {
+            id: updated.userId,
+            business_name: updated.businessName || '',
+            username: updated.username,
+            full_name: updated.fullName || '',
+            email: updated.email || '',
+            phone: updated.phone || '',
+            address: updated.address || '',
+            status: updated.status,
+            updated_at: updated.updatedAt
         };
     }
 
@@ -157,7 +373,7 @@ export class SuperAdminService {
                 throw new Error(`Plan not found for package ID ${data.package_id} and type ${data.plan_type}`);
             }
 
-            await tx.subscription.create({
+            const subscription = await tx.subscription.create({
                 data: {
                     tenantId: user.userId,
                     planId: plan.id,
@@ -166,6 +382,18 @@ export class SuperAdminService {
                     endDate: new Date(data.end_time),
                 }
             });
+
+            if (data.payment_method) {
+                await tx.subscriptionPayment.create({
+                    data: {
+                        subscriptionId: subscription.id,
+                        amount: data.price ?? plan.price,
+                        paymentMethod: data.payment_method,
+                        transactionId: data.transaction_id,
+                        status: 'COMPLETED'
+                    }
+                });
+            }
 
             return user;
         });
@@ -218,9 +446,15 @@ export class SuperAdminService {
                 description: data.description,
                 isActive: data.is_active ?? true,
             },
-            select: { id: true }
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                isActive: true,
+                createdAt: true
+            }
         });
-        return { id: pkg.id };
+        return { id: pkg.id, name: pkg.name, description: pkg.description, is_active: pkg.isActive, created_at: pkg.createdAt };
     }
 
     /**
@@ -238,6 +472,7 @@ export class SuperAdminService {
             plans: plans.map((p: any) => ({
                 id: p.id,
                 package_name: p.package.name,
+                plan_type: p.type,
                 name: p.name,
                 price: Number(p.price),
                 duration_days: p.type === PlanType.MONTHLY ? 30 : 365,

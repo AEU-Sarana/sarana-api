@@ -584,7 +584,6 @@ export class TelegramService {
             សរុបផលិតផលលក់: report.summary.total_products_sold,
             ចំនួនផលិតផលខុសគ្នាលក់: report.summary.unique_products_sold,
             មធ្យមភាគទំនិញក្នុងបញ្ជាទិញ: report.summary.average_items_per_order,
-            ម៉ោងលក់កំពូល: report.summary.peak_sales_hour,
             សាច់ប្រាក់ប្រមូលបាន: report.summary.cash_collected,
             ខ្វះឬលើសសរុប: report.summary.short_over_amount,
           },
