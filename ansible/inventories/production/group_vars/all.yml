@@ -42,9 +42,10 @@ docker_container_name: stock-pos-app
 docker_registry: "{{ vault_docker_registry_url }}"
 docker_registry_username: "{{ vault_docker_registry_username }}"
 docker_registry_password: "{{ vault_docker_registry_password }}"
+docker_registry_namespace: "{{ vault_docker_registry_username }}"
 
 # Full image path for GHCR
-docker_image_full: "{{ docker_registry }}/{{ vault_docker_registry_username }}/{{ docker_image_name }}"
+docker_image_full: "{{ docker_registry }}/{{ docker_registry_namespace }}/{{ docker_image_name }}"
 
 # Docker resource limits (production)
 docker_cpu_limit: "2"
@@ -115,6 +116,8 @@ nginx_internal_port: 8080  # Container nginx port
 domain: techey.tech
 subdomain: familypos
 app_domain: "{{ subdomain }}.{{ domain }}"  # familypos.techey.tech
+api_base_url: "https://{{ app_domain }}"
+app_url: "https://{{ app_domain }}"
 enable_ssl: true
 letsencrypt_email: admin@{{ domain }}
 letsencrypt_staging: false  # Set to true for first test run

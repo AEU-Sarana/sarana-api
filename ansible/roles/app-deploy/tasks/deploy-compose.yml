@@ -50,7 +50,17 @@
 - name: Pull Docker images from registry
   community.docker.docker_compose_v2:
     project_src: "{{ app_directory }}"
+    files:
+      - docker-compose.yml
+      - docker-compose.prod.yml
+    services: >-
+      {{
+        ['db', 'redis']
+        + (['minio'] if (storage_provider | default('minio') | lower) == 'minio' else [])
+        + ['node-exporter', 'nginx', deploy_service_name]
+      }}
     pull: always
+    build: never
   when: 
     - pull_images | bool
     - not (build_image | bool)
@@ -61,15 +71,12 @@
     files:
       - docker-compose.yml
       - docker-compose.prod.yml
-    services:
-      - db
-      - redis
-{% if (storage_provider | default('minio') | lower) == 'minio' %}
-      - minio
-{% endif %}
-      - node-exporter
-      - nginx
-      - "{{ deploy_service_name }}"
+    services: >-
+      {{
+        ['db', 'redis']
+        + (['minio'] if (storage_provider | default('minio') | lower) == 'minio' else [])
+        + ['node-exporter', 'nginx', deploy_service_name]
+      }}
     state: present
     pull: "{{ 'always' if pull_images | bool else 'never' }}"
     build: "{{ 'always' if build_image | bool else 'never' }}"
