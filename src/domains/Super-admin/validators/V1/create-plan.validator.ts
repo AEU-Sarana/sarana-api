@@ -24,18 +24,4 @@ export const createPlanValidator = [
     body('price')
         .isDecimal()
         .withMessage('Price must be a decimal number'),
-
-    body('feature_code')
-        .optional()
-        .isString()
-        .trim()
-        .isLength({ max: 100 })
-        .withMessage('Feature code must not exceed 100 characters'),
-
-    body('feature_value')
-        .optional()
-        .isString()
-        .trim()
-        .isLength({ max: 255 })
-        .withMessage('Feature value must not exceed 255 characters'),
 ];

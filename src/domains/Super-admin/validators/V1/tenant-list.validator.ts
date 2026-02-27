@@ -22,4 +22,8 @@ export const tenantListValidator = [
         .optional()
         .isString()
         .withMessage('Search must be a string'),
+    query('plan_status')
+        .optional()
+        .isString()
+        .withMessage('Plan status must be a string'),
 ];

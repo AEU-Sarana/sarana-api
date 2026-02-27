@@ -16,8 +16,6 @@ export interface CreatePlanRequest {
     package_id: number;
     plan_type: string;
     price: number;
-    feature_code?: string;
-    feature_value?: string;
 }
 
 export interface CreatePlanResponse {
@@ -26,7 +24,5 @@ export interface CreatePlanResponse {
     package_id: number;
     plan_type: string;
     price: number;
-    feature_code?: string | null;
-    feature_value?: string | null;
     created_at: Date;
 }

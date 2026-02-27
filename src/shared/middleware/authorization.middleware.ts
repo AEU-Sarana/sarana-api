@@ -85,3 +85,14 @@ export function requireAdminOrSeller(
 ): void {
   requireRole(Role.ADMIN, Role.SELLER)(req, res, next);
 }
+
+/**
+ * Middleware to require super admin role
+ */
+export function requireSuperAdmin(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  requireRole(Role.SUPER_ADMIN)(req, res, next);
+}

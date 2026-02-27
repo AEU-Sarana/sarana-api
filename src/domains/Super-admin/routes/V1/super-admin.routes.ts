@@ -86,6 +86,11 @@ router.get(
 );
 
 router.get(
+    '/saas/packages/:id',
+    SuperAdminController.getPackageById
+);
+
+router.get(
     '/saas/plans',
     SuperAdminController.listPlans
 );
