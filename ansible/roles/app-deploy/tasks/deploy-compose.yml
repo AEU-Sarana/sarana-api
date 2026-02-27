@@ -5,13 +5,13 @@
     src: ../../scripts/cleanup-docker-networks.sh
     dest: "{{ app_directory }}/cleanup-docker-networks.sh"
     mode: '0755'
-  become: yes
+  become: true
 
 - name: Run Docker network cleanup
   command: bash {{ app_directory }}/cleanup-docker-networks.sh {{ app_name }}
   register: cleanup_output
   changed_when: false
-  become: yes
+  become: true
 
 - name: Display network cleanup output
   debug:
