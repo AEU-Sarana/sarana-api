@@ -348,18 +348,18 @@ export class ReportService {
       const average_order_value = total_orders > 0 ? total_sales / total_orders : 0;
       const unique_products_sold = uniqueProductsSoldResult[0]?.unique_products_sold;
 
-      // Derive exchange rate from first shift of the day (fallback 4000)
+      // Derive exchange rate from latest shift of the day (fallback 4000)
       const exchange_rate = shiftRows.length > 0
         ? await (async () => {
-          const firstShift = await prisma.shift.findFirst({
+          const latestShift = await prisma.shift.findFirst({
             where: {
               shiftDate: { gte: startOfDay, lte: endOfDay },
               ...(effectiveSellerId ? { sellerId: effectiveSellerId } : {}),
             },
             select: { exchangeRate: true },
-            orderBy: { startTime: 'asc' },
+            orderBy: { startTime: 'desc' },
           });
-          return Number(firstShift?.exchangeRate ?? 4000);
+          return Number(latestShift?.exchangeRate ?? 4000);
         })()
         : 4000;
 
