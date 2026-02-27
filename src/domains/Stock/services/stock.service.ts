@@ -104,6 +104,7 @@ export class StockService {
           low_stock_threshold: newStock.product.lowStockThreshold,
           stock_version: newStock.stockVersion,
           status: stockStatus,
+          product_status: newStock.product.status as ProductStatus,
           last_sync_time: newStock.lastSyncTime,
           expired_at: expiredAt,
           updated_at: newStock.updatedAt,
@@ -158,19 +159,26 @@ export class StockService {
         low_stock_threshold: stock.product.lowStockThreshold,
         stock_version: stock.stockVersion,
         status: stockStatus,
+        product_status: stock.product.status as ProductStatus,
         last_sync_time: stock.lastSyncTime,
-        expired_at: expiredAt,
+        expired_at: stock.product.hasExpiry ? expiredAt : null,
         updated_at: stock.updatedAt,
       };
     }
 
     // Get all stock levels (with pagination and filters)
-    const { page = 1, limit = 50, version: stockVersion, status, category, search, barcode } = request;
+    const { page = 1, limit = 50, version: stockVersion, status, category, search, barcode, product_status } = request;
 
     // Build where clause for stock
     const stockWhere: any = {};
     if (stockVersion) {
       stockWhere.stockVersion = stockVersion;
+    }
+
+    if (product_status) {
+      stockWhere.product = {
+        status: product_status,
+      };
     }
 
     // Get all stocks with products (we'll compute a stable summary from this base set)
@@ -187,6 +195,7 @@ export class StockService {
       (s) =>
         !!s.product &&
         !s.product.deactivatedDate &&
+        (product_status ? (s.product.status === product_status) : (s.product.status === ProductStatus.ACTIVE)) &&
         (stockVersion === undefined || s.stockVersion === stockVersion)
     );
 
@@ -194,6 +203,11 @@ export class StockService {
     // Filter by product conditions (category, search, active products only)
     let filteredStocks = allStocks.filter((s) => {
       if (!s.product || s.product.deactivatedDate) {
+        return false;
+      }
+
+      // If product_status filter is NOT provided, only show active products by default
+      if (!product_status && s.product.status !== ProductStatus.ACTIVE) {
         return false;
       }
 
@@ -303,8 +317,10 @@ export class StockService {
         low_stock_threshold: s.product!.lowStockThreshold,
         stock_version: s.stockVersion,
         status: s.stockStatus,
+        product_status: s.product!.status as ProductStatus,
         last_sync_time: s.lastSyncTime,
-        expired_at: expiryMap.get(s.productId) || null,
+        has_expiry: s.product!.hasExpiry,
+        expired_at: s.product!.hasExpiry ? (expiryMap.get(s.productId) || null) : null,
         updated_at: s.updatedAt,
       })),
       summary,

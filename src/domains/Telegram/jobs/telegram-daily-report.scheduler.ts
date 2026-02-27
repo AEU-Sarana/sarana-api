@@ -3,14 +3,42 @@ import { TelegramService } from '@src/domains/Telegram/services/telegram.service
 import { logger } from '@src/shared/utils/logger';
 import { Role } from '@src/shared/config/permissions';
 import { runTelegramAdminAlertsJob } from '@src/domains/TelegramAdminBot/jobs/telegram-admin-alert.job';
+import fs from 'fs';
+import path from 'path';
 
 const DEFAULT_TIMEZONE = 'Asia/Phnom_Penh';
 const DEFAULT_SEND_TIME = '23:30';
 const TICK_INTERVAL_MS = 60_000;
+const STATE_FILE = path.join(process.cwd(), 'logs', 'telegram-daily-report-state.json');
 
 let lastSentDate: string | null = null;
 let isRunning = false;
 let timer: NodeJS.Timeout | null = null;
+
+function loadState() {
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      const data = fs.readFileSync(STATE_FILE, 'utf8');
+      const state = JSON.parse(data);
+      lastSentDate = state.lastSentDate || null;
+      logger.info('Loaded Telegram daily report scheduler state', { lastSentDate });
+    }
+  } catch (error) {
+    logger.error('Failed to load Telegram daily report scheduler state', { error });
+  }
+}
+
+function saveState(date: string) {
+  try {
+    const state = { lastSentDate: date };
+    if (!fs.existsSync(path.dirname(STATE_FILE))) {
+      fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
+    }
+    fs.writeFileSync(STATE_FILE, JSON.stringify(state), 'utf8');
+  } catch (error) {
+    logger.error('Failed to save Telegram daily report scheduler state', { error });
+  }
+}
 
 function pad2(value: number): string {
   return value.toString().padStart(2, '0');
@@ -89,15 +117,18 @@ async function runOnce(): Promise<void> {
     if (lastSentDate === now.date) return;
     if (now.time < settings.time) return;
 
+    // Save state BEFORE sending — prevents duplicate reports if the server
+    // restarts mid-execution or if the send process fails and triggers a retry.
+    lastSentDate = now.date;
+    saveState(now.date);
+
     const senderUserId = await resolveSenderUserId(settings.updatedBy);
     await TelegramService.sendDailyAggregateReport(now.date, senderUserId, true);
 
-    // Check for near-expiry stock alerts
-    await runTelegramAdminAlertsJob();
+    // Check for near-expiry stock alerts (Disabled: user prefers milestone-only alerts)
+    // await runTelegramAdminAlertsJob();
 
-    lastSentDate = now.date;
-
-    logger.info('Telegram daily report and alerts sent', {
+    logger.info('Telegram daily report sent', {
       date: now.date,
       time: now.time,
       timeZone: settings.timeZone,
@@ -113,6 +144,10 @@ async function runOnce(): Promise<void> {
 
 export function startTelegramDailyReportScheduler(): void {
   if (timer) return;
+
+  // Load persisted state on startup
+  loadState();
+
   timer = setInterval(() => {
     void runOnce();
   }, TICK_INTERVAL_MS);

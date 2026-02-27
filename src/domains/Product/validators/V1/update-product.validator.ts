@@ -11,4 +11,5 @@ export const updateProductValidator = [
   body('image_path').optional().trim().isLength({ max: 500 }).withMessage('Image path must be <= 500 chars'),
   body('low_stock_threshold').optional().isInt({ min: 0 }).withMessage('Low stock threshold must be >= 0'),
   body('status').optional().isIn(['active', 'inactive']).withMessage('Status must be active or inactive'),
+  body('has_expiry').optional().isBoolean().withMessage('has_expiry must be boolean'),
 ];

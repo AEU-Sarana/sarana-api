@@ -10,6 +10,7 @@ import {
   createProductValidator,
   updateProductValidator,
   deleteProductValidator,
+  toggleStatusValidator,
 } from '@src/domains/Product/validators/V1/index';
 import { productImageUploadAny } from '@src/shared/utils/multer.config';
 
@@ -65,6 +66,15 @@ router.delete(
   requirePermission(Permission.PRODUCT_DELETE),
   ...validateRequest(deleteProductValidator),
   ProductController.deleteProduct
+);
+
+// Toggle product status (active <-> inactive) - Admin only
+router.patch(
+  '/:id/toggle-status',
+  requireAdmin,
+  requirePermission(Permission.PRODUCT_UPDATE),
+  ...validateRequest(toggleStatusValidator),
+  ProductController.toggleStatus
 );
 
 export default router;

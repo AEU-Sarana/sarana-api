@@ -69,7 +69,7 @@ export class OrderSyncService {
             where: { productId: { in: productIds } },
             select: { productId: true, avgCost: true, lastPurchaseCost: true },
           });
-          const costMap = new Map(
+          const costMap = new Map<number, { avgCost: number | null; lastPurchaseCost: number | null }>(
             products.map((p) => [
               p.productId,
               {

@@ -235,7 +235,7 @@ export class ReportService {
         topProductsRaw,
         lowStockRows,
         totalProductsSold,
-        uniqueProductsSoldResult
+        uniqueProductsSoldResult,
       ] = await Promise.all([
         // Summary aggregations
         prisma.order.aggregate({
@@ -340,13 +340,28 @@ export class ReportService {
             AND o.order_date <= ${endOfDay}
             AND o.tenant_id = ${effectiveTenantId}
             AND (${effectiveSellerId}::int IS NULL OR o.seller_id = ${effectiveSellerId})
-        `)
+        `),
       ]);
 
       const total_sales = Number(aggregations._sum.totalAmount || 0);
       const total_orders = aggregations._count.orderId;
       const average_order_value = total_orders > 0 ? total_sales / total_orders : 0;
       const unique_products_sold = uniqueProductsSoldResult[0]?.unique_products_sold;
+
+      // Derive exchange rate from first shift of the day (fallback 4000)
+      const exchange_rate = shiftRows.length > 0
+        ? await (async () => {
+          const firstShift = await prisma.shift.findFirst({
+            where: {
+              shiftDate: { gte: startOfDay, lte: endOfDay },
+              ...(effectiveSellerId ? { sellerId: effectiveSellerId } : {}),
+            },
+            select: { exchangeRate: true },
+            orderBy: { startTime: 'asc' },
+          });
+          return Number(firstShift?.exchangeRate ?? 4000);
+        })()
+        : 4000;
 
       let shifts_breakdown: ShiftBreakdown[] = shiftRows.map(row => ({
         seller_id: row.seller_id,
@@ -385,9 +400,6 @@ export class ReportService {
 
       const averageItemsPerOrder = total_orders > 0 ? (totalProductsSold._sum.quantity || 0) / total_orders : 0;
 
-      // Find peak sales hour (simplified - just use a default for now)
-      const peakSalesHour = '18:00-19:00';
-
       // Calculate cash collected (simplified - assume all sales are cash for now)
       const cashCollected = total_sales;
 
@@ -398,7 +410,7 @@ export class ReportService {
         total_products_sold: totalProductsSold._sum.quantity || 0,
         unique_products_sold: Number(unique_products_sold || 0),
         average_items_per_order: Number(averageItemsPerOrder.toFixed(2)),
-        peak_sales_hour: peakSalesHour,
+        exchange_rate,
         cash_collected: cashCollected,
         short_over_amount: shortOverAmount,
       };
@@ -946,7 +958,7 @@ export class ReportService {
       total_products_sold: report.summary.total_products_sold,
       unique_products_sold: report.summary.unique_products_sold,
       average_items_per_order: report.summary.average_items_per_order,
-      peak_sales_hour: report.summary.peak_sales_hour,
+      exchange_rate: report.summary.exchange_rate,
       cash_collected: report.summary.cash_collected,
       short_over_amount: report.summary.short_over_amount,
     });

@@ -19,12 +19,17 @@ function convertAny(value: any): any {
   // If it's an ISO datetime string (with Z or timezone) or local-like string, try to parse
   if (typeof value === 'string') {
     const trimmed = value.trim();
-    // quick length filter to avoid expensive parsing for short strings
-    if (trimmed.length >= 10) {
+    // stricter regex to avoid false positives like product codes
+    // Matches YYYY-MM-DD or ISO 8601 patterns
+    const datePattern = /^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?(?:\.\d{3})?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
+
+    if (trimmed.length >= 10 && datePattern.test(trimmed)) {
       try {
         // parseClientDateTime supports ISO with offset and local YYYY-MM-DD HH:mm formats
         const parsed = parseClientDateTime(trimmed);
-        return toPhnomPenhISOString(parsed);
+        if (!isNaN(parsed.getTime())) {
+          return toPhnomPenhISOString(parsed);
+        }
       } catch (err) {
         // not a parseable datetime string, leave as-is
       }

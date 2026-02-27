@@ -67,7 +67,7 @@ export class ProductController {
   static async createProduct(req: Request, res: Response): Promise<void> {
     try {
       const user = req.user as UserPayload;
-      const imageFile = req.file; 
+      const imageFile = req.file;
       const response = await ProductService.createProduct(req.body, user.userId, imageFile);
 
       res.status(201).json({
@@ -114,6 +114,25 @@ export class ProductController {
       });
     } catch (error: any) {
       logger.error('Delete product error', { error: error.message });
+      throw error;
+    }
+  }
+
+  static async toggleStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const user = req.user as UserPayload;
+      const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const productId = parseInt(idParam, 10);
+
+      const response = await ProductService.toggleProductStatus(productId, user.userId);
+
+      res.status(200).json({
+        success: true,
+        data: response,
+        message: 'Product status toggled successfully',
+      });
+    } catch (error: any) {
+      logger.error('Toggle product status error', { error: error.message });
       throw error;
     }
   }

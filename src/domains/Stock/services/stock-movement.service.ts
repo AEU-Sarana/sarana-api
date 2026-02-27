@@ -64,6 +64,11 @@ export class StockMovementService {
             imagePath: true,
           },
         },
+        stockLot: {
+          select: {
+            expiredAt: true,
+          },
+        },
         user: {
           select: {
             userId: true,
@@ -93,7 +98,7 @@ export class StockMovementService {
         cost: m.cost ? Number(m.cost) : null,
         supplier: m.supplier,
         image_path: m.product.imagePath,
-  created_by: m.createdBy,
+        expired_at: m.stockLot?.expiredAt,
         created_at: m.createdAt,
       })),
       pagination: {

@@ -6,7 +6,7 @@ export interface UserSeedData {
   passwordHash: string;
   pinHash?: string;
   fullName: string;
-  role: 'ADMIN' | 'SELLER';
+  role: 'ADMIN' | 'SELLER' | 'SUPER_ADMIN';
   phone?: string;
   status: 'active' | 'inactive';
   deviceId?: string;
@@ -31,10 +31,10 @@ export const userSeedData: UserSeedData[] = [
     email: 'superadmin@stockpos.com',
     passwordHash: bcrypt.hashSync('Admin123!', 10),
     fullName: 'Super Administrator',
-    role: 'ADMIN',
+    role: 'SUPER_ADMIN',
     phone: '0123456710',
     status: 'active',
-    tenantId: 2,
+    tenantId: 0, // Platform level
   },
   {
     username: 'test-admin',

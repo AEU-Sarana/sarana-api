@@ -9,6 +9,7 @@ import {
   UpdateProductRequest,
   UpdateProductResponse,
   GetCategoriesResponse,
+  ToggleProductStatusResponse,
 } from '@src/domains/Product/types/product.types';
 import { ValidationException, BusinessLogicException } from '@src/shared/exceptions';
 import { logger } from '@src/shared/utils/logger';
@@ -142,6 +143,11 @@ export class ProductService {
       orderBy: { createdAt: 'desc' },
       include: {
         stock: true,
+        stock_lots: {
+          where: { qtyOnHand: { gt: 0 }, expiredAt: { not: null } },
+          orderBy: { expiredAt: 'asc' },
+          take: 1
+        }
       },
     });
 
@@ -165,6 +171,7 @@ export class ProductService {
         low_stock_threshold: p.lowStockThreshold,
         has_expiry: p.hasExpiry,
         stock_quantity: p.stock?.quantity || 0,
+        expired_at: p.hasExpiry ? (p.stock_lots?.[0]?.expiredAt || null) : null,
         status: (p.status as any) as ProductStatus,
         created_at: p.createdAt,
         updated_at: p.updatedAt,
@@ -189,6 +196,11 @@ export class ProductService {
       where: { productId },
       include: {
         stock: true,
+        stock_lots: {
+          where: { qtyOnHand: { gt: 0 }, expiredAt: { not: null } },
+          orderBy: { expiredAt: 'asc' },
+          take: 1
+        }
       },
     });
 
@@ -215,6 +227,7 @@ export class ProductService {
       low_stock_threshold: product.lowStockThreshold,
       has_expiry: product.hasExpiry,
       stock_quantity: product.stock?.quantity || 0,
+      expired_at: product.hasExpiry ? (product.stock_lots?.[0]?.expiredAt || null) : null,
       status: (product.status as any) as ProductStatus,
       created_at: product.createdAt,
       updated_at: product.updatedAt,
@@ -232,6 +245,11 @@ export class ProductService {
       where: { productCode, deactivatedDate: null },
       include: {
         stock: true,
+        stock_lots: {
+          where: { qtyOnHand: { gt: 0 }, expiredAt: { not: null } },
+          orderBy: { expiredAt: 'asc' },
+          take: 1
+        }
       },
     });
 
@@ -258,6 +276,7 @@ export class ProductService {
       low_stock_threshold: product.lowStockThreshold,
       has_expiry: product.hasExpiry,
       stock_quantity: product.stock?.quantity || 0,
+      expired_at: product.hasExpiry ? (product.stock_lots?.[0]?.expiredAt || null) : null,
       status: (product.status as any) as ProductStatus,
       created_at: product.createdAt,
       updated_at: product.updatedAt,
@@ -277,7 +296,6 @@ export class ProductService {
     imageFile?: Express.Multer.File
   ): Promise<CreateProductResponse> {
     const {
-      product_code,
       product_name,
       barcode,
       price,
@@ -298,70 +316,76 @@ export class ProductService {
         ? (typeof has_expiry === 'string' ? has_expiry === 'true' : Boolean(has_expiry))
         : false;
 
-    // Generate product_code if not provided
-    let finalProductCode = product_code?.trim();
-    if (!finalProductCode) {
-      let slug = product_name
-        .trim()
-        .replace(/\s+/g, '-')
-        .replace(/[^\p{L}\p{M}\p{N}-]/gu, '') // Keep unicode letters (\p{L}), marks (\p{M}), numbers (\p{N}), and hyphens
-        .toLowerCase()
-        .replace(/-+/g, '-')
-        .replace(/(^-|-$)/g, '');
-
-      if (!slug) {
-        slug = 'prd'; // Fallback if name is stripped empty
-      }
-
-      // Find highest existing numerical suffix for this slug
-      const similarProducts = await prisma.product.findMany({
-        where: {
-          productCode: { startsWith: `${slug}-` },
-        },
-        select: { productCode: true },
+    // Always generate product_code on the backend (ignore any client-provided value).
+    // This prevents accepting client-sent date strings or other invalid values.
+    if (request.product_code) {
+      logger.warn('Ignoring client-provided product_code on create', {
+        receivedCode: request.product_code,
+        userId: currentUserId,
       });
-
-      let maxSuffix = 0;
-      for (const p of similarProducts) {
-        const suffixStr = p.productCode.substring(slug.length + 1);
-        if (/^\d{3,}$/.test(suffixStr)) {
-          const suffixNum = parseInt(suffixStr, 10);
-          if (suffixNum > maxSuffix) {
-            maxSuffix = suffixNum;
-          }
-        }
-      }
-
-      // Try to find a unique code starting from maxSuffix + 1
-      let isUnique = false;
-      let counter = maxSuffix + 1;
-      let attempts = 0;
-
-      while (!isUnique && attempts < 10) {
-        const suffix = String(counter).padStart(3, '0');
-        const candidate = `${slug}-${suffix}`;
-        const existing = await prisma.product.findFirst({
-          where: { productCode: candidate, deactivatedDate: null },
-        });
-        if (!existing) {
-          finalProductCode = candidate;
-          isUnique = true;
-        }
-        counter++;
-        attempts++;
-      }
-
-      if (!finalProductCode) {
-        // Fallback to timestamp if collisions still occur
-        finalProductCode = `${slug}-${Date.now().toString().slice(-6)}`;
-      }
-    } else {
-      // Uniqueness check for provided code
-      const existingCode = await prisma.product.findFirst({
-        where: { productCode: finalProductCode, deactivatedDate: null },
-      });
-      if (existingCode) throw new BusinessLogicException('Product code already exists');
     }
+
+    console.log('[DEBUG] Product Create - Auto-generating code for name:', product_name);
+    logger.info('Auto-generating product code', { productName: product_name });
+
+    let slug = product_name
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/[^^\p{L}\p{M}\p{N}-]/gu, '') // Keep unicode letters (\p{L}), marks (\p{M}), numbers (\p{N}), and hyphens
+      .toLowerCase()
+      .replace(/-+/g, '-')
+      .replace(/(^-|-$)/g, '');
+
+    if (!slug) {
+      slug = 'prd'; // Fallback if name is stripped empty
+    }
+
+    // Find highest existing numerical suffix for this slug
+    const similarProducts = await prisma.product.findMany({
+      where: {
+        productCode: { startsWith: `${slug}-` },
+      },
+      select: { productCode: true },
+    });
+
+    let maxSuffix = 0;
+    for (const p of similarProducts) {
+      const suffixStr = p.productCode.substring(slug.length + 1);
+      if (/^\d{3,}$/.test(suffixStr)) {
+        const suffixNum = parseInt(suffixStr, 10);
+        if (suffixNum > maxSuffix) {
+          maxSuffix = suffixNum;
+        }
+      }
+    }
+
+    // Try to find a unique code starting from maxSuffix + 1
+    let finalProductCode: string | undefined;
+    let isUnique = false;
+    let counter = maxSuffix + 1;
+    let attempts = 0;
+
+    while (!isUnique && attempts < 10) {
+      const suffix = String(counter).padStart(3, '0');
+      const candidate = `${slug}-${suffix}`;
+      const existing = await prisma.product.findFirst({
+        where: { productCode: candidate, deactivatedDate: null },
+      });
+      if (!existing) {
+        finalProductCode = candidate;
+        isUnique = true;
+      }
+      counter++;
+      attempts++;
+    }
+
+    if (!finalProductCode) {
+      // Fallback to compact timestamp-based suffix if collisions still occur
+      finalProductCode = `${slug}-${Date.now().toString().slice(-6)}`;
+    }
+
+    // Debug: log the final product code we will use
+    logger.debug('Final product code determined for create', { finalProductCode, userId: currentUserId });
 
     const existingBarcode = await prisma.product.findFirst({
       where: { barcode: barcode, deactivatedDate: null },
@@ -398,6 +422,7 @@ export class ProductService {
 
     // Create product and stock in a transaction
     const product = await prisma.$transaction(async (tx) => {
+      console.log('[DEBUG] Product Create - final code being used in DB:', finalProductCode);
       const newProduct = await tx.product.create({
         data: {
           productCode: finalProductCode as string,
@@ -464,6 +489,13 @@ export class ProductService {
       userId: currentUserId,
     });
 
+    logger.debug('Returning created product', {
+      productId: product.productId,
+      productCode: product.productCode,
+      createdAt: product.createdAt,
+      userId: currentUserId,
+    });
+
     return {
       product_id: product.productId,
       product_code: product.productCode,
@@ -476,6 +508,7 @@ export class ProductService {
       low_stock_threshold: product.lowStockThreshold,
       has_expiry: product.hasExpiry,
       stock_quantity: product.stock?.quantity || 0,
+      expired_at: null,
       status: (product.status as any) as ProductStatus,
       created_at: product.createdAt,
       updated_at: product.updatedAt,
@@ -499,16 +532,14 @@ export class ProductService {
     const existing = await prisma.product.findUnique({ where: { productId } });
     if (!existing || existing.deactivatedDate) throw new ValidationException('Product not found');
 
-    // Uniqueness checks (only if changed)
-    if (request.product_code && request.product_code !== existing.productCode) {
-      const codeUsed = await prisma.product.findFirst({
-        where: {
-          productCode: request.product_code,
-          productId: { not: productId },
-          deactivatedDate: null,
-        },
+    // Always ignore client-provided product_code on update
+    if (request.product_code) {
+      logger.warn('Ignoring client-provided product_code on update', {
+        receivedCode: request.product_code,
+        productId,
+        userId: currentUserId,
       });
-      if (codeUsed) throw new BusinessLogicException('Product code already exists');
+      request.product_code = undefined;
     }
 
     if (request.barcode && request.barcode !== existing.barcode) {
@@ -538,10 +569,10 @@ export class ProductService {
           imageFile,
           'products',
           {
-            filename: `product-${request.product_code || existing.productCode}`,
+            filename: `product-${existing.productCode}`,
             public: true,
             metadata: {
-              productCode: request.product_code || existing.productCode,
+              productCode: existing.productCode,
               productId: productId.toString(),
               uploadedBy: currentUserId.toString(),
             },
@@ -582,26 +613,52 @@ export class ProductService {
         ? parseInt(request.low_stock_threshold, 10)
         : request.low_stock_threshold)
       : undefined;
+    const hasExpiryBoolean = request.has_expiry !== undefined && request.has_expiry !== null
+      ? (typeof request.has_expiry === 'string' ? request.has_expiry === 'true' : Boolean(request.has_expiry))
+      : undefined;
 
-    const updated = await prisma.product.update({
-      where: { productId },
-      data: {
-        productCode: request.product_code ?? undefined,
-        productName: request.product_name ?? undefined,
-        barcode: request.barcode ?? undefined,
-        price: priceNumber,
-        category: request.category ?? undefined,
-        description: request.description ?? undefined,
-        imagePath: finalImagePath ?? undefined,
-        lowStockThreshold: lowStockThresholdNumber,
-        status: request.status ? (request.status === 'active' ? 'active' : 'inactive') : undefined,
-        updatedBy: currentUserId,
-        updatedAt: new Date(),
-      },
-      include: {
-        stock: true, // Include stock relation to get quantity
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedProduct = await tx.product.update({
+        where: { productId },
+        data: {
+          productCode: undefined,
+          productName: request.product_name ?? undefined,
+          barcode: request.barcode ?? undefined,
+          price: priceNumber,
+          category: request.category ?? undefined,
+          description: request.description ?? undefined,
+          imagePath: finalImagePath ?? undefined,
+          lowStockThreshold: lowStockThresholdNumber,
+          hasExpiry: hasExpiryBoolean,
+          status: request.status ? (request.status === 'active' ? 'active' : 'inactive') : undefined,
+          updatedBy: currentUserId,
+          updatedAt: new Date(),
+        },
+      });
+
+      // If toggled from true to false, clear expiry dates in stock_lots
+      if (hasExpiryBoolean === false) {
+        await tx.stockLot.updateMany({
+          where: { productId },
+          data: { expiredAt: null },
+        });
+      }
+
+      // Re-fetch with needed relations
+      return await tx.product.findUnique({
+        where: { productId },
+        include: {
+          stock: true,
+          stock_lots: {
+            where: { qtyOnHand: { gt: 0 }, expiredAt: { not: null } },
+            orderBy: { expiredAt: 'asc' },
+            take: 1
+          }
+        },
+      });
     });
+
+    if (!updated) throw new ValidationException('Product not found after update');
 
     await auditLogService.createAuditLog({
       userId: currentUserId,
@@ -625,6 +682,7 @@ export class ProductService {
       low_stock_threshold: updated.lowStockThreshold,
       has_expiry: updated.hasExpiry,
       stock_quantity: updated.stock?.quantity || 0,
+      expired_at: updated.hasExpiry ? (updated.stock_lots?.[0]?.expiredAt || null) : null,
       status: (updated.status as any) as ProductStatus,
       created_at: updated.createdAt,
       updated_at: updated.updatedAt,
@@ -682,6 +740,63 @@ export class ProductService {
     });
 
     logger.info('Product deleted (soft)', { productId, userId: currentUserId });
+  }
+
+  /**
+   * Toggle product status (active <-> inactive) (Admin only)
+   *
+   * @param productId - Product ID to update
+   * @param currentUserId - Current user ID
+   */
+  static async toggleProductStatus(
+    productId: number,
+    currentUserId: number
+  ): Promise<ToggleProductStatusResponse> {
+    const existing = await prisma.product.findUnique({
+      where: { productId },
+      include: { stock: true },
+    });
+
+    if (!existing || existing.deactivatedDate) {
+      throw new ValidationException('Product not found');
+    }
+
+    const newStatus = existing.status === 'active' ? 'inactive' : 'active';
+
+    const updated = await prisma.product.update({
+      where: { productId },
+      data: {
+        status: newStatus,
+        updatedBy: currentUserId,
+        updatedAt: new Date(),
+      },
+      include: {
+        stock: true,
+      },
+    });
+
+    await auditLogService.createAuditLog({
+      userId: currentUserId,
+      action: 'TOGGLE_PRODUCT_STATUS',
+      resource: 'Product',
+      entityId: productId,
+      details: {
+        oldStatus: existing.status,
+        newStatus: updated.status,
+      },
+    });
+
+    logger.info(`Product status toggled to ${newStatus}`, {
+      productId,
+      userId: currentUserId,
+    });
+
+    return {
+      product_id: updated.productId,
+      status: (updated.status as any) as ProductStatus,
+      created_at: updated.createdAt,
+      updated_at: updated.updatedAt,
+    };
   }
 
   /**
