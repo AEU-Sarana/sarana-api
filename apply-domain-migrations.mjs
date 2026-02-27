@@ -14,7 +14,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 ================================ */
 const domainConfig = {
   auth: {
-    tables: ['users', 'refresh_tokens'],
+    tables: ['users', 'refresh_tokens', 'password_reset_otps'],
   },
   product: {
     tables: ['products'],
@@ -59,6 +59,7 @@ const migrationOrder = [
   'auth/20260212000001_add_tenant_id_to_users',
   'device-binding/202601180000015_create_device_bindings_table',
   'auth/20260118000002_create_refresh_tokens_table',
+  'auth/20260217000001_create_password_reset_otps_table',
   'product/20260118000003_create_products_table',
   'shift/20260118000004_create_shifts_table',
   'order/20260118000005_create_orders_table',

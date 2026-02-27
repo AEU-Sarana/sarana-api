@@ -13,7 +13,6 @@ import { TelegramAdminOrderNotifyService } from '@src/domains/TelegramAdminBot/s
 import { parseClientDateTime } from '@src/shared/utils/date-utils';
 import { ReceiptLinkService } from '@src/domains/Receipt/services/V1/receipt-link.service';
 import { ReceiptLinkStatus } from '@src/domains/Receipt/enums/V1/receipt-link-status.enum';
-import { add } from 'date-fns';
 import { eventBus } from '@src/shared/events/event-bus';
 import { ReportCacheService } from '@src/domains/Report/services/report-cache.service';
 
@@ -155,7 +154,7 @@ export class OrderSyncService {
                   orderId: existingOrder.orderId,
                   code: secureCode,
                   linkStatus: ReceiptLinkStatus.PENDING,
-                  expiresAt: add(new Date(), { minutes: 20 }),
+                  expiresAt: new Date(Date.now() + 20 * 60 * 1000),
                   createdBy: currentUserId,
                 }
               });
@@ -220,7 +219,7 @@ export class OrderSyncService {
                 orderId: newOrder.orderId,
                 code: secureCode,
                 linkStatus: ReceiptLinkStatus.PENDING,
-                expiresAt: add(new Date(), { minutes: 20 }),
+                expiresAt: new Date(Date.now() + 20 * 60 * 1000),
                 createdBy: currentUserId,
               }
             });
