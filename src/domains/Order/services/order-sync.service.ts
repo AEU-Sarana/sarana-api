@@ -25,7 +25,7 @@ export class OrderSyncService {
    * - UUID-based idempotency (no duplicates)
    * - Auto stock deduction (Stock Out)
    * - Returns sync status per order
-   */
+  */
   static async syncOrders(
     request: SyncOrdersRequest,
     currentUserId: number,
