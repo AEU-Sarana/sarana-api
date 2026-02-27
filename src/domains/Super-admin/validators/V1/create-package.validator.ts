@@ -20,4 +20,23 @@ export const createPackageValidator = [
         .optional()
         .isBoolean()
         .withMessage('is_active must be a boolean'),
+
+    body('features')
+        .optional()
+        .isArray()
+        .withMessage('Features must be an array'),
+
+    body('features.*.feature_code')
+        .if(body('features').exists())
+        .isString()
+        .trim()
+        .notEmpty()
+        .withMessage('Feature code is required'),
+
+    body('features.*.feature_value')
+        .if(body('features').exists())
+        .isString()
+        .trim()
+        .notEmpty()
+        .withMessage('Feature value is required'),
 ];

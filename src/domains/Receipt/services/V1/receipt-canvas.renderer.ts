@@ -225,7 +225,7 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
         if (amount === 0 && label !== 'តម្លៃសរុប (GRAND TOTAL)' && label !== 'សរុបជាប្រាក់រៀល (TOTAL KHR)') return;
 
         ctx.textAlign = 'left';
-        setFont(isBold ? 22 : 16, isBold ? 'bold' : '400');
+        setFont(isBold ? 19 : 16, isBold ? 'bold' : '400');
         ctx.fillStyle = color;
         ctx.fillText(label, padding, currentY);
 
@@ -235,7 +235,7 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
         } else {
             ctx.fillText(`$${amount.toFixed(2)}`, baseWidth - padding, currentY);
         }
-        currentY += isBold ? 50 : 30;
+        currentY += isBold ? 42 : 30;
     };
 
 
@@ -269,8 +269,6 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
         const khrAmount = Math.ceil(rawKhr / 100) * 100;
         renderTotalLine('សរុបជាប្រាក់រៀល (TOTAL KHR)', khrAmount, '#1f8f3a', true, true);
     }
-
-
 
     currentY += 40;
 

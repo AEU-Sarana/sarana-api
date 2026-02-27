@@ -129,18 +129,41 @@ export class SuperAdminService {
      * List all tenants
      */
     static async listTenants(params: any) {
-        const { page = 1, limit = 20, status, search } = params;
-        const skip = (page - 1) * limit;
+        const { page = 1, limit = 20, status, search, plan_status, plan_id } = params;
+        const pageNum = Number(page);
+        const limitNum = Number(limit);
+        const skip = (pageNum - 1) * limitNum;
 
         const where: any = {
             role: 'ADMIN',
         };
 
-        if (status) where.status = status;
+        if (status) {
+            where.status = { equals: status, mode: 'insensitive' };
+        }
+        if (plan_id) {
+            where.subscriptions = {
+                some: {
+                    planId: Number(plan_id)
+                }
+            };
+        }
+        if (plan_status) {
+            const effectivePlanStatus = plan_status.toUpperCase() === 'CLOSE' ? 'CLOSED' : plan_status;
+            where.subscriptions = {
+                ...where.subscriptions,
+                some: {
+                    ...(where.subscriptions?.some || {}),
+                    status: { equals: effectivePlanStatus, mode: 'insensitive' }
+                }
+            };
+        }
+
         if (search) {
             where.OR = [
                 { businessName: { contains: search, mode: 'insensitive' } },
                 { username: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } },
             ];
         }
 
@@ -148,10 +171,12 @@ export class SuperAdminService {
             prisma.user.findMany({
                 where,
                 skip,
-                take: limit,
+                take: limitNum,
                 include: {
                     subscriptions: {
-                        include: { plan: true }
+                        include: { plan: true },
+                        orderBy: { createdAt: 'desc' },
+                        take: 1
                     }
                 },
                 orderBy: { createdAt: 'desc' }
@@ -176,10 +201,10 @@ export class SuperAdminService {
                 } : null
             })),
             pagination: {
-                page,
-                limit,
+                page: pageNum,
+                limit: limitNum,
                 total,
-                totalPages: Math.ceil(total / limit)
+                totalPages: Math.ceil(total / limitNum)
             }
         };
     }
@@ -422,6 +447,9 @@ export class SuperAdminService {
      */
     static async listPackages(): Promise<ListPackagesResponse> {
         const packages = await prisma.package.findMany({
+            include: {
+                package_features: true
+            },
             orderBy: { id: 'asc' }
         });
 
@@ -431,8 +459,47 @@ export class SuperAdminService {
                 name: pkg.name,
                 description: pkg.description,
                 is_active: pkg.isActive,
+                features: pkg.package_features.map(f => ({
+                    feature_code: f.featureCode,
+                    feature_value: f.featureValue
+                })),
                 created_at: pkg.createdAt,
             }))
+        };
+    }
+
+    /**
+     * Get SaaS package by ID with features and plans
+     */
+    static async getPackageById(id: number): Promise<any> {
+        const pkg = await prisma.package.findUnique({
+            where: { id },
+            include: {
+                package_features: true,
+                plans: true
+            }
+        });
+
+        if (!pkg) {
+            throw new Error(`Package with ID ${id} not found`);
+        }
+
+        return {
+            id: pkg.id,
+            name: pkg.name,
+            description: pkg.description,
+            is_active: pkg.isActive,
+            features: pkg.package_features.map(f => ({
+                feature_code: f.featureCode,
+                feature_value: f.featureValue
+            })),
+            plans: pkg.plans.map(p => ({
+                id: p.id,
+                name: p.name,
+                type: p.type,
+                price: Number(p.price)
+            })),
+            created_at: pkg.createdAt,
         };
     }
 
@@ -440,21 +507,44 @@ export class SuperAdminService {
      * Create a new SaaS package
      */
     static async createPackage(data: CreatePackageRequest): Promise<CreatePackageResponse> {
-        const pkg = await prisma.package.create({
-            data: {
-                name: data.name,
-                description: data.description,
-                isActive: data.is_active ?? true,
-            },
-            select: {
-                id: true,
-                name: true,
-                description: true,
-                isActive: true,
-                createdAt: true
+        const result = await prisma.$transaction(async (tx) => {
+            const pkg = await tx.package.create({
+                data: {
+                    name: data.name,
+                    description: data.description,
+                    isActive: data.is_active ?? true,
+                }
+            });
+
+            if (data.features && data.features.length > 0) {
+                await tx.packageFeature.createMany({
+                    data: data.features.map(f => ({
+                        packageId: pkg.id,
+                        featureCode: f.feature_code,
+                        featureValue: f.feature_value,
+                        isEnabled: true
+                    }))
+                });
             }
+
+            const features = await tx.packageFeature.findMany({
+                where: { packageId: pkg.id }
+            });
+
+            return { pkg, features };
         });
-        return { id: pkg.id, name: pkg.name, description: pkg.description, is_active: pkg.isActive, created_at: pkg.createdAt };
+
+        return {
+            id: result.pkg.id,
+            name: result.pkg.name,
+            description: result.pkg.description,
+            is_active: result.pkg.isActive,
+            features: result.features.map(f => ({
+                feature_code: f.featureCode,
+                feature_value: f.featureValue
+            })),
+            created_at: result.pkg.createdAt
+        };
     }
 
     /**
@@ -484,39 +574,23 @@ export class SuperAdminService {
      * Create a new SaaS plan
      */
     static async createPlan(data: CreatePlanRequest): Promise<CreatePlanResponse> {
-        return prisma.$transaction(async (tx) => {
-            const plan = await tx.plan.create({
-                data: {
-                    name: data.plan_name,
-                    packageId: data.package_id,
-                    type: data.plan_type,
-                    price: data.price,
-                }
-            });
-
-            let feature = null;
-            if (data.feature_code) {
-                feature = await tx.packageFeature.create({
-                    data: {
-                        packageId: data.package_id,
-                        featureCode: data.feature_code,
-                        featureValue: data.feature_value,
-                        isEnabled: true
-                    }
-                });
+        const plan = await prisma.plan.create({
+            data: {
+                name: data.plan_name,
+                packageId: data.package_id,
+                type: data.plan_type,
+                price: data.price,
             }
-
-            return {
-                id: plan.id,
-                plan_name: plan.name,
-                package_id: plan.packageId,
-                plan_type: plan.type,
-                price: Number(plan.price),
-                feature_code: feature?.featureCode,
-                feature_value: feature?.featureValue,
-                created_at: plan.createdAt
-            };
         });
+
+        return {
+            id: plan.id,
+            plan_name: plan.name,
+            package_id: plan.packageId,
+            plan_type: plan.type,
+            price: Number(plan.price),
+            created_at: plan.createdAt
+        };
     }
 
     /**

@@ -195,6 +195,25 @@ export class SuperAdminController {
     }
 
     /**
+     * GET /api/v1/super-admin/saas/packages/:id
+     */
+    static async getPackageById(req: Request, res: Response): Promise<void> {
+        try {
+            const { id } = req.params;
+            const data = await SuperAdminService.getPackageById(Number(id));
+
+            res.status(200).json({
+                success: true,
+                data,
+                message: 'Package retrieved successfully',
+            });
+        } catch (error: any) {
+            logger.error('Get package by ID error', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
      * POST /api/v1/super-admin/saas/packages
      */
     static async createPackage(req: Request, res: Response): Promise<void> {
@@ -304,5 +323,3 @@ export class SuperAdminController {
         }
     }
 }
-
-
