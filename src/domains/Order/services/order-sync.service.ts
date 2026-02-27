@@ -106,7 +106,6 @@ export class OrderSyncService {
                 discountAmount: orderData.discount_amount || 0,
                 taxAmount: orderData.tax_amount || 0,
                 serviceFee: orderData.service_fee || 0,
-                exchangeRate: orderData.exchange_rate || existingOrder.exchangeRate,
                 paymentMethod: orderData.payment_method,
                 updatedAt: new Date(),
               },
@@ -182,7 +181,6 @@ export class OrderSyncService {
                 discountAmount: orderData.discount_amount || 0,
                 taxAmount: orderData.tax_amount || 0,
                 serviceFee: orderData.service_fee || 0,
-                exchangeRate: orderData.exchange_rate || (await tx.shift.findUnique({ where: { shiftId: orderData.shift_id }, select: { exchangeRate: true } }))?.exchangeRate || 4000,
                 paymentMethod: orderData.payment_method,
               },
             });

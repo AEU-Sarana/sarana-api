@@ -50,6 +50,7 @@ export function buildDailyAggregateReportMessage(report: DailySalesReportRespons
     : '';
 
   const summary = report.summary;
+  const peakSalesHour = (summary as { peak_sales_hour?: string }).peak_sales_hour ?? '-';
 
   return `
 📊 *របាយការណ៍លក់ប្រចាំថ្ងៃ*
@@ -65,7 +66,7 @@ export function buildDailyAggregateReportMessage(report: DailySalesReportRespons
 • សរុបផលិតផលលក់: ${summary.total_products_sold}
 • ចំនួនផលិតផលខុសគ្នាលក់: ${summary.unique_products_sold}
 • មធ្យមភាគទំនិញក្នុងបញ្ជាទិញ: ${summary.average_items_per_order}
-• ម៉ោងលក់កំពូល: ${summary.peak_sales_hour}
+• ម៉ោងលក់កំពូល: ${peakSalesHour}
 • សាច់ប្រាក់ប្រមូលបាន: $${summary.cash_collected.toLocaleString()}
 • ខ្វះ/លើសសរុប: $${summary.short_over_amount.toLocaleString()}
 

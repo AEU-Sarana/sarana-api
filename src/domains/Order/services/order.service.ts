@@ -120,6 +120,11 @@ export class OrderService {
             fullName: true,
           },
         },
+        shift: {
+          select: {
+            exchangeRate: true,
+          },
+        },
         receipt_links: {
           select: {
             receiptLinkId: true,
@@ -155,7 +160,7 @@ export class OrderService {
           discount_amount: Number(o.discountAmount),
           tax_amount: Number(o.taxAmount),
           service_fee: Number(o.serviceFee),
-          exchange_rate: Number(o.exchangeRate),
+          exchange_rate: Number(o.shift?.exchangeRate ?? 4000),
           payment_method: o.paymentMethod,
           has_receipt_link: !!latestReceiptLink,
           receipt_link_status: latestReceiptLink?.linkStatus || null,
@@ -188,6 +193,11 @@ export class OrderService {
           select: {
             userId: true,
             fullName: true,
+          },
+        },
+        shift: {
+          select: {
+            exchangeRate: true,
           },
         },
         order_items: {
@@ -273,7 +283,7 @@ export class OrderService {
       discount_amount: Number(order.discountAmount),
       tax_amount: Number(order.taxAmount),
       service_fee: Number(order.serviceFee),
-      exchange_rate: Number(order.exchangeRate),
+      exchange_rate: Number(order.shift?.exchangeRate ?? 4000),
       payment_method: order.paymentMethod,
       has_receipt_link: !!latestReceiptLink,
       receipt_link_status: latestReceiptLink?.linkStatus || null,
