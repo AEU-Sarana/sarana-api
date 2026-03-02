@@ -25,21 +25,32 @@ export class StockService {
    */
   static async getStock(
     request: GetStockRequest,
-    currentUserId: number
+    currentUserId: number,
+    currentTenantId?: number
   ): Promise<GetStockResponse> {
     const { product_id, version } = request;
 
     if (product_id) {
-      // Get stock for specific product
-      const stock = await prisma.stock.findUnique({
-        where: { productId: product_id },
+      // Get stock for specific product (scoped to this tenant)
+      const stock = await prisma.stock.findFirst({
+        where: {
+          productId: product_id,
+          ...(currentTenantId
+            ? { product: { createdByUser: { tenantId: currentTenantId } } }
+            : {}),
+        },
         include: { product: true },
       });
 
-      // If stock doesn't exist, check if product exists and create stock record automatically
+      // If stock doesn't exist, check if product exists within this tenant
       if (!stock) {
-        const product = await prisma.product.findUnique({
-          where: { productId: product_id },
+        const product = await prisma.product.findFirst({
+          where: {
+            productId: product_id,
+            ...(currentTenantId
+              ? { createdByUser: { tenantId: currentTenantId } }
+              : {}),
+          },
         });
 
         if (!product || product.deactivatedDate) {
@@ -169,14 +180,23 @@ export class StockService {
     // Get all stock levels (with pagination and filters)
     const { page = 1, limit = 50, version: stockVersion, status, category, search, barcode, product_status } = request;
 
-    // Build where clause for stock
+    // Build where clause for stock — scoped to this tenant's products
     const stockWhere: any = {};
     if (stockVersion) {
       stockWhere.stockVersion = stockVersion;
     }
 
+    // Always scope to the tenant's products
+    if (currentTenantId) {
+      stockWhere.product = {
+        ...(stockWhere.product || {}),
+        createdByUser: { tenantId: currentTenantId },
+      };
+    }
+
     if (product_status) {
       stockWhere.product = {
+        ...(stockWhere.product || {}),
         status: product_status,
       };
     }

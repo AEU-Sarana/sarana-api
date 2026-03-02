@@ -9,7 +9,7 @@ export class ShiftController {
   static async startShift(req: Request, res: Response): Promise<void> {
     try {
       const user = req.user as UserPayload;
-      const response = await ShiftService.startShift(req.body, user.userId, user.role);
+      const response = await ShiftService.startShift(req.body, user.userId, user.role, user.tenantId);
       res.status(200).json({ success: true, data: response, message: 'Shift started' });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -26,7 +26,7 @@ export class ShiftController {
       if (isNaN(shiftId)) {
         throw new ValidationException('Invalid shift ID');
       }
-      const response = await ShiftService.closeShift(shiftId, req.body, user.userId, user.role);
+      const response = await ShiftService.closeShift(shiftId, req.body, user.userId, user.role, user.tenantId);
       res.status(200).json({ success: true, data: response, message: 'Shift closed' });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -41,7 +41,7 @@ export class ShiftController {
       const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
       const sellerId = req.query.seller_id ? parseInt(req.query.seller_id as string, 10) : undefined;
-      
+
       if (isNaN(page) || page < 1) {
         throw new ValidationException('Invalid page number');
       }
@@ -51,7 +51,7 @@ export class ShiftController {
       if (sellerId !== undefined && isNaN(sellerId)) {
         throw new ValidationException('Invalid seller ID');
       }
-      
+
       const request = {
         page,
         limit,
@@ -60,7 +60,7 @@ export class ShiftController {
         start_date: req.query.start_date as string,
         end_date: req.query.end_date as string,
       };
-      const response = await ShiftService.listShifts(request, user.userId, user.role);
+      const response = await ShiftService.listShifts(request, user.userId, user.role, user.tenantId);
       res.status(200).json({ success: true, data: response, message: 'Shifts retrieved' });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -77,7 +77,7 @@ export class ShiftController {
       if (isNaN(shiftId)) {
         throw new ValidationException('Invalid shift ID');
       }
-      const response = await ShiftService.getShift(shiftId, user.userId, user.role);
+      const response = await ShiftService.getShift(shiftId, user.userId, user.role, user.tenantId);
       res.status(200).json({ success: true, data: response, message: 'Shift retrieved' });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -97,7 +97,8 @@ export class ShiftController {
       const response = await ShiftReconciliationService.getReconciliation(
         shiftId,
         user.userId,
-        user.role
+        user.role,
+        user.tenantId
       );
       res.status(200).json({ success: true, data: response, message: 'Reconciliation retrieved' });
     } catch (error: unknown) {

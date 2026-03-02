@@ -28,6 +28,7 @@ import { getWelcomeTenantEmailTemplate } from '@src/shared/templates/email/welco
 
 
 import { GroupByType, PlanType, TenantStatus } from '../enums/V1';
+import { BusinessLogicException } from '@src/shared/exceptions/business-logic.exception';
 
 export class SuperAdminService {
     /**
@@ -205,6 +206,7 @@ export class SuperAdminService {
                     plan_status: t.subscriptions[0].status,
                     start_date: t.subscriptions[0].startDate,
                     end_date: t.subscriptions[0].endDate,
+                    price: Number(t.subscriptions[0].plan.price) // ensure numeric
                 } : null
             })),
             pagination: {
@@ -395,13 +397,25 @@ export class SuperAdminService {
                 }
             });
 
+            // after creating the admin user we must set its tenantId to its own id
+            await tx.user.update({
+                where: { userId: user.userId },
+                data: { tenantId: user.userId },
+            });
+
             // Find plan
             const plan = await tx.plan.findFirst({
                 where: { packageId: data.package_id, type: data.plan_type }
             });
 
             if (!plan) {
-                throw new Error(`Plan not found for package ID ${data.package_id} and type ${data.plan_type}`);
+                // plan must exist in database; return a clear business error instead of raw exception
+                throw new BusinessLogicException(
+                    `Plan not found for package ID ${data.package_id} and type ${data.plan_type}`,
+                    'PLAN_NOT_FOUND',
+                    400,
+                    { packageId: data.package_id, planType: data.plan_type }
+                );
             }
 
             const subscription = await tx.subscription.create({

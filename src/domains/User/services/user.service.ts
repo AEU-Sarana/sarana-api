@@ -189,10 +189,11 @@ export class UserService {
    */
   static async createUser(
     request: CreateUserRequest,
-    currentUserId: number
+    currentUser: { userId: number; tenantId?: number }
   ): Promise<CreateUserResponse> {
     const { username, email, full_name, password, phone, role } = request;
     const fullName = full_name; // Map snake_case to camelCase for database
+    const { userId: currentUserId, tenantId: currentUserTenantId } = currentUser;
 
     // Check if username already exists
     const existingUser = await prisma.user.findUnique({
@@ -228,6 +229,7 @@ export class UserService {
         phone,
         role: role as string,
         status: UserStatus.ACTIVE,
+        tenantId: currentUserTenantId ?? undefined,
         createdBy: currentUserId,
         updatedBy: currentUserId,
       },

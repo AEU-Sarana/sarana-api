@@ -16,7 +16,7 @@ export class ProductController {
         barcode: req.query.barcode as string,
       };
 
-      const response = await ProductService.listProducts(request, user.userId);
+      const response = await ProductService.listProducts(request, user.userId, user.tenantId);
 
       res.status(200).json({
         success: true,
@@ -32,7 +32,7 @@ export class ProductController {
   static async getCategories(req: Request, res: Response): Promise<void> {
     try {
       const user = req.user as UserPayload;
-      const response = await ProductService.getCategories(user.userId);
+      const response = await ProductService.getCategories(user.userId, user.tenantId);
 
       res.status(200).json({
         success: true,
@@ -51,7 +51,7 @@ export class ProductController {
       const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const productId = parseInt(idParam, 10);
 
-      const response = await ProductService.getProduct(productId, user.userId);
+      const response = await ProductService.getProduct(productId, user.userId, user.tenantId);
 
       res.status(200).json({
         success: true,
@@ -87,7 +87,7 @@ export class ProductController {
       const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const productId = parseInt(idParam, 10);
       const imageFile = req.file;
-      const response = await ProductService.updateProduct(productId, req.body, user.userId, imageFile);
+      const response = await ProductService.updateProduct(productId, req.body, user.userId, imageFile, user.tenantId);
 
       res.status(200).json({
         success: true,
@@ -105,7 +105,7 @@ export class ProductController {
       const user = req.user as UserPayload;
       const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const productId = parseInt(idParam, 10);
-      await ProductService.deleteProduct(productId, user.userId);
+      await ProductService.deleteProduct(productId, user.userId, user.tenantId);
 
       res.status(200).json({
         success: true,
@@ -124,7 +124,7 @@ export class ProductController {
       const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const productId = parseInt(idParam, 10);
 
-      const response = await ProductService.toggleProductStatus(productId, user.userId);
+      const response = await ProductService.toggleProductStatus(productId, user.userId, user.tenantId);
 
       res.status(200).json({
         success: true,

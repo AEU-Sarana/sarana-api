@@ -113,13 +113,19 @@ export class ProductService {
   */
   static async listProducts(
     request: ListProductsRequest,
-    currentUserId: number
+    currentUserId: number,
+    currentTenantId?: number
   ): Promise<ListProductsResponse> {
     const { page = 1, limit = 50, status, category, search, barcode } = request;
 
     const where: any = {
       deactivatedDate: null,
     };
+
+    // Scope products to the current admin's tenant via the creator's tenantId
+    if (currentTenantId) {
+      where.createdByUser = { tenantId: currentTenantId };
+    }
 
     if (status) where.status = status;
     if (category) where.category = category;
@@ -190,10 +196,14 @@ export class ProductService {
    */
   static async getProduct(
     productId: number,
-    currentUserId: number
+    currentUserId: number,
+    currentTenantId?: number
   ): Promise<GetProductResponse> {
-    const product = await prisma.product.findUnique({
-      where: { productId },
+    const product = await prisma.product.findFirst({
+      where: {
+        productId,
+        ...(currentTenantId ? { createdByUser: { tenantId: currentTenantId } } : {}),
+      },
       include: {
         stock: true,
         stock_lots: {
@@ -239,10 +249,15 @@ export class ProductService {
   */
   static async getProductByCode(
     productCode: string,
-    currentUserId: number
+    currentUserId: number,
+    currentTenantId?: number
   ): Promise<GetProductResponse> {
     const product = await prisma.product.findFirst({
-      where: { productCode, deactivatedDate: null },
+      where: {
+        productCode,
+        deactivatedDate: null,
+        ...(currentTenantId ? { createdByUser: { tenantId: currentTenantId } } : {}),
+      },
       include: {
         stock: true,
         stock_lots: {
@@ -527,9 +542,15 @@ export class ProductService {
     productId: number,
     request: UpdateProductRequest,
     currentUserId: number,
-    imageFile?: Express.Multer.File
+    imageFile?: Express.Multer.File,
+    currentTenantId?: number
   ): Promise<UpdateProductResponse> {
-    const existing = await prisma.product.findUnique({ where: { productId } });
+    const existing = await prisma.product.findFirst({
+      where: {
+        productId,
+        ...(currentTenantId ? { createdByUser: { tenantId: currentTenantId } } : {}),
+      },
+    });
     if (!existing || existing.deactivatedDate) throw new ValidationException('Product not found');
 
     // Always ignore client-provided product_code on update
@@ -693,8 +714,13 @@ export class ProductService {
    * Soft delete product (Admin only)
    * Also deletes associated image from storage
   */
-  static async deleteProduct(productId: number, currentUserId: number): Promise<void> {
-    const existing = await prisma.product.findUnique({ where: { productId } });
+  static async deleteProduct(productId: number, currentUserId: number, currentTenantId?: number): Promise<void> {
+    const existing = await prisma.product.findFirst({
+      where: {
+        productId,
+        ...(currentTenantId ? { createdByUser: { tenantId: currentTenantId } } : {}),
+      },
+    });
     if (!existing || existing.deactivatedDate) throw new ValidationException('Product not found');
 
     if (existing.imagePath) {
@@ -750,10 +776,14 @@ export class ProductService {
    */
   static async toggleProductStatus(
     productId: number,
-    currentUserId: number
+    currentUserId: number,
+    currentTenantId?: number
   ): Promise<ToggleProductStatusResponse> {
-    const existing = await prisma.product.findUnique({
-      where: { productId },
+    const existing = await prisma.product.findFirst({
+      where: {
+        productId,
+        ...(currentTenantId ? { createdByUser: { tenantId: currentTenantId } } : {}),
+      },
       include: { stock: true },
     });
 
@@ -803,15 +833,15 @@ export class ProductService {
    * Get product categories with counts
    */
   static async getCategories(
-    currentUserId: number
+    currentUserId: number,
+    currentTenantId?: number
   ): Promise<GetCategoriesResponse> {
-    // Get all products grouped by category
+    // Get all products grouped by category — scoped to this admin's tenant
     const products = await prisma.product.findMany({
       where: {
         deactivatedDate: null,
-        category: {
-          not: null,
-        },
+        category: { not: null },
+        ...(currentTenantId ? { createdByUser: { tenantId: currentTenantId } } : {}),
       },
       select: {
         category: true,
