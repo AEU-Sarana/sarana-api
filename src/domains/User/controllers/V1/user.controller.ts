@@ -25,7 +25,11 @@ export class UserController {
         search: req.query.search as string,
       };
 
-      const response = await UserService.listUsers(request, user.userId);
+      const response = await UserService.listUsers(request, {
+        userId: user.userId,
+        role: user.role,
+        tenantId: user.tenantId,
+      });
 
       res.status(200).json({
         success: true,
@@ -52,7 +56,11 @@ export class UserController {
         search: req.query.search as string | undefined,
       };
 
-      const response = await UserService.listSellers(request, user.userId);
+      const response = await UserService.listSellers(request, {
+        userId: user.userId,
+        role: user.role,
+        tenantId: user.tenantId,
+      });
 
       res.status(200).json({
         success: true,

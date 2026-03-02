@@ -24,15 +24,25 @@ export class UserService {
    */
   static async listUsers(
     request: ListUsersRequest,
-    currentUserId: number
+    currentUser: { userId: number; role: string; tenantId?: number }
   ): Promise<ListUsersResponse> {
     const { page = 1, limit = 20, role, status, search } = request;
+    const { role: currentUserRole, tenantId: currentUserTenantId } = currentUser;
 
     // Build where clause
     const where: any = {};
 
     if (role) {
       where.role = role;
+    }
+
+    // Tenant isolation - non-super-admins only see users in their own tenant
+    if (currentUserRole !== 'SUPER_ADMIN') {
+      if (currentUserTenantId == null) {
+        // no tenant scope, deny
+        throw new Error('Tenant context required');
+      }
+      where.tenantId = currentUserTenantId;
     }
 
     if (status) {
@@ -75,7 +85,7 @@ export class UserService {
 
     // Log audit
     await auditLogService.createAuditLog({
-      userId: currentUserId,
+      userId: currentUser.userId,
       action: 'LIST_USERS',
       entityType: 'User',
       oldValues: { filters: { role, status, search } },
@@ -109,14 +119,14 @@ export class UserService {
    */
   static async listSellers(
     request: { page?: number; limit?: number; status?: UserStatus; search?: string },
-    currentUserId: number
+    currentUser: { userId: number; role: string; tenantId?: number }
   ): Promise<ListUsersResponse> {
     return this.listUsers(
       {
         ...request,
         role: UserRole.SELLER,
       },
-      currentUserId
+      currentUser
     );
   }
 
