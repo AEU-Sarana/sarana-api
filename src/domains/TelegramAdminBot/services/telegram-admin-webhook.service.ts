@@ -370,7 +370,9 @@ export class TelegramAdminWebhookService {
       // --- END WAIT FOR SYNC LOGIC ---
 
       // Step 2: Generate receipt JPG image buffer (no upload)
+      logger.info('Generating receipt image buffer', { orderId: validation.order_id });
       const receiptImage = await ReceiptImageService.generateReceiptJpgBuffer(validation.order_id);
+      logger.info('Receipt image buffer generated successfully', { filename: receiptImage.filename });
 
       // Step 3: Get Telegram bot token
       const telegramConfig = await TelegramService.getTelegramConfig();
@@ -379,6 +381,7 @@ export class TelegramAdminWebhookService {
       }
 
       // Step 4: Send the receipt image
+      logger.info('Sending receipt image to Telegram', { chatId, botToken: telegramConfig.bot_token.substring(0, 5) + '...' });
       await TelegramBotService.sendPhoto(
         telegramConfig.bot_token,
         String(chatId),
