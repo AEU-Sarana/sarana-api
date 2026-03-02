@@ -31,7 +31,7 @@ ansible-docker-deploy/
 │       │   ├── deploy-compose.yml
 │       │   └── post-deploy.yml
 │       ├── templates/
-│       │   ├── env.j2
+│       │   ├── .env.j2
 │       │   ├── docker-compose.yml.j2
 │       │   ├── docker-compose.prod.yml.j2
 │       │   ├── Dockerfile.j2

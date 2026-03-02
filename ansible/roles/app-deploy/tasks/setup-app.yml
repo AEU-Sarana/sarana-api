@@ -36,7 +36,7 @@
 
 - name: Template .env file
   template:
-    src: env.j2
+    src: .env.j2
     dest: "{{ app_directory }}/.env"
     owner: "{{ app_user }}"
     mode: '0600'
