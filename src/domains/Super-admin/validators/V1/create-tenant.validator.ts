@@ -7,9 +7,13 @@ export const createTenantValidator = [
         .isLength({ min: 2, max: 200 })
         .withMessage('Business name must be between 2 and 200 characters'),
     body('username')
-        .isString()
-        .isLength({ min: 3, max: 100 })
-        .withMessage('Username must be between 3 and 100 characters'),
+        .trim()
+    .notEmpty()
+    .withMessage('Username is required')
+    .isLength({ min: 3, max: 50 })
+    .withMessage('Username must be between 3 and 50 characters')
+    .matches(/^[a-zA-Z0-9_]+$/)
+    .withMessage('Username can only contain letters, numbers, and underscores'),
     body('full_name')
         .isString()
         .isLength({ min: 2, max: 200 })

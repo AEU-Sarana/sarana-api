@@ -1,4 +1,5 @@
 import type { Job } from 'bullmq';
+import prisma from '@src/database/client';
 import { logger } from '@src/shared/utils/logger';
 import { TelegramService } from '@src/domains/Telegram/services/telegram.service';
 import { TelegramAdminParserService } from '@src/domains/TelegramAdminBot/services/telegram-admin-parser.service';
@@ -425,10 +426,16 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
         resetStack(menuKey);
         return renderMenu({ chatId, telegramUserId }, 'main', { preferEdit: false });
       } else {
+        // Fetch store name from settings
+        const settings = await prisma.receiptSetting.findFirst({
+          orderBy: { updatedAt: 'desc' }
+        });
+        const storeName = settings?.storeName || 'Phument Mart';
+
         // Non-admin welcome message
         return TelegramService.sendMessageByChatId(
           chatId,
-          'សូមស្វាគមន៍មកកាន់ **Phument Mart**! 🙏\n\nនេះគឺជាគណនី Telegram ផ្លូវការសម្រាប់ទទួលបានវិក្កយបត្រស្វ័យប្រវត្តិ។\n\nដើម្បីទទួលបានវិក្កយបត្រ សូមកុំភ្លេចស្កេន QR Code នៅលើវិក្កយបត្ររបស់អ្នកបាទ។',
+          `សូមស្វាគមន៍មកកាន់ **${storeName}**! 🙏\n\nនេះគឺជាគណនី Telegram ផ្លូវការសម្រាប់ទទួលបានវិក្កយបត្រស្វ័យប្រវត្តិ។\n\nដើម្បីទទួលបានវិក្កយបត្រ សូមកុំភ្លេចស្កេន QR Code នៅលើវិក្កយបត្ររបស់អ្នកបាទ។`,
           'Markdown'
         );
       }

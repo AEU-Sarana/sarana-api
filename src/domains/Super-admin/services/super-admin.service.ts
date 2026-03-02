@@ -19,6 +19,13 @@ import {
     UpdateTenantResponse
 } from '../types/V1';
 
+import bcrypt from 'bcrypt';
+import { env } from '@src/shared/config/env';
+import { generateRandomString } from '@src/shared/utils/helpers';
+import { sendEmail } from '@src/shared/services/brevo-mail.service';
+import { logger } from '@src/shared/utils/logger';
+import { getWelcomeTenantEmailTemplate } from '@src/shared/templates/email/welcome-tenant.template';
+
 
 import { GroupByType, PlanType, TenantStatus } from '../enums/V1';
 
@@ -367,17 +374,18 @@ export class SuperAdminService {
      * Create a new tenant with initial subscription
      */
     static async createTenant(data: CreateTenantRequest) {
-        // This would involve a complex transaction:
-        // 1. Create User
-        // 2. Create Subscription
-        // Simplified for now
+        // Generate a random password for the new tenant
+        const randomPassword = generateRandomString(10);
+        const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS) || 10;
+        const hashedPassword = await bcrypt.hash(randomPassword, saltRounds);
+
         return prisma.$transaction(async (tx) => {
             const user = await tx.user.create({
                 data: {
                     username: data.username,
                     email: data.email,
                     fullName: data.full_name,
-                    passwordHash: 'PBKDF2_PLACEHOLDER', // In reality, encrypt password
+                    passwordHash: hashedPassword,
                     role: 'ADMIN',
                     businessName: data.business_name,
                     address: data.address,
@@ -393,8 +401,6 @@ export class SuperAdminService {
             });
 
             if (!plan) {
-                // If the user requests a non-existent package/plan combo, we should fail the request
-                // rather than creating an orphan tenant.
                 throw new Error(`Plan not found for package ID ${data.package_id} and type ${data.plan_type}`);
             }
 
@@ -417,6 +423,32 @@ export class SuperAdminService {
                         transactionId: data.transaction_id,
                         status: 'COMPLETED'
                     }
+                });
+            }
+
+            // Send email to tenant with their credentials
+            try {
+                const { html, text } = getWelcomeTenantEmailTemplate({
+                    fullName: data.full_name,
+                    businessName: data.business_name,
+                    username: data.username,
+                    password: randomPassword
+                });
+
+                await sendEmail({
+                    to: data.email,
+                    subject: 'Welcome to Chlat-POS - Your Account Credentials',
+                    html,
+                    text
+                });
+
+                logger.info('Tenant credentials email sent', { email: data.email, username: data.username });
+            } catch (err: any) {
+                // We don't want to fails the whole transaction if email fails, 
+                // but we should log it
+                logger.error('Failed to send tenant welcome email', {
+                    email: data.email,
+                    error: err.message
                 });
             }
 

@@ -67,7 +67,7 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
     const headerHeight = 180 + logoHeight;
     const tableHeaderHeight = 50;
     const itemLineHeight = 60;
-    const totalsAreaHeight = 150;
+    const totalsAreaHeight = 300;
     const footerAreaHeight = 200;
     const bottomMargin = 100;
 
@@ -221,53 +221,50 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
     // 6. TOTALS (Grand)
     currentY += 30;
 
-    const renderTotalLine = (label: string, amount: number, color: string = '#444444', isBold: boolean = false, isKhr: boolean = false) => {
-        if (amount === 0 && label !== 'តម្លៃសរុប (GRAND TOTAL)' && label !== 'សរុបជាប្រាក់រៀល (TOTAL KHR)') return;
+    const khrRate = data.exchangeRate || 4000;
 
+    const renderTotalLine = (label: string, amount: number, color: string = '#444444', isBold: boolean = false, fontSize?: number) => {
+        // USD Line
         ctx.textAlign = 'left';
-        setFont(isBold ? 19 : 16, isBold ? 'bold' : '400');
+        const finalSize = fontSize || (isBold ? 17 : 15);
+        setFont(finalSize, isBold ? 'bold' : '400');
         ctx.fillStyle = color;
         ctx.fillText(label, padding, currentY);
 
         ctx.textAlign = 'right';
-        if (isKhr) {
-            ctx.fillText(`${Math.round(amount).toLocaleString()}៛`, baseWidth - padding, currentY);
-        } else {
-            ctx.fillText(`$${amount.toFixed(2)}`, baseWidth - padding, currentY);
-        }
-        currentY += isBold ? 42 : 30;
+        ctx.fillText(`$${amount.toFixed(2)}`, baseWidth - padding, currentY);
+
+        currentY += isBold ? 22 : 18;
+
+        // KHR Line (aligned to right under USD)
+        const rawKhr = amount * khrRate;
+        const khrAmount = Math.round(rawKhr / 100) * 100;
+
+        setFont(13, '400');
+        ctx.fillStyle = '#777777';
+        ctx.fillText(`${khrAmount.toLocaleString()}៛`, baseWidth - padding, currentY);
+
+        currentY += isBold ? 35 : 28;
     };
 
+    // Calculate subtotal
+    const calculatedSubtotal = data.totalAmount + (data.discountAmount || 0) - (data.taxAmount || 0) - (data.serviceFee || 0);
 
-    if (data.discountAmount && data.discountAmount > 0) {
-        renderTotalLine('បញ្ចុះតម្លៃ (DISCOUNT)', -data.discountAmount, '#d32f2f');
-    }
-    if (data.taxAmount && data.taxAmount > 0) {
-        renderTotalLine('ពន្ធ (TAX)', data.taxAmount);
-    }
-    if (data.serviceFee && data.serviceFee > 0) {
-        renderTotalLine('សេវា (SERVICE FEE)', data.serviceFee);
-    }
-
-    if (data.exchangeRate) {
-        ctx.textAlign = 'left';
-        setFont(14, '400');
-        ctx.fillStyle = '#666666';
-        ctx.fillText('អត្រាប្តូរប្រាក់ (EXC RATE)', padding, currentY);
-
-        ctx.textAlign = 'right';
-        ctx.fillText(`$1 = ${Number(data.exchangeRate).toLocaleString()}៛`, baseWidth - padding, currentY);
-        currentY += 25;
-    }
+    renderTotalLine('សរុបរង (SUBTOTAL)', calculatedSubtotal);
+    renderTotalLine('បញ្ចុះតម្លៃ (DISCOUNT)', -(data.discountAmount || 0));
+    renderTotalLine('ពន្ធ (TAX)', data.taxAmount || 0);
+    renderTotalLine('តម្លៃសេវា (SERVICE FEE)', data.serviceFee || 0);
 
     currentY += 10;
-    renderTotalLine('តម្លៃសរុប (GRAND TOTAL)', data.totalAmount, '#1f8f3a', true);
+    renderTotalLine('សរុបរួម (GRAND TOTAL)', data.totalAmount, '#1f8f3a', true, 17);
 
+    // Exchange rate
     if (data.exchangeRate) {
-        const rawKhr = data.totalAmount * data.exchangeRate;
-        // Round up to the nearest 100 KHR (e.g., 7240 -> 7300)
-        const khrAmount = Math.ceil(rawKhr / 100) * 100;
-        renderTotalLine('សរុបជាប្រាក់រៀល (TOTAL KHR)', khrAmount, '#1f8f3a', true, true);
+        setFont(12, '400');
+        ctx.fillStyle = '#999999';
+        ctx.textAlign = 'right';
+        ctx.fillText(`អត្រាប្តូរប្រាក់: 1 USD = ${data.exchangeRate.toLocaleString()}៛`, baseWidth - padding, currentY);
+        currentY += 25;
     }
 
     currentY += 40;
