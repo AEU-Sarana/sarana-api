@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import { SuperAdminController } from '../../controllers/V1/super-admin.controller';
 import { authenticateToken } from '@src/shared/middleware/auth.middleware';
-import { requireRole } from '@src/shared/middleware/authorization.middleware';
-import { Role } from '@src/shared/config/permissions';
+import { requireSuperAdmin } from '@src/shared/middleware/authorization.middleware';
 import { dashboardSummaryValidator, userGrowthValidator, tenantListValidator, createTenantValidator, closeSubscriptionValidator, createPackageValidator, createPlanValidator, upgradePlanValidator, renewSubscriptionValidator, updateTenantValidator } from '../../validators/V1';
 
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
@@ -11,7 +10,7 @@ const router = Router();
 
 // Apply authentication & authorization to all SuperAdmin routes
 router.use(authenticateToken);
-router.use(requireRole(Role.SUPER_ADMIN));
+router.use(requireSuperAdmin);
 
 // Dashboard Routes
 router.get(
