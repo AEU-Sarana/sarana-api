@@ -172,6 +172,9 @@ node_exporter_enabled: true
 node_exporter_port: 9100
 node_exporter_bind_address: 0.0.0.0
 node_exporter_allowed_source_ip: 37.27.180.31
+cadvisor_enabled: true
+cadvisor_port: 8088
+cadvisor_bind_address: 0.0.0.0
 
 # ===== BACKUP =====
 backup_enabled: true

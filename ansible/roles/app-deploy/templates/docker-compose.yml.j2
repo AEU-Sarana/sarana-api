@@ -162,6 +162,27 @@ services:
       - internal-network
 {% endif %}
 
+{% if cadvisor_enabled | default(false) | bool %}
+  # cAdvisor for container-level metrics
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: {{ app_name }}-cadvisor
+    ports:
+      - "{{ cadvisor_bind_address | default('0.0.0.0') }}:{{ cadvisor_port | default(8088) }}:8080"
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    networks:
+      - internal-network
+{% endif %}
+
   # Nginx reverse proxy (both networks: internal for app, external for public)
   nginx:
     image: nginx:alpine

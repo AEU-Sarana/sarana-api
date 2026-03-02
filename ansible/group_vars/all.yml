@@ -79,6 +79,9 @@ docker_log_options:
 
 # ===== LOGGING & MONITORING =====
 log_level: info
+cadvisor_enabled: true
+cadvisor_port: 8088
+cadvisor_bind_address: 0.0.0.0
 
 # ===== HEALTH CHECK =====
 health_check_interval: 30
