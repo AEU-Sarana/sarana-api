@@ -6,7 +6,9 @@
 # Sensitive data is stored in group_vars/vault.yml (encrypted)
 # ==========================================================================
 
-# ===== SSH & ANSIBLE CONFIGURATION =====
+# ===============================
+# SSH & Ansible
+# ===============================
 # Connect as deployer (Jenkins uses deploy-ssh-key for this user). Use become: yes to run as root.
 ansible_user: deployer
 ansible_port: 22
@@ -14,28 +16,38 @@ ansible_ssh_private_key_file: ~/.ssh/id_rsa
 ansible_python_interpreter: /usr/bin/python3
 ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
 
-# ===== DEPLOYMENT USER =====
+# ===============================
+# Deployment User
+# ===============================
 deployer_user: deployer
 deployer_home: /home/deployer
 
-# ===== APPLICATION CONFIGURATION =====
+# ===============================
+# Server
+# ===============================
 app_env: production
-node_env: production
-app_name: stock-pos
-app_repo: "https://github.com/yourusername/stock-pos.git"
-app_branch: main
-app_directory: /opt/stock-pos
-app_port: 3000
-app_host: 0.0.0.0
+node_env: "{{ vault_prod_node_env }}"
+host: "{{ vault_prod_host }}"
+app_name: "{{ vault_prod_app_name }}"
+app_repo: "{{ vault_prod_app_repo }}"
+app_branch: "{{ vault_prod_app_branch }}"
+app_directory: "{{ vault_prod_app_directory }}"
+app_port: "{{ vault_prod_port }}"
+app_host: "{{ vault_prod_app_host }}"
+api_version: "{{ vault_prod_api_version }}"
 
-# ===== BLUE/GREEN DEPLOYMENT =====
+# ===============================
+# Blue/Green Deployment
+# ===============================
 blue_green_enabled: true
 active_color_default: blue
 active_color_state_file: "{{ app_directory }}/.active_color"
 blue_app_port: 3001
 green_app_port: 3002
 
-# ===== DOCKER CONFIGURATION (Production) =====
+# ===============================
+# Docker Configuration
+# ===============================
 docker_image_name: stock-pos-server
 docker_image_tag: latest
 docker_container_name: stock-pos-app
@@ -60,17 +72,19 @@ docker_log_options:
   max_size: "10m"
   max_file: "3"
 
-# ===== DATABASE CONFIGURATION =====
+# ===============================
+# Database (PostgreSQL)
+# ===============================
 postgres_user: "{{ vault_prod_postgres_user }}"
-postgres_host: db
-postgres_port: 5432
+postgres_host: "{{ vault_prod_postgres_host }}"
+postgres_port: "{{ vault_prod_postgres_port }}"
 postgres_db: "{{ vault_prod_postgres_db }}"
 postgres_password: "{{ vault_prod_postgres_password | string }}"
-postgres_external_port: 5433
+postgres_external_port: "{{ vault_prod_postgres_external_port }}"
 
-# Database Timezone Configuration (Asia/Phnom_Penh for Cambodia)
-db_timezone: Asia/Phnom_Penh
-system_timezone: Asia/Phnom_Penh
+# App Timezone
+db_timezone: "{{ vault_prod_db_timezone }}"
+system_timezone: "{{ vault_prod_system_timezone }}"
 
 # Variables used by app-deploy env template (all from vault via postgres_* or literal)
 db_user: "{{ postgres_user }}"
@@ -80,94 +94,158 @@ db_host: "{{ postgres_host }}"
 db_port: "{{ postgres_port }}"
 db_external_port: "{{ postgres_external_port }}"
 
-# ===== REDIS CONFIGURATION =====
-redis_host: redis
-redis_port: 6379
+# ===============================
+# Redis
+# ===============================
+redis_host: "{{ vault_prod_redis_host }}"
+redis_internal_port: "{{ vault_prod_redis_port }}"
+redis_port: "{{ vault_prod_redis_external_port }}"
 redis_password: "{{ vault_prod_redis_password }}"
-redis_external_port: 6380
+redis_url: "{{ vault_prod_redis_url }}"
+redis_token_blacklist_ttl: "{{ vault_prod_redis_token_blacklist_ttl }}"
 
-# ===== MINIO/S3 CONFIGURATION =====
-minio_endpoint: minio
+# ===============================
+# MinIO
+# ===============================
+minio_endpoint: "{{ vault_prod_minio_endpoint }}"
 minio_root_user: "{{ vault_prod_minio_root_user }}"
-minio_api_port: 9000
-minio_console_port: 9001
+minio_api_port: "{{ vault_prod_minio_api_port }}"
+minio_console_port: "{{ vault_prod_minio_console_port }}"
 minio_root_password: "{{ vault_prod_minio_password }}"
-minio_use_ssl: false
-minio_bucket_name: "{{ app_name }}-storage"
+minio_use_ssl: "{{ vault_prod_minio_use_ssl }}"
+minio_bucket_name: "{{ vault_prod_minio_bucket_name }}"
 
-# ===== STORAGE CONFIGURATION (S3/MinIO) =====
-storage_provider: r2
-storage_endpoint: "https://{{ vault_prod_r2_account_id }}.r2.cloudflarestorage.com"
-storage_access_key: "{{ vault_prod_r2_access_key_id }}"
-storage_secret_key: "{{ vault_prod_r2_secret_access_key }}"
-storage_bucket: "{{ vault_prod_r2_bucket }}"
-storage_region: "auto"
-storage_use_ssl: "true"
-storage_public_url: "{{ vault_prod_r2_public_url }}"
+# ===============================
+# Storage (S3 Compatible)
+# ===============================
+storage_provider: "{{ vault_prod_storage_provider }}"
+storage_endpoint: "{{ vault_prod_storage_endpoint }}"
+storage_access_key: "{{ vault_prod_storage_access_key }}"
+storage_secret_key: "{{ vault_prod_storage_secret_key }}"
+storage_bucket: "{{ vault_prod_storage_bucket }}"
+storage_region: "{{ vault_prod_storage_region }}"
+storage_use_ssl: "{{ vault_prod_storage_use_ssl }}"
+storage_public_url: "{{ vault_prod_storage_public_url }}"
 
-# ===== NGINX CONFIGURATION =====
-nginx_http_port: 80
-nginx_https_port: 443
-nginx_http_port_custom: 8081
-nginx_https_port_custom: 8443
-nginx_internal_port: 8080  # Container nginx port
+# ===============================
+# Nginx Ports
+# ===============================
+nginx_http_port: "{{ vault_prod_nginx_http_port }}"
+nginx_https_port: "{{ vault_prod_nginx_https_port }}"
+nginx_http_port_custom: "{{ vault_prod_nginx_http_port_custom }}"
+nginx_https_port_custom: "{{ vault_prod_nginx_https_port_custom }}"
+nginx_internal_port: "{{ vault_prod_nginx_internal_port }}"
 
-# ===== DOMAIN & SSL CONFIGURATION =====
-domain: techey.tech
-subdomain: familypos
+# ===============================
+# API URL / Domain / SSL
+# ===============================
+domain: "{{ vault_prod_domain }}"
+subdomain: "{{ vault_prod_subdomain }}"
 app_domain: "{{ subdomain }}.{{ domain }}"  # familypos.techey.tech
-api_base_url: "https://{{ app_domain }}"
-app_url: "https://{{ app_domain }}"
-enable_ssl: true
-letsencrypt_email: admin@{{ domain }}
-letsencrypt_staging: false  # Set to true for first test run
-certbot_auto_renew: true
+api_base_url: "{{ vault_prod_api_base_url }}"
+app_url: "{{ vault_prod_app_url }}"
+frontend_url: "{{ vault_prod_frontend_url }}"
+enable_ssl: "{{ vault_prod_enable_ssl }}"
+letsencrypt_email: "{{ vault_prod_letsencrypt_email }}"
+letsencrypt_staging: "{{ vault_prod_letsencrypt_staging }}"
+certbot_auto_renew: "{{ vault_prod_certbot_auto_renew }}"
 
-# ===== NGINX SSL PATHS =====
+# ===============================
+# Nginx SSL Paths
+# ===============================
 nginx_config_path: /etc/nginx/sites-available
 nginx_enabled_path: /etc/nginx/sites-enabled
 nginx_site_name: "{{ app_name }}"
 nginx_domain: "{{ app_domain }}"
 
-# ===== CORS & SECURITY =====
-allowed_origins: "http://localhost:3000,http://localhost:8080,http://89.167.6.46,http://89.167.6.46:3000,http://89.167.6.46:8081,https://89.167.6.46,https://{{ app_domain }}"
-cors_origin: "https://{{ app_domain }}"
+# ===============================
+# CORS
+# ===============================
+allowed_origins: "{{ vault_prod_allowed_origins }}"
+cors_origin: "{{ vault_prod_cors_origin }}"
 
-# ===== LOGGING =====
-log_level: info
+# ===============================
+# Logging
+# ===============================
+log_level: "{{ vault_prod_log_level }}"
 
-# ===== SMTP CONFIGURATION =====
-smtp_host: "{{ vault_smtp_host }}"
-smtp_port: 587
-smtp_user: "{{ vault_smtp_user }}"
-smtp_pass: "{{ vault_smtp_password }}"
-smtp_from: noreply@stockpos.com
+# ===============================
+# Email Service (SMTP)
+# ===============================
+smtp_host: "{{ vault_prod_smtp_host }}"
+smtp_port: "{{ vault_prod_smtp_port }}"
+smtp_user: "{{ vault_prod_smtp_user }}"
+smtp_pass: "{{ vault_prod_smtp_password }}"
+smtp_from: "{{ vault_prod_smtp_from }}"
+email_from: "{{ vault_prod_email_from }}"
 
-# ===== APPLICATION SECRET (from vault; used as ENCRYPTION_KEY) =====
-app_secret_key: "{{ vault_app_secret_key }}"
+# ===============================
+# Security / Encryption
+# ===============================
+vault_app_secret_key: "{{ vault_prod_encryption_key }}"
+app_secret_key: "{{ vault_prod_encryption_key }}"
+backup_encryption_key: "{{ vault_prod_backup_encryption_key }}"
+receipt_qr_hmac_secret: "{{ vault_prod_receipt_qr_hmac_secret }}"
 
-# ===== JWT CONFIGURATION (from vault) =====
+# ===============================
+# JWT
+# ===============================
 jwt_secret: "{{ vault_prod_jwt_secret }}"
 jwt_refresh_secret: "{{ vault_prod_jwt_refresh_secret }}"
-jwt_expiration: "{{ vault_prod_jwt_expiration }}"
-jwt_access_token_expiry: "{{ vault_prod_jwt_expiration }}"
-jwt_refresh_token_expiry: "{{ vault_prod_jwt_expiration }}"
-jwt_expires_in: "{{ vault_prod_jwt_expiration }}"
+jwt_expiration: "{{ vault_prod_jwt_expires_in }}"
+jwt_access_token_expiry: "{{ vault_prod_jwt_access_token_expiry }}"
+jwt_refresh_token_expiry: "{{ vault_prod_jwt_refresh_expires_in }}"
+jwt_expires_in: "{{ vault_prod_jwt_expires_in }}"
+jwt_v2_access_token_expiry: "{{ vault_prod_jwt_v2_access_token_expiry }}"
+jwt_v2_refresh_absolute_days: "{{ vault_prod_jwt_v2_refresh_absolute_days }}"
+jwt_v2_refresh_idle_days: "{{ vault_prod_jwt_v2_refresh_idle_days }}"
+jwt_issuer: "{{ vault_prod_jwt_issuer }}"
+jwt_audience: "{{ vault_prod_jwt_audience }}"
 
-# ===== DEPLOYMENT OPTIONS =====
+# ===============================
+# Telegram (Optional)
+# ===============================
+telegram_bot_token: "{{ vault_prod_telegram_bot_token }}"
+telegram_chat_id: "{{ vault_prod_telegram_chat_id }}"
+telegram_webhook_secret: "{{ vault_prod_telegram_webhook_secret }}"
+brevo_api_key: "{{ vault_prod_brevo_api_key }}"
+brevo_sender_email: "{{ vault_prod_brevo_sender_email }}"
+brevo_sender_name: "{{ vault_prod_brevo_sender_name }}"
+
+# ===============================
+# Cloudflare R2 (Optional)
+# ===============================
+r2_account_id: "{{ vault_prod_r2_account_id }}"
+r2_access_key_id: "{{ vault_prod_r2_access_key_id }}"
+r2_secret_access_key: "{{ vault_prod_r2_secret_access_key }}"
+r2_bucket_name: "{{ vault_prod_r2_bucket }}"
+r2_endpoint: "{{ vault_prod_r2_endpoint }}"
+
+# ===============================
+# Password Hashing
+# ===============================
+bcrypt_salt_rounds: "{{ vault_prod_bcrypt_salt_rounds }}"
+
+# ===============================
+# Deployment Options
+# ===============================
 deploy_path: /opt/stock-pos-server
 run_migrations: false
 build_image: true
 force_recreate: false
 pull_images: true
 
-# ===== HEALTH CHECK =====
+# ===============================
+# Health Check
+# ===============================
 health_check_interval: 30
 health_check_timeout: 10
 health_check_retries: 3
 health_check_start_period: 40
 
-# ===== MONITORING =====
+# ===============================
+# Monitoring
+# ===============================
 node_exporter_enabled: true
 node_exporter_port: 9100
 node_exporter_bind_address: 0.0.0.0
@@ -176,14 +254,20 @@ cadvisor_enabled: true
 cadvisor_port: 8088
 cadvisor_bind_address: 0.0.0.0
 
-# ===== BACKUP =====
+# ===============================
+# Backup
+# ===============================
 backup_enabled: true
 backup_directory: "/opt/backups/stock-pos"
 
-# ===== DOCKER USERS =====
+# ===============================
+# Docker Users
+# ===============================
 docker_users:
   - "{{ deployer_user }}"
   - jenkins
 
-# ===== JENKINS INTEGRATION =====
+# ===============================
+# Jenkins Integration
+# ===============================
 jenkins_build_version: "latest"

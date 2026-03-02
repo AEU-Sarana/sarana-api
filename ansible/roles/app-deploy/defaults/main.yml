@@ -39,7 +39,7 @@ create_nginx_config: true  # Ensure nginx configs are created during deploy
 backup_enabled: true
 backup_directory: "/opt/backups/{{ app_name }}"
 
-# ----- env.j2 / app config: all data from vault.yml via group_vars/all.yml -----
+# ----- .env.j2 / app config: all data from vault.yml via group_vars/all.yml -----
 # Do not define db_*, minio_*, storage_*, jwt_*, etc. here.
-# Production: vault.yml → all.yml (maps vault_* to template vars) → env.j2.
-# If a vault key is missing, env.j2 uses | default(...) only in the template.
+# Production: vault.yml → all.yml (maps vault_* to template vars) → .env.j2.
+# If a vault key is missing, .env.j2 uses | default(...) only in the template.
