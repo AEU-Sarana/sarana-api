@@ -89,7 +89,6 @@ health_check_start_period: 40
 # ===== DEPLOYMENT SETTINGS =====
 deploy_path: /opt/stock-pos-server
 run_migrations: false  # Set to true only in dev, false for production
-build_image: true
 
 # ===== BACKUP SETTINGS =====
 backup_enabled: true
@@ -144,5 +143,4 @@ jenkins_build_version: "latest"
 # ===== ENVIRONMENT IDENTIFICATION =====
 # Set per environment in group_vars (dev, staging, production)
 app_env: development
-environment: development
 node_env: development
