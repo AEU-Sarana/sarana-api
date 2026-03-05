@@ -5,6 +5,7 @@ type CallbackContext = {
   chatId: number;
   telegramUserId: number;
   adminUserId: number;
+  tenantId: number;
 };
 
 export class TelegramAdminCallbackInventoryService {
@@ -17,27 +18,27 @@ export class TelegramAdminCallbackInventoryService {
       callbackData === 'inv_low_stock' ||
       callbackData === 'action:inventory_low_stock'
     ) {
-      return TelegramAdminInventoryService.buildLowStockMessage(ctx.adminUserId);
+      return TelegramAdminInventoryService.buildLowStockMessage(ctx.adminUserId, ctx.tenantId);
     }
 
     if (callbackData === 'SHIFT_SUMMARY' || callbackData === 'action:shift_summary') {
-      return TelegramAdminInventoryService.buildShiftSummaryMessage(ctx.adminUserId);
+      return TelegramAdminInventoryService.buildShiftSummaryMessage(ctx.adminUserId, ctx.tenantId);
     }
 
     if (callbackData === 'inv_on_hand' || callbackData === 'action:inventory_on_hand') {
-      return TelegramAdminInventoryService.buildInventoryOnHandMessage();
+      return TelegramAdminInventoryService.buildInventoryOnHandMessage(ctx.tenantId);
     }
 
     if (callbackData === 'inv_value' || callbackData === 'action:inventory_value') {
-      return TelegramAdminInventoryService.buildInventoryValueMessage();
+      return TelegramAdminInventoryService.buildInventoryValueMessage(ctx.tenantId);
     }
 
     if (callbackData === 'inv_reorder' || callbackData === 'action:inventory_reorder') {
-      return TelegramAdminInventoryService.buildReorderAlertsMessage();
+      return TelegramAdminInventoryService.buildReorderAlertsMessage(ctx.tenantId);
     }
 
     if (callbackData === 'inv_near_expiry' || callbackData === 'action:inventory_near_expiry') {
-      return TelegramAdminInventoryService.buildNearExpiryMessage();
+      return TelegramAdminInventoryService.buildNearExpiryMessage(undefined, ctx.tenantId);
     }
 
     return null;

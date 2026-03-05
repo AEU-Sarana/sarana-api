@@ -4,6 +4,7 @@ export type AdminExportRestoreMenu = 'export' | 'sales_rank';
 
 export interface TelegramAdminExportJobPayload {
   chatId: number;
+  tenantId: number;
   requestedByUserId: number;
   processingMessageId: number;
   originMessageId?: number;

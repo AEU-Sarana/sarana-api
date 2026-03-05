@@ -9,7 +9,8 @@ export function registerTelegramEventListeners(): void {
       await TelegramService.sendDailyReport(
         payload.shift_id,
         payload.performed_by,
-        payload.performed_by_role
+        payload.performed_by_role,
+        payload.tenant_id
       );
     } catch (error: any) {
       logger.error('Telegram shift closed report failed', {

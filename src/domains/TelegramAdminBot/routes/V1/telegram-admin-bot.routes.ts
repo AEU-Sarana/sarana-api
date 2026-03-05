@@ -11,7 +11,7 @@ import { telegramWebhookRateLimiter } from '@src/shared/middleware/rate-limit.mi
 const router: IRouter = Router();
 
 router.post(
-  '/webhook',
+  '/webhook/:tenantId',
   telegramWebhookRateLimiter,
   telegramWebhookSecretMiddleware,
   ...validateRequest(telegramWebhookValidator),

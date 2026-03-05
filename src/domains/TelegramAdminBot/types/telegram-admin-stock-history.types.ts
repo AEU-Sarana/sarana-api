@@ -7,6 +7,7 @@ export type PendingStockHistoryQuery = {
 
 export interface TelegramAdminStockHistoryExportJobPayload {
   chatId: number;
+  tenantId: number;
   requestedByUserId: number;
   processingMessageId: number;
   productId: number;

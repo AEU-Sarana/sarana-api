@@ -7,6 +7,7 @@ import {
   ChangePINRequest,
   ResetPasswordRequest,
   ResetPINRequest,
+  UpdateProfileRequest,
 } from '@src/domains/Auth/types/auth.types';
 import { UserPayload } from '@src/shared/middleware/auth.middleware';
 import { logger } from '@src/shared/utils/logger';
@@ -106,6 +107,30 @@ export class AuthController {
       });
     } catch (error: any) {
       logger.error('Get current user error', { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * PUT /api/v1/auth/profile
+   */
+  static async updateProfile(req: Request, res: Response): Promise<void> {
+    try {
+      const user = req.user as UserPayload;
+      // req.body can be undefined when multer processes a non-multipart request
+      // (e.g. a plain JSON PUT with no file). Default to empty object to avoid crash.
+      const request: UpdateProfileRequest = req.body ?? {};
+      const imageFile = req.file;
+
+      await AuthService.updateProfile(user.userId, request, imageFile);
+
+      res.status(200).json({
+        success: true,
+        data: {},
+        message: 'Profile updated successfully',
+      });
+    } catch (error: any) {
+      logger.error('Update profile error', { error: error.message });
       throw error;
     }
   }

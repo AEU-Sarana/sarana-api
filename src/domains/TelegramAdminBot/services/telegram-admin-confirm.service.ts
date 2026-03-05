@@ -19,22 +19,23 @@ export class TelegramAdminConfirmService {
   }
 
   static async executeConfirmedAction(
+    tenantId: number,
     chatId: number,
     action: string,
     adminUserId: number
   ) {
     if (action === 'CANCEL') {
-      return TelegramService.sendMessageByChatId(chatId, 'Cancelled.', 'Markdown');
+      return TelegramService.sendMessageByChatId(tenantId, chatId, 'Cancelled.', 'Markdown');
     }
     if (action === 'RESEND_LAST_REPORT') {
-      return TelegramAdminReportService.sendReportByRange(chatId, 'today', adminUserId);
+      return TelegramAdminReportService.sendReportByRange(tenantId, chatId, 'today', adminUserId);
     }
     if (action === 'UNLINK_BOT') {
       await prisma.telegramAdminLink.updateMany({
         where: { chatId: BigInt(chatId), status: 'ACTIVE' },
         data: { status: 'REVOKED', revokedAt: new Date() }
       });
-      return TelegramService.sendMessageByChatId(chatId, 'Bot ត្រូវបានផ្ដាច់ការភ្ជាប់ជោគជ័យ។', 'Markdown');
+      return TelegramService.sendMessageByChatId(tenantId, chatId, 'Bot ត្រូវបានផ្ដាច់ការភ្ជាប់ជោគជ័យ។', 'Markdown');
     }
   }
 }

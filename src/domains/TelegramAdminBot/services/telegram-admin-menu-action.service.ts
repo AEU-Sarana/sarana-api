@@ -10,13 +10,15 @@ export class TelegramAdminMenuActionService {
     payload: string | undefined,
     chatId: number,
     adminUserId: number,
-    telegramUserId: number
+    telegramUserId: number,
+    tenantId: number
   ) {
     switch (actionId) {
       case 'report': {
         if (payload === 'custom') {
           TelegramAdminReportService.startCustomReportRange(chatId, telegramUserId);
           return TelegramService.sendMessageByChatId(
+            tenantId,
             chatId,
             TelegramAdminFormatService.buildCustomRangePrompt('report'),
             'Markdown'
@@ -24,17 +26,19 @@ export class TelegramAdminMenuActionService {
         }
         if (!payload) {
           return TelegramService.sendMessageByChatId(
+            tenantId,
             chatId,
             'Invalid report range.',
             'Markdown'
           );
         }
-        return TelegramAdminReportService.sendReportByRange(chatId, payload, adminUserId);
+        return TelegramAdminReportService.sendReportByRange(tenantId, chatId, payload, adminUserId);
       }
       case 'top_products': {
         if (payload === 'custom') {
           TelegramAdminReportService.startCustomTopRange(chatId, telegramUserId);
           return TelegramService.sendMessageByChatId(
+            tenantId,
             chatId,
             TelegramAdminFormatService.buildCustomRangePrompt('top'),
             'Markdown'
@@ -42,17 +46,19 @@ export class TelegramAdminMenuActionService {
         }
         if (!payload) {
           return TelegramService.sendMessageByChatId(
+            tenantId,
             chatId,
             'Invalid range.',
             'Markdown'
           );
         }
-        return TelegramAdminReportService.sendTopProductsByRange(chatId, payload, adminUserId);
+        return TelegramAdminReportService.sendTopProductsByRange(tenantId, chatId, payload, adminUserId);
       }
       case 'slow_products': {
         if (payload === 'custom') {
           TelegramAdminReportService.startCustomSlowRange(chatId, telegramUserId);
           return TelegramService.sendMessageByChatId(
+            tenantId,
             chatId,
             TelegramAdminFormatService.buildCustomRangePrompt('slow'),
             'Markdown'
@@ -60,17 +66,19 @@ export class TelegramAdminMenuActionService {
         }
         if (!payload) {
           return TelegramService.sendMessageByChatId(
+            tenantId,
             chatId,
             'Invalid range.',
             'Markdown'
           );
         }
-        return TelegramAdminReportService.sendSlowProductsByRange(chatId, payload, adminUserId);
+        return TelegramAdminReportService.sendSlowProductsByRange(tenantId, chatId, payload, adminUserId);
       }
       case 'income': {
         if (payload === 'custom') {
           TelegramAdminReportService.startCustomIncomeRange(chatId, telegramUserId);
           return TelegramService.sendMessageByChatId(
+            tenantId,
             chatId,
             TelegramAdminFormatService.buildCustomRangePrompt('income'),
             'Markdown'
@@ -78,29 +86,30 @@ export class TelegramAdminMenuActionService {
         }
         if (!payload) {
           return TelegramService.sendMessageByChatId(
+            tenantId,
             chatId,
             'Invalid range.',
             'Markdown'
           );
         }
-        return TelegramAdminReportService.sendIncomeByRange(chatId, payload, adminUserId);
+        return TelegramAdminReportService.sendIncomeByRange(tenantId, chatId, payload, adminUserId);
       }
       case 'inventory_on_hand':
-        return TelegramAdminInventoryService.sendInventoryOnHand(chatId);
+        return TelegramAdminInventoryService.sendInventoryOnHand(tenantId, chatId);
       case 'inventory_value':
-        return TelegramAdminInventoryService.sendInventoryValue(chatId);
+        return TelegramAdminInventoryService.sendInventoryValue(tenantId, chatId);
       case 'inventory_low_stock':
-        return TelegramAdminInventoryService.sendLowStockList(chatId, adminUserId, { withNav: true });
+        return TelegramAdminInventoryService.sendLowStockList(tenantId, chatId, adminUserId, { withNav: true });
       case 'inventory_reorder':
-        return TelegramAdminInventoryService.sendReorderAlerts(chatId);
+        return TelegramAdminInventoryService.sendReorderAlerts(tenantId, chatId);
       case 'inventory_near_expiry':
-        return TelegramAdminInventoryService.sendNearExpiryList(chatId);
+        return TelegramAdminInventoryService.sendNearExpiryList(tenantId, chatId);
       case 'shift_summary':
-        return TelegramAdminInventoryService.sendShiftSummary(chatId, adminUserId);
+        return TelegramAdminInventoryService.sendShiftSummary(tenantId, chatId, adminUserId);
       case 'resend_last_report':
-        return TelegramAdminUiService.sendConfirm(chatId, 'RESEND_LAST_REPORT');
+        return TelegramAdminUiService.sendConfirm(tenantId, chatId, 'RESEND_LAST_REPORT');
       case 'export_excel':
-        return TelegramService.sendMessageByChatId(chatId, '⏳ Processing...', 'Markdown');
+        return TelegramService.sendMessageByChatId(tenantId, chatId, '⏳ Processing...', 'Markdown');
       default:
         return { sent: false };
     }

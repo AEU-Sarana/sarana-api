@@ -22,7 +22,7 @@ export class ReceiptScanController {
             // 1. Find receipt to ensure it exists
             const receipt = await prisma.receiptLink.findUnique({
                 where: { code: receipt_code },
-                select: { receiptLinkId: true, linkStatus: true }
+                include: { order: { select: { tenantId: true } } }
             });
 
             if (!receipt) {
@@ -34,7 +34,8 @@ export class ReceiptScanController {
             }
 
             // 2. Get bot info to build deep link
-            const config = await TelegramService.getTelegramConfig();
+            const tenantId = receipt.order.tenantId;
+            const config = await TelegramService.getTelegramConfig(tenantId);
             if (!config) throw new Error('Telegram not configured');
 
             const botInfo = await TelegramBotService.getMe(config.bot_token);

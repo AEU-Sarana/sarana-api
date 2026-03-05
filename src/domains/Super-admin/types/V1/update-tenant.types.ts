@@ -8,6 +8,8 @@ export interface UpdateTenantRequest {
     phone?: string;
     address?: string;
     status?: TenantStatus;
+    telegram_bot_token?: string;
+    telegram_group_id?: string;
 }
 
 export interface UpdateTenantResponse {

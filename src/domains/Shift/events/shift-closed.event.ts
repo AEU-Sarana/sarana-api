@@ -10,4 +10,5 @@ export interface ShiftClosedEvent {
     closed_at: Date;
     performed_by: number;
     performed_by_role: string;
+    tenant_id: number;
 }

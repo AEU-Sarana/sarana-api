@@ -5,6 +5,7 @@ import { logger } from '@src/shared/utils/logger';
 export interface MenuContext {
   chatId: number | string;
   telegramUserId: number;
+  tenantId: number;
   messageId?: number;
   fromCallback?: boolean;
 }
@@ -40,6 +41,7 @@ export const renderMenu = async (
   if (preferEdit && ctx.fromCallback && ctx.messageId) {
     try {
       await TelegramService.editMenuMessage(
+        ctx.tenantId,
         ctx.chatId,
         ctx.messageId,
         def.title,
@@ -55,7 +57,7 @@ export const renderMenu = async (
   }
 
   try {
-    await TelegramService.sendMenuMessage(ctx.chatId, def.title, replyMarkup);
+    await TelegramService.sendMenuMessage(ctx.tenantId, ctx.chatId, def.title, replyMarkup);
   } catch (error: any) {
     logger.error('Failed to send menu message', {
       menuId,

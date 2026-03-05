@@ -30,6 +30,7 @@ export type StockInDraft = StockInValidated & {
   chatId: number;
   telegramUserId: number;
   adminUserId: number;
+  tenantId: number;
   createdAt: number;
 };
 

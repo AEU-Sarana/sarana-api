@@ -441,22 +441,16 @@ export class StockService {
       });
 
       if (cost != null) {
-        const previousQty = stock.quantity;
-        const previousAvgCost = Number(product.avgCost ?? product.lastPurchaseCost ?? 0);
-        const newQty = previousQty + quantity;
-        const unitCost = Number(cost);
-        const newAvgCost =
-          newQty > 0 ? (previousAvgCost * previousQty + unitCost * quantity) / newQty : unitCost;
-
+        // FIFO: cost is tracked at the lot level (stock_lots.cost).
+        // We only update lastPurchaseCost as a reference — no WAC calculation.
         await tx.product.update({
           where: { productId: product_id },
           data: {
-            avgCost: newAvgCost,
-            lastPurchaseCost: unitCost,
+            lastPurchaseCost: Number(cost),
           },
         });
       } else {
-        logger.warn('Stock in without cost, avgCost not updated', {
+        logger.warn('Stock in without cost, lastPurchaseCost not updated', {
           productId: product_id,
           quantity,
         });
@@ -778,7 +772,7 @@ export class StockService {
     currentUserId: number,
     tx?: PrismaTransaction,
     options?: { allowExpired?: boolean; allowNegative?: boolean; reason?: string }
-  ): Promise<void> {
+  ): Promise<{ totalCost: number }> {
     const execute = async (db: PrismaTransaction) => {
       const stock = await db.stock.findUnique({
         where: { productId },
@@ -788,7 +782,7 @@ export class StockService {
         throw new ValidationException('Stock not found for product');
       }
 
-      await StockLotService.allocateStockOutFEFO(
+      const { totalCost } = await StockLotService.allocateStockOutFEFO(
         {
           productId,
           quantity,
@@ -811,12 +805,14 @@ export class StockService {
           updatedAt: new Date(),
         },
       });
+
+      return { totalCost };
     };
 
     if (tx) {
-      await execute(tx);
+      return execute(tx);
     } else {
-      await prisma.$transaction(async (db) => execute(db));
+      return prisma.$transaction(async (db) => execute(db));
     }
 
     logger.info('Stock Out (automatic)', {

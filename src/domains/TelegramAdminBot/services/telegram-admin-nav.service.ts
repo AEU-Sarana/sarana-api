@@ -11,6 +11,7 @@ import { type MenuId } from '@src/domains/Telegram/menu/menu-registry';
 type NavContext = {
   chatId: number;
   telegramUserId: number;
+  tenantId: number;
   messageId?: number;
   fromCallback?: boolean;
 };

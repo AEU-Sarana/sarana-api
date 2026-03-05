@@ -11,4 +11,4 @@ CREATE TABLE telegram_config (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX idx_telegram_config_active ON telegram_config(is_active) WHERE is_active = TRUE;
+CREATE UNIQUE INDEX idx_telegram_config_active ON telegram_config(created_by, is_active) WHERE is_active = TRUE;

@@ -1,3 +1,5 @@
+import { Feature } from './package.types';
+
 export interface PlanResponse {
     id: number;
     package_name: string;
@@ -5,6 +7,19 @@ export interface PlanResponse {
     name: string;
     price: number;
     duration_days: number;
+    is_active: boolean;
+    created_at: Date;
+    updated_at: Date;
+}
+
+export interface PlanDetailResponse extends PlanResponse {
+    package_id: number;
+    package_description: string | null;
+    features: Feature[];
+    stats: {
+        active_subscriptions: number;
+        total_subscriptions: number;
+    };
 }
 
 export interface ListPlansResponse {
@@ -24,5 +39,25 @@ export interface CreatePlanResponse {
     package_id: number;
     plan_type: string;
     price: number;
+    is_active: boolean;
     created_at: Date;
+}
+
+export interface UpdatePlanRequest {
+    plan_name?: string;
+    package_id?: number;
+    plan_type?: string;
+    price?: number;
+    is_active?: boolean;
+}
+
+export interface UpdatePlanResponse {
+    id: number;
+    plan_name: string;
+    package_id: number;
+    plan_type: string;
+    price: number;
+    is_active: boolean;
+    created_at: Date;
+    updated_at: Date;
 }

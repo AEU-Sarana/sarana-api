@@ -5,6 +5,7 @@ import { requirePermission } from '@src/shared/middleware/authorization.middlewa
 import { Permission } from '@src/shared/config/permissions';
 import { authRateLimiter } from '@src/shared/middleware/rate-limit.middleware';
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
+import { productImageUploadAny } from '@src/shared/utils/multer.config';
 import {
   loginValidator,
   logoutValidator,
@@ -14,6 +15,7 @@ import {
   resetPasswordRequestValidator,
   resetPasswordValidator,
   resetPINValidator,
+  updateProfileValidator,
 } from '@src/domains/Auth/validators/V1/index';
 
 const router: IRouter = Router();
@@ -55,6 +57,15 @@ router.get(
   '/me',
   authenticateToken,
   AuthController.getCurrentUser
+);
+
+// PUT /api/v1/auth/profile
+router.put(
+  '/profile',
+  authenticateToken,
+  productImageUploadAny,
+  ...validateRequest(updateProfileValidator),
+  AuthController.updateProfile
 );
 
 // POST /api/v1/auth/change-password

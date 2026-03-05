@@ -3,6 +3,7 @@ import { env } from '@src/shared/config/env';
 import { UserPayload, TokenPayload, RefreshTokenPayload } from '@src/domains/Auth/types/auth.types';
 import { logger } from '@src/shared/utils/logger';
 import { toPhnomPenhISOString } from '@src/shared/utils/date-utils';
+import crypto from 'crypto';
 
 export class TokenService {
   /**
@@ -15,6 +16,7 @@ export class TokenService {
       role: payload.role,
       tenantId: payload.tenantId,
       iat: Math.floor(Date.now() / 1000),
+      jti: crypto.randomUUID(),
     };
 
     return jwt.sign(tokenPayload, env.JWT_SECRET, {
@@ -30,6 +32,7 @@ export class TokenService {
       userId,
       tokenType: 'refresh',
       iat: Math.floor(Date.now() / 1000),
+      jti: crypto.randomUUID(),
     };
 
     return jwt.sign(tokenPayload, env.JWT_REFRESH_SECRET, {
@@ -61,11 +64,11 @@ export class TokenService {
   static verifyRefreshToken(token: string): RefreshTokenPayload {
     try {
       const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET) as RefreshTokenPayload;
-      
+
       if (decoded.tokenType !== 'refresh') {
         throw new Error('Invalid token type');
       }
-      
+
       return decoded;
     } catch (error) {
       if (error instanceof jwt.TokenExpiredError) {

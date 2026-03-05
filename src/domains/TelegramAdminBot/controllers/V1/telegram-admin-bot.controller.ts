@@ -9,13 +9,18 @@ export class TelegramAdminBotController {
   // POST /api/v1/telegram-admin-bot/webhook
   static async webhook(req: Request, res: Response): Promise<void> {
     const payload = req.body;
+    const tenantIdParam = req.params.tenantId;
+    const tenantId = parseInt(Array.isArray(tenantIdParam) ? tenantIdParam[0] : tenantIdParam, 10);
     res.status(200).json({ success: true });
 
     setImmediate(async () => {
       try {
-        await TelegramAdminBotService.handleUpdate(payload);
+        await TelegramAdminBotService.handleUpdate(payload, tenantId);
       } catch (error: any) {
-        logger.error('Telegram admin bot webhook error', { error: error.message });
+        logger.error('Telegram admin bot webhook error', {
+          tenantId,
+          error: error.message
+        });
       }
     });
   }

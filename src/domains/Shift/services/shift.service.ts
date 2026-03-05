@@ -248,6 +248,7 @@ export class ShiftService {
       closed_at: updated.endTime!,
       performed_by: currentUserId,
       performed_by_role: currentUserRole,
+      tenant_id: updated.user?.tenantId || 1,
     } satisfies ShiftClosedEvent);
 
     return {

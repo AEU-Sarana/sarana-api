@@ -29,7 +29,7 @@ import type {
 const CALLBACK_DEDUPE_TTL_SECONDS = 10;
 
 export class TelegramAdminWebhookService {
-  static async handleUpdate(update: TelegramWebhookPayload) {
+  static async handleUpdate(update: TelegramWebhookPayload, tenantId: number) {
     const { update_id } = update;
     const replayKey = `telegram:update_id:${update_id}`;
     const isDuplicate = await redisConnection.get(replayKey);
@@ -45,12 +45,13 @@ export class TelegramAdminWebhookService {
     logger.info('Telegram admin webhook received', {
       updateId: update_id,
       chatId,
+      tenantId,
       fromId: telegramUserId,
       hasCallback: Boolean(callbackData),
     });
 
     if (callbackData) {
-      return this.handleCallback(update.callback_query);
+      return this.handleCallback(update.callback_query, tenantId);
     }
 
     if (!text) {
@@ -80,6 +81,7 @@ export class TelegramAdminWebhookService {
       try {
         if (pendingStockIn && pendingStockIn.telegramUserId !== telegramUserId) {
           await TelegramService.sendMessageByChatId(
+            tenantId,
             chatId,
             'Another user is completing a stock in request. Please wait.',
             'Markdown'
@@ -89,6 +91,7 @@ export class TelegramAdminWebhookService {
 
         if (pendingStockAdjust && pendingStockAdjust.telegramUserId !== telegramUserId) {
           await TelegramService.sendMessageByChatId(
+            tenantId,
             chatId,
             'Another user is completing a stock adjustment request. Please wait.',
             'Markdown'
@@ -98,6 +101,7 @@ export class TelegramAdminWebhookService {
 
         if (pendingStockHistory && pendingStockHistory.telegramUserId !== telegramUserId) {
           await TelegramService.sendMessageByChatId(
+            tenantId,
             chatId,
             'Another user is completing a stock history query. Please wait.',
             'Markdown'
@@ -119,7 +123,7 @@ export class TelegramAdminWebhookService {
           const menuKey = getMenuStateKey(chatId, telegramUserId);
           resetStack(menuKey);
           const targetMenu = pendingStockAdjust || pendingStockIn ? 'update_stock' : 'main';
-          await renderMenu({ chatId, telegramUserId }, targetMenu, { preferEdit: false });
+          await renderMenu({ chatId, telegramUserId, tenantId }, targetMenu, { preferEdit: false });
           return { enqueued: false };
         }
 
@@ -130,6 +134,7 @@ export class TelegramAdminWebhookService {
         } catch (linkError: any) {
           if (linkError?.message === 'TELEGRAM_ADMIN_NOT_LINKED') {
             await TelegramService.sendMessageByChatId(
+              tenantId,
               chatId,
               'Bot មិនទាន់ភ្ជាប់ជាមួយ Admin ទេ។ សូមប្រើ /link CODE។',
               'Markdown'
@@ -143,7 +148,8 @@ export class TelegramAdminWebhookService {
           chatId,
           trimmed,
           adminUserId,
-          telegramUserId
+          telegramUserId,
+          tenantId
         );
 
         if (!result || !('text' in result)) {
@@ -152,6 +158,7 @@ export class TelegramAdminWebhookService {
 
         if (result.replyMarkup) {
           await TelegramService.sendMenuMessage(
+            tenantId,
             chatId,
             result.text,
             result.replyMarkup,
@@ -159,6 +166,7 @@ export class TelegramAdminWebhookService {
           );
         } else {
           await TelegramService.sendMessageByChatId(
+            tenantId,
             chatId,
             result.text,
             result.parseMode ?? 'Markdown'
@@ -174,6 +182,7 @@ export class TelegramAdminWebhookService {
           fromId: telegramUserId,
         });
         await TelegramService.sendMessageByChatId(
+          tenantId,
           chatId,
           '❌ Something went wrong. Please try again.',
           'Markdown'
@@ -196,7 +205,8 @@ export class TelegramAdminWebhookService {
         String(telegramUserId),
         String(chatId),
         update.message?.from?.username,
-        command.code
+        command.code,
+        tenantId
       );
     }
 
@@ -207,13 +217,15 @@ export class TelegramAdminWebhookService {
         telegramUserId,
         chatId,
         update.message?.from?.username,
-        command.token
+        command.token,
+        tenantId
       );
     }
 
     let processingMessageId: number | undefined;
     if (!isLightCommand) {
       const processing = await TelegramService.sendMessageByChatId(
+        tenantId,
         chatId,
         '⏳ Processing...',
         'Markdown'
@@ -223,6 +235,7 @@ export class TelegramAdminWebhookService {
 
     const payload: TelegramAdminMessageJobPayload = {
       chatId,
+      tenantId,
       text,
       telegramUserId,
       processingMessageId,
@@ -233,12 +246,12 @@ export class TelegramAdminWebhookService {
     return { enqueued: true };
   }
 
-  static async handleCommand(message: any, adminUserId = 0) {
+  static async handleCommand(message: any, tenantId: number, adminUserId = 0) {
     const update: TelegramWebhookPayload = { update_id: 0, message };
-    return this.handleUpdate(update);
+    return this.handleUpdate(update, tenantId);
   }
 
-  static async handleCallback(callback: any, adminUserId = 0) {
+  static async handleCallback(callback: any, tenantId: number, adminUserId = 0) {
     const data = callback.data || '';
     const chatId = callback.message?.chat?.id;
     const telegramUserId = callback?.from?.id ?? 0;
@@ -247,6 +260,7 @@ export class TelegramAdminWebhookService {
     let processingMessageId: number;
     try {
       const processing = await TelegramService.sendMessageByChatId(
+        tenantId,
         chatId,
         '⏳ Processing...',
         'Markdown'
@@ -259,7 +273,7 @@ export class TelegramAdminWebhookService {
 
     setImmediate(async () => {
       try {
-        await TelegramService.answerCallback(callback.id, '⏳ Processing...');
+        await TelegramService.answerCallback(tenantId, callback.id, '⏳ Processing...');
       } catch (error: any) {
         logger.warn('Failed to answer Telegram callback', { error: error.message });
       }
@@ -276,6 +290,7 @@ export class TelegramAdminWebhookService {
 
     if (!acquired) {
       await TelegramService.editMessageByChatId(
+        tenantId,
         chatId,
         processingMessageId,
         '⏳ Already processing…',
@@ -286,6 +301,7 @@ export class TelegramAdminWebhookService {
 
     const payload: TelegramAdminCallbackJobPayload = {
       chatId,
+      tenantId,
       callbackData: data,
       callbackQueryId: callback.id,
       processingMessageId,
@@ -302,7 +318,8 @@ export class TelegramAdminWebhookService {
     telegramUserId: string,
     telegramChatId: string,
     telegramUsername: string | undefined,
-    code: string
+    code: string,
+    tenantId: number
   ): Promise<{ enqueued: false }> {
     try {
       logger.info('Handling receipt start command', { chatId });
@@ -314,6 +331,7 @@ export class TelegramAdminWebhookService {
       let loadingMessageId: number | undefined;
       try {
         const loadingMsg = await TelegramService.sendMessageByChatId(
+          tenantId,
           chatId,
           '⏳ កំពុងបង្កើតវិក្កយបត្រ... (Generating your receipt, please wait...)',
           'Markdown'
@@ -342,6 +360,7 @@ export class TelegramAdminWebhookService {
         if (loadingMessageId) {
           try {
             await TelegramService.editMessageByChatId(
+              tenantId,
               chatId,
               loadingMessageId,
               '⏳ កំពុងរៀបចំវិក្កយបត្រ... សូមរង់ចាំមួយភ្លែត (Preparing your receipt, please wait...)',
@@ -375,7 +394,7 @@ export class TelegramAdminWebhookService {
       logger.info('Receipt image buffer generated successfully', { filename: receiptImage.filename });
 
       // Step 3: Get Telegram bot token
-      const telegramConfig = await TelegramService.getTelegramConfig();
+      const telegramConfig = await TelegramService.getTelegramConfig(tenantId);
       if (!telegramConfig) {
         throw new Error('Telegram not configured');
       }
@@ -393,7 +412,7 @@ export class TelegramAdminWebhookService {
       // --- CLEANUP LOADING MESSAGE ---
       if (loadingMessageId) {
         try {
-          await TelegramService.deleteMessage(chatId, loadingMessageId);
+          await TelegramService.deleteMessage(tenantId, chatId, loadingMessageId);
         } catch (error) {
           logger.warn('Failed to delete loading message', { error });
         }
@@ -424,7 +443,7 @@ export class TelegramAdminWebhookService {
         errorMessage = '⚠️ This receipt has expired.';
       }
 
-      await TelegramService.sendMessageByChatId(chatId, errorMessage, 'Markdown');
+      await TelegramService.sendMessageByChatId(tenantId, chatId, errorMessage, 'Markdown');
       return { enqueued: false };
     }
   }
@@ -434,7 +453,8 @@ export class TelegramAdminWebhookService {
     telegramUserId: number,
     telegramChatId: number,
     telegramUsername: string | undefined,
-    token: string
+    token: string,
+    tenantId: number
   ): Promise<{ enqueued: false }> {
     try {
       logger.info('Handling customer link start', { chatId });
@@ -442,7 +462,8 @@ export class TelegramAdminWebhookService {
         token,
         telegramUserId,
         telegramChatId,
-        telegramUsername
+        telegramUsername,
+        tenantId
       );
       return { enqueued: false };
     } catch (error: any) {
@@ -451,6 +472,7 @@ export class TelegramAdminWebhookService {
         chatId,
       });
       await TelegramService.sendMessageByChatId(
+        tenantId,
         chatId,
         '❌ Invalid or expired linking link. Please scan the QR code again.',
         'Markdown'

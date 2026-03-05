@@ -35,4 +35,12 @@ export const updateTenantValidator = [
         .optional()
         .isIn(Object.values(TenantStatus))
         .withMessage(`Status must be one of: ${Object.values(TenantStatus).join(', ')}`),
+    body('telegram_bot_token')
+        .optional()
+        .isString()
+        .withMessage('Bot token must be a string'),
+    body('telegram_group_id')
+        .optional()
+        .isString()
+        .withMessage('Group ID must be a string'),
 ];

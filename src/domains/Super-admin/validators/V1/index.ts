@@ -6,5 +6,7 @@ export * from './close-subscription.validator';
 export * from './upgrade-plan.validator';
 export * from './create-package.validator';
 export * from './create-plan.validator';
+export * from './update-plan.validator';
 export * from './renew-subscription.validator';
 export * from './update-tenant.validator';
+export * from './update-package.validator';

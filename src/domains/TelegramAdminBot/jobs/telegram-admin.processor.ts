@@ -58,6 +58,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
   try {
     if (callbackData === 'noop') {
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         '⏳ Processing...',
@@ -72,6 +73,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
     } catch (error: any) {
       if (error?.message === 'TELEGRAM_ADMIN_NOT_LINKED') {
         return TelegramService.editMessageByChatId(
+          payload.tenantId,
           chatId,
           processingMessageId,
           'Bot មិនទាន់ភ្ជាប់ជាមួយ Admin ទេ។\nសូមប្រើ `/link CODE` (ឧ. `/link ADM-CXUJD9`).',
@@ -83,6 +85,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
 
     const exportHandled = await handleExportCallback({
       chatId,
+      tenantId: payload.tenantId,
       telegramUserId,
       adminUserId,
       callbackData,
@@ -95,6 +98,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
       const prompt = TelegramAdminStockService.startStockInPrompt(chatId, telegramUserId);
       if (prompt.replyMarkup) {
         await TelegramService.sendMenuMessage(
+          payload.tenantId,
           chatId,
           prompt.text,
           prompt.replyMarkup,
@@ -102,6 +106,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
         );
       } else {
         await TelegramService.sendMessageByChatId(
+          payload.tenantId,
           chatId,
           prompt.text,
           prompt.parseMode ?? 'Markdown'
@@ -109,6 +114,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
       }
 
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         '✅',
@@ -120,6 +126,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
       const prompt = TelegramAdminStockService.startStockAdjustPrompt(chatId, telegramUserId);
       if (prompt.replyMarkup) {
         await TelegramService.sendMenuMessage(
+          payload.tenantId,
           chatId,
           prompt.text,
           prompt.replyMarkup,
@@ -127,6 +134,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
         );
       } else {
         await TelegramService.sendMessageByChatId(
+          payload.tenantId,
           chatId,
           prompt.text,
           prompt.parseMode ?? 'Markdown'
@@ -134,6 +142,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
       }
 
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         '✅',
@@ -145,6 +154,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
       const prompt = TelegramAdminStockService.startStockHistoryPrompt(chatId, telegramUserId);
       if (prompt.replyMarkup) {
         await TelegramService.sendMenuMessage(
+          payload.tenantId,
           chatId,
           prompt.text,
           prompt.replyMarkup,
@@ -152,6 +162,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
         );
       } else {
         await TelegramService.sendMessageByChatId(
+          payload.tenantId,
           chatId,
           prompt.text,
           prompt.parseMode ?? 'Markdown'
@@ -159,6 +170,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
       }
 
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         '✅',
@@ -168,6 +180,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
 
     const stockHistoryHandled = await handleStockHistoryCallback({
       chatId,
+      tenantId: payload.tenantId,
       callbackData,
       processingMessageId,
       adminUserId,
@@ -178,9 +191,11 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
     const navResult = await TelegramAdminCallbackNavService.handle(callbackData, {
       chatId,
       telegramUserId,
+      tenantId: payload.tenantId,
     });
     if (navResult) {
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         navResult.text,
@@ -193,9 +208,11 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
       chatId,
       telegramUserId,
       adminUserId,
+      tenantId: payload.tenantId,
     });
     if (reportResult) {
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         reportResult.text,
@@ -208,9 +225,11 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
       chatId,
       telegramUserId,
       adminUserId,
+      tenantId: payload.tenantId,
     });
     if (inventoryResult) {
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         inventoryResult.text,
@@ -222,6 +241,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
     if (callbackData === 'action:resend_last_report') {
       const prompt = TelegramAdminConfirmService.buildConfirmPrompt('RESEND_LAST_REPORT');
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         prompt.text,
@@ -234,6 +254,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
       const action = callbackData.replace('ACTION:', '');
       const confirmResult = TelegramAdminConfirmService.buildConfirmPrompt(action);
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         confirmResult.text,
@@ -246,6 +267,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
       const draftId = callbackData.replace('STOCK_IN_CONFIRM:', '').trim();
       if (!draftId) {
         return TelegramService.editMessageByChatId(
+          payload.tenantId,
           chatId,
           processingMessageId,
           'Invalid draft.',
@@ -266,6 +288,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
       );
       if (!acquired) {
         return TelegramService.editMessageByChatId(
+          payload.tenantId,
           chatId,
           processingMessageId,
           '⏳ Already processing...',
@@ -273,8 +296,9 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
         );
       }
 
-      const result = await TelegramAdminStockService.confirmStockIn(draftId, adminUserId);
+      const result = await TelegramAdminStockService.confirmStockIn(draftId, adminUserId, payload.tenantId);
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         result.text,
@@ -287,6 +311,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
       const draftId = callbackData.replace('STOCK_IN_CANCEL:', '').trim();
       if (!draftId) {
         return TelegramService.editMessageByChatId(
+          payload.tenantId,
           chatId,
           processingMessageId,
           'Invalid draft.',
@@ -296,6 +321,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
 
       TelegramAdminStockService.cancelStockIn(draftId);
       await TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         'Cancelled.',
@@ -304,13 +330,14 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
 
       const menuKey = getMenuStateKey(chatId, telegramUserId);
       resetStack(menuKey);
-      return renderMenu({ chatId, telegramUserId }, 'main', { preferEdit: false });
+      return renderMenu({ chatId, telegramUserId, tenantId: payload.tenantId }, 'main', { preferEdit: false });
     }
 
     if (callbackData.startsWith('STOCK_ADJUST_CONFIRM:')) {
       const draftId = callbackData.replace('STOCK_ADJUST_CONFIRM:', '').trim();
       if (!draftId) {
         return TelegramService.editMessageByChatId(
+          payload.tenantId,
           chatId,
           processingMessageId,
           'Invalid draft.',
@@ -325,6 +352,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
       const acquired = await redisConnection.set(lockKey, '1', 'EX', 15, 'NX');
       if (!acquired) {
         return TelegramService.editMessageByChatId(
+          payload.tenantId,
           chatId,
           processingMessageId,
           '⏳ Already processing...',
@@ -332,8 +360,9 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
         );
       }
 
-      const result = await TelegramAdminStockService.confirmStockAdjust(draftId, adminUserId);
+      const result = await TelegramAdminStockService.confirmStockAdjust(draftId, adminUserId, payload.tenantId);
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         result.text,
@@ -346,6 +375,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
       const draftId = callbackData.replace('STOCK_ADJUST_CANCEL:', '').trim();
       if (!draftId) {
         return TelegramService.editMessageByChatId(
+          payload.tenantId,
           chatId,
           processingMessageId,
           'Invalid draft.',
@@ -355,6 +385,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
 
       TelegramAdminStockService.cancelStockAdjust(draftId);
       await TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         '❌ Canceled',
@@ -363,12 +394,13 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
 
       const menuKey = getMenuStateKey(chatId, telegramUserId);
       resetStack(menuKey);
-      return renderMenu({ chatId, telegramUserId }, 'update_stock', { preferEdit: false });
+      return renderMenu({ chatId, telegramUserId, tenantId: payload.tenantId }, 'update_stock', { preferEdit: false });
     }
 
     if (callbackData.startsWith('CONFIRM:')) {
       const action = callbackData.replace('CONFIRM:', '');
       const result = await TelegramAdminConfirmService.executeConfirmedAction(
+        payload.tenantId,
         chatId,
         action,
         adminUserId
@@ -377,6 +409,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
     }
 
     return TelegramService.editMessageByChatId(
+      payload.tenantId,
       chatId,
       processingMessageId,
       'Unknown action.',
@@ -385,6 +418,7 @@ async function handleCallbackJob(payload: TelegramAdminCallbackJobPayload) {
   } catch (error: any) {
     logger.error('Telegram admin callback job failed', { error: error.message });
     return TelegramService.editMessageByChatId(
+      payload.tenantId,
       chatId,
       processingMessageId,
       '❌ Something went wrong. Please try again.',
@@ -424,7 +458,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
       if (isAdmin) {
         const menuKey = getMenuStateKey(chatId, telegramUserId);
         resetStack(menuKey);
-        return renderMenu({ chatId, telegramUserId }, 'main', { preferEdit: false });
+        return renderMenu({ chatId, telegramUserId, tenantId: payload.tenantId }, 'main', { preferEdit: false });
       } else {
         // Fetch store name from settings
         const settings = await prisma.receiptSetting.findFirst({
@@ -434,6 +468,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
 
         // Non-admin welcome message
         return TelegramService.sendMessageByChatId(
+          payload.tenantId,
           chatId,
           `សូមស្វាគមន៍មកកាន់ **${storeName}**! 🙏\n\nនេះគឺជាគណនី Telegram ផ្លូវការសម្រាប់ទទួលបានវិក្កយបត្រស្វ័យប្រវត្តិ។\n\nដើម្បីទទួលបានវិក្កយបត្រ សូមកុំភ្លេចស្កេន QR Code នៅលើវិក្កយបត្ររបស់អ្នកបាទ។`,
           'Markdown'
@@ -444,9 +479,9 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
     if (!isAdmin) {
       const message = 'សុំទោស! អ្នកមិនមានសិទ្ធិចូលប្រើប្រាស់ Admin Menu ទេបាទ។\nប្រសិនបើអ្នកជា Admin សូមប្រើ `/link CODE` ដើម្បីភ្ជាប់គណនី។';
       if (processingMessageId) {
-        return TelegramService.editMessageByChatId(chatId, processingMessageId, message, 'Markdown');
+        return TelegramService.editMessageByChatId(payload.tenantId, chatId, processingMessageId, message, 'Markdown');
       }
-      return TelegramService.sendMessageByChatId(chatId, message, 'Markdown');
+      return TelegramService.sendMessageByChatId(payload.tenantId, chatId, message, 'Markdown');
     }
 
     const pendingKey = getPendingKey(chatId);
@@ -456,10 +491,12 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
         chatId,
         text,
         adminUserId,
-        telegramUserId
+        telegramUserId,
+        payload.tenantId
       );
       if (result) {
         return TelegramService.editMessageByChatId(
+          payload.tenantId,
           chatId,
           processingMessageId,
           result.text,
@@ -475,10 +512,12 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
         chatId,
         text,
         adminUserId,
-        telegramUserId
+        telegramUserId,
+        payload.tenantId
       );
       if (result) {
         return TelegramService.editMessageByChatId(
+          payload.tenantId,
           chatId,
           processingMessageId,
           result.text,
@@ -494,10 +533,12 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
         chatId,
         text,
         adminUserId,
-        telegramUserId
+        telegramUserId,
+        payload.tenantId
       );
       if (result) {
         return TelegramService.editMessageByChatId(
+          payload.tenantId,
           chatId,
           processingMessageId,
           result.text,
@@ -513,10 +554,12 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
         chatId,
         text,
         adminUserId,
-        telegramUserId
+        telegramUserId,
+        payload.tenantId
       );
       if (result) {
         return TelegramService.editMessageByChatId(
+          payload.tenantId,
           chatId,
           processingMessageId,
           result.text,
@@ -530,6 +573,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
     if (pendingStockHistory && processingMessageId) {
       if (pendingStockHistory.telegramUserId !== telegramUserId) {
         return TelegramService.editMessageByChatId(
+          payload.tenantId,
           chatId,
           processingMessageId,
           'Another user is completing a stock history query. Please wait.',
@@ -541,6 +585,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
       if (trimmed.toLowerCase() === '/cancel') {
         clearStockHistoryPending(chatId, telegramUserId);
         await TelegramService.editMessageByChatId(
+          payload.tenantId,
           chatId,
           processingMessageId,
           'Cancelled.',
@@ -548,11 +593,11 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
         );
         const menuKey = getMenuStateKey(chatId, telegramUserId);
         resetStack(menuKey);
-        return renderMenu({ chatId, telegramUserId }, 'main', { preferEdit: false });
+        return renderMenu({ chatId, telegramUserId, tenantId: payload.tenantId }, 'main', { preferEdit: false });
       }
 
       const tSearchStart = Date.now();
-      const products = await TelegramAdminStockService.findProductsByQuery(trimmed);
+      const products = await TelegramAdminStockService.findProductsByQuery(trimmed, payload.tenantId);
       const tSearchMs = Date.now() - tSearchStart;
       logger.info('Telegram admin stock history search', {
         chatId,
@@ -563,6 +608,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
 
       if (!products.length) {
         return TelegramService.editMessageByChatId(
+          payload.tenantId,
           chatId,
           processingMessageId,
           'រកមិនឃើញទំនិញ\nសូមបញ្ចូល Product Code ឬ Product Name ម្តងទៀត។',
@@ -575,6 +621,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
         const tPreviewStart = Date.now();
         const preview = await TelegramAdminStockService.buildStockHistoryPreview(
           products[0].productId,
+          payload.tenantId,
           20
         );
         const tPreviewMs = Date.now() - tPreviewStart;
@@ -584,6 +631,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
           t_preview_ms: tPreviewMs,
         });
         return TelegramService.editMessageByChatId(
+          payload.tenantId,
           chatId,
           processingMessageId,
           preview.text,
@@ -593,6 +641,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
       }
 
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         'សូមជ្រើសរើសទំនិញ៖',
@@ -605,6 +654,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
     if (pendingStockIn && processingMessageId) {
       if (pendingStockIn.telegramUserId !== telegramUserId) {
         return TelegramService.editMessageByChatId(
+          payload.tenantId,
           chatId,
           processingMessageId,
           'Another user is completing a stock in request. Please wait.',
@@ -616,6 +666,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
       if (trimmed.toLowerCase() === '/cancel') {
         clearStockInPending(chatId, telegramUserId);
         await TelegramService.editMessageByChatId(
+          payload.tenantId,
           chatId,
           processingMessageId,
           'Cancelled.',
@@ -623,16 +674,18 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
         );
         const menuKey = getMenuStateKey(chatId, telegramUserId);
         resetStack(menuKey);
-        return renderMenu({ chatId, telegramUserId }, 'main', { preferEdit: false });
+        return renderMenu({ chatId, telegramUserId, tenantId: payload.tenantId }, 'main', { preferEdit: false });
       }
 
       const result = await TelegramAdminStockService.handleStockInBlockInput(
         chatId,
         trimmed,
         adminUserId,
-        telegramUserId
+        telegramUserId,
+        payload.tenantId
       );
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         result.text,
@@ -642,11 +695,11 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
     }
 
     if (command.type === 'PRODUCT_LOOKUP') {
-      return TelegramAdminStockService.handleProductLookup(command.productCode, adminUserId);
+      return TelegramAdminStockService.handleProductLookup(command.productCode, adminUserId, payload.tenantId);
     }
 
     if (command.type === 'STOCK_WRITE') {
-      return TelegramAdminStockService.handleStockWrite(command, text, telegramUserId, adminUserId);
+      return TelegramAdminStockService.handleStockWrite(command, text, telegramUserId, adminUserId, payload.tenantId);
     }
 
     if (!processingMessageId) {
@@ -659,9 +712,11 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
         chatId,
         args,
         adminUserId,
-        telegramUserId
+        telegramUserId,
+        payload.tenantId
       );
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         result.text,
@@ -671,8 +726,9 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
     }
 
     if (command.type === 'LOWSTOCK') {
-      const result = await TelegramAdminInventoryService.buildLowStockMessage(adminUserId);
+      const result = await TelegramAdminInventoryService.buildLowStockMessage(adminUserId, payload.tenantId);
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         result.text,
@@ -682,8 +738,9 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
     }
 
     if (command.type === 'SHIFT_SUMMARY') {
-      const result = await TelegramAdminInventoryService.buildShiftSummaryMessage(adminUserId);
+      const result = await TelegramAdminInventoryService.buildShiftSummaryMessage(adminUserId, payload.tenantId);
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         result.text,
@@ -695,6 +752,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
     if (command.type === 'RESEND_LAST_REPORT') {
       const prompt = TelegramAdminConfirmService.buildConfirmPrompt('RESEND_LAST_REPORT');
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         prompt.text,
@@ -706,6 +764,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
     if (command.type === 'UNLINK_BOT') {
       const prompt = TelegramAdminConfirmService.buildConfirmPrompt('UNLINK_BOT');
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         prompt.text,
@@ -715,6 +774,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
     }
 
     return TelegramService.editMessageByChatId(
+      payload.tenantId,
       chatId,
       processingMessageId,
       'Unknown command.',
@@ -736,13 +796,14 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
 
     if (processingMessageId) {
       return TelegramService.editMessageByChatId(
+        payload.tenantId,
         chatId,
         processingMessageId,
         displayMessage,
         'Markdown'
       );
     }
-    return TelegramService.sendMessageByChatId(chatId, displayMessage, 'Markdown');
+    return TelegramService.sendMessageByChatId(payload.tenantId, chatId, displayMessage, 'Markdown');
   }
 }
 
@@ -755,13 +816,14 @@ function isExportCallback(data: string) {
 
 async function handleExportCallback(params: {
   chatId: number;
+  tenantId: number;
   telegramUserId: number;
   adminUserId: number;
   callbackData: string;
   processingMessageId: number;
   originMessageId?: number;
 }) {
-  const { chatId, adminUserId, callbackData, processingMessageId, originMessageId } = params;
+  const { chatId, tenantId, adminUserId, callbackData, processingMessageId, originMessageId } = params;
 
   if (!isExportCallback(callbackData)) return null;
 
@@ -780,6 +842,7 @@ async function handleExportCallback(params: {
   );
   if (!acquired) {
     await TelegramService.editMessageByChatId(
+      tenantId,
       chatId,
       processingMessageId,
       '⏳ Already processing...',
@@ -789,6 +852,7 @@ async function handleExportCallback(params: {
   }
 
   await TelegramService.editMessageByChatId(
+    tenantId,
     chatId,
     processingMessageId,
     '⏳ កំពុងបង្កើត Excel...',
@@ -800,6 +864,7 @@ async function handleExportCallback(params: {
 
   const payload: TelegramAdminExportJobPayload = {
     chatId,
+    tenantId,
     requestedByUserId: adminUserId,
     processingMessageId,
     originMessageId,
@@ -829,17 +894,19 @@ function isStockHistoryExportCallback(data: string) {
 
 async function handleStockHistoryCallback(params: {
   chatId: number;
+  tenantId: number;
   callbackData: string;
   processingMessageId: number;
   adminUserId: number;
   telegramUserId: number;
 }) {
-  const { chatId, callbackData, processingMessageId, adminUserId, telegramUserId } = params;
+  const { chatId, tenantId, callbackData, processingMessageId, adminUserId, telegramUserId } = params;
 
   if (isStockHistorySelectCallback(callbackData)) {
     const productId = Number(callbackData.replace('STOCK_HISTORY_SELECT:', ''));
     if (!productId) {
       return TelegramService.editMessageByChatId(
+        tenantId,
         chatId,
         processingMessageId,
         'Invalid product.',
@@ -848,7 +915,7 @@ async function handleStockHistoryCallback(params: {
     }
     clearStockHistoryPending(chatId, telegramUserId);
     const tPreviewStart = Date.now();
-    const preview = await TelegramAdminStockService.buildStockHistoryPreview(productId, 20);
+    const preview = await TelegramAdminStockService.buildStockHistoryPreview(productId, tenantId, 20);
     const tPreviewMs = Date.now() - tPreviewStart;
     logger.info('Telegram admin stock history preview', {
       chatId,
@@ -856,6 +923,7 @@ async function handleStockHistoryCallback(params: {
       t_preview_ms: tPreviewMs,
     });
     return TelegramService.editMessageByChatId(
+      tenantId,
       chatId,
       processingMessageId,
       preview.text,
@@ -871,6 +939,7 @@ async function handleStockHistoryCallback(params: {
 
     if (!productId) {
       return TelegramService.editMessageByChatId(
+        tenantId,
         chatId,
         processingMessageId,
         'Invalid product.',
@@ -888,6 +957,7 @@ async function handleStockHistoryCallback(params: {
     );
     if (!acquired) {
       return TelegramService.editMessageByChatId(
+        tenantId,
         chatId,
         processingMessageId,
         '⏳ Already processing...',
@@ -896,6 +966,7 @@ async function handleStockHistoryCallback(params: {
     }
 
     await TelegramService.editMessageByChatId(
+      tenantId,
       chatId,
       processingMessageId,
       '⏳ កំពុងបង្កើត Excel... សូមរង់ចាំ',
@@ -905,6 +976,7 @@ async function handleStockHistoryCallback(params: {
 
     const payload: TelegramAdminStockHistoryExportJobPayload = {
       chatId,
+      tenantId,
       requestedByUserId: adminUserId,
       processingMessageId,
       productId,

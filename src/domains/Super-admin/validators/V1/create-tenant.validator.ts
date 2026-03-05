@@ -8,12 +8,12 @@ export const createTenantValidator = [
         .withMessage('Business name must be between 2 and 200 characters'),
     body('username')
         .trim()
-    .notEmpty()
-    .withMessage('Username is required')
-    .isLength({ min: 3, max: 50 })
-    .withMessage('Username must be between 3 and 50 characters')
-    .matches(/^[a-zA-Z0-9_]+$/)
-    .withMessage('Username can only contain letters, numbers, and underscores'),
+        .notEmpty()
+        .withMessage('Username is required')
+        .isLength({ min: 3, max: 50 })
+        .withMessage('Username must be between 3 and 50 characters')
+        .matches(/^[a-zA-Z0-9_]+$/)
+        .withMessage('Username can only contain letters, numbers, and underscores'),
     body('full_name')
         .isString()
         .isLength({ min: 2, max: 200 })
@@ -51,12 +51,16 @@ export const createTenantValidator = [
         .optional()
         .isString()
         .withMessage('Payment method must be a string'),
-    body('price')
-        .optional()
-        .isNumeric()
-        .withMessage('Price must be a number'),
     body('transaction_id')
         .optional()
         .isString()
         .withMessage('Transaction ID must be a string'),
+    body('telegram_bot_token')
+        .optional()
+        .isString()
+        .withMessage('Bot token must be a string'),
+    body('telegram_group_id')
+        .optional()
+        .isString()
+        .withMessage('Group ID must be a string'),
 ];

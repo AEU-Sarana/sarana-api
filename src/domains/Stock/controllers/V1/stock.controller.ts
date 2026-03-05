@@ -176,8 +176,9 @@ export class StockController {
 
   static async getNearExpiry(req: Request, res: Response): Promise<void> {
     try {
+      const user = req.user as UserPayload;
       const days = req.query.days ? parseInt(String(req.query.days), 10) : 30;
-      const response = await StockLotService.listNearExpiry(days);
+      const response = await StockLotService.listNearExpiry(user.tenantId!, days);
       res.status(200).json({
         success: true,
         data: response,
@@ -191,7 +192,8 @@ export class StockController {
 
   static async getExpired(req: Request, res: Response): Promise<void> {
     try {
-      const response = await StockLotService.listExpired();
+      const user = req.user as UserPayload;
+      const response = await StockLotService.listExpired(user.tenantId!);
       res.status(200).json({
         success: true,
         data: response,
