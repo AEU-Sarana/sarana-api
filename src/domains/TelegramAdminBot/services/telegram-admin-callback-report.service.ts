@@ -7,6 +7,7 @@ type CallbackContext = {
   chatId: number;
   telegramUserId: number;
   adminUserId: number;
+  tenantId: number;
 };
 
 const CACHE_TTL_SECONDS = 60;
@@ -68,22 +69,26 @@ export class TelegramAdminCallbackReportService {
     if (type === 'report') {
       result = await TelegramAdminReportService.buildReportMessageByRange(
         normalizedRange,
-        ctx.adminUserId
+        ctx.adminUserId,
+        ctx.tenantId
       );
     } else if (type === 'top_products') {
       result = await TelegramAdminReportService.buildTopProductsMessageByRange(
         normalizedRange,
-        ctx.adminUserId
+        ctx.adminUserId,
+        ctx.tenantId
       );
     } else if (type === 'slow_products') {
       result = await TelegramAdminReportService.buildSlowProductsMessageByRange(
         normalizedRange,
-        ctx.adminUserId
+        ctx.adminUserId,
+        ctx.tenantId
       );
     } else {
       result = await TelegramAdminReportService.buildIncomeMessageByRange(
         normalizedRange,
-        ctx.adminUserId
+        ctx.adminUserId,
+        ctx.tenantId
       );
     }
 

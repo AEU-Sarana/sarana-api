@@ -8,14 +8,21 @@ export class ShiftReconciliationService {
   static async getReconciliation(
     shiftId: number,
     currentUserId: number,
-    currentUserRole: string
+    currentUserRole: string,
+    currentTenantId?: number
   ): Promise<GetShiftReconciliationResponse> {
     if (currentUserRole !== Role.ADMIN) {
       throw new BusinessLogicException('Only admin can access shift reconciliation', 'FORBIDDEN', 403);
     }
 
-    const shift = await prisma.shift.findUnique({
-      where: { shiftId },
+    const shiftWhere: any = { shiftId };
+    // Ensure admin can only reconcile shifts from their own tenant
+    if (currentTenantId) {
+      shiftWhere.user = { tenantId: currentTenantId };
+    }
+
+    const shift = await prisma.shift.findFirst({
+      where: shiftWhere,
       select: {
         shiftId: true,
         stockVersion: true,
@@ -30,9 +37,9 @@ export class ShiftReconciliationService {
     const snapshotStocksPromise =
       shift.stockVersion != null
         ? prisma.stock.findMany({
-            where: { stockVersion: shift.stockVersion },
-            include: { product: { select: { productId: true, productName: true, price: true } } },
-          })
+          where: { stockVersion: shift.stockVersion },
+          include: { product: { select: { productId: true, productName: true, price: true } } },
+        })
         : Promise.resolve([]);
 
     const [
@@ -235,7 +242,7 @@ export class ShiftReconciliationService {
         },
         stock_movements: soldByProduct.map((p: any) => ({
           product_id: p.productId,
-          product_name: null, 
+          product_name: null,
           quantity_sold: Number(p._sum.quantity ?? 0),
           stock_deduction: Number(p._sum.quantity ?? 0),
         })),

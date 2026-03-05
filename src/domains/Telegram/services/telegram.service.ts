@@ -50,21 +50,21 @@ export class TelegramService {
     });
   }
 
-  private static buildTelegramAdminWebhookUrl(): string | null {
+  private static buildTelegramAdminWebhookUrl(tenantId: number): string | null {
     const baseUrl = env.API_BASE_URL || env.APP_URL;
     if (!baseUrl) {
       return null;
     }
     const trimmedBase = baseUrl.replace(/\/+$/, '');
-    return `${trimmedBase}/api/v1/telegram-admin-bot/webhook`;
+    return `${trimmedBase}/api/v1/telegram-admin-bot/webhook/${tenantId}`;
   }
 
-  private static async registerAdminWebhook(botToken: string, isActive: boolean): Promise<void> {
+  public static async registerAdminWebhook(botToken: string, isActive: boolean, tenantId: number): Promise<void> {
     if (!isActive) {
       return;
     }
 
-    const webhookUrl = this.buildTelegramAdminWebhookUrl();
+    const webhookUrl = this.buildTelegramAdminWebhookUrl(tenantId);
     if (!webhookUrl) {
       logger.warn(
         'Skipping automatic Telegram webhook registration because API_BASE_URL or APP_URL is not configured'
@@ -90,15 +90,25 @@ export class TelegramService {
   /**
    * Configure Telegram bot
    */
+  /**
+   * Configure Telegram bot for a specific tenant
+   */
   static async configureTelegram(
     config: TelegramConfigInput,
-    userId: number
+    userId: number,
+    tenantId: number
   ): Promise<TelegramConfigResponse> {
     // Encrypt bot token before storing
     const encryptedToken = encrypt(config.bot_token, process.env.ENCRYPTION_KEY!);
 
-    // Check if config exists
-    const existingConfig = await prisma.telegramConfig.findFirst();
+    // Check if config exists for this tenant (belonging to any user in this tenant)
+    const existingConfig = await prisma.telegramConfig.findFirst({
+      where: {
+        createdByUser: {
+          tenantId: tenantId
+        }
+      }
+    });
 
     if (existingConfig) {
       // Update existing config
@@ -125,7 +135,7 @@ export class TelegramService {
         updated_by: userId,
         updated_at: updated.updatedAt,
       });
-      await this.registerAdminWebhook(config.bot_token, updated.isActive);
+      await this.registerAdminWebhook(config.bot_token, updated.isActive, tenantId);
       return response;
     } else {
       // Create new config
@@ -151,7 +161,7 @@ export class TelegramService {
         updated_by: userId,
         updated_at: created.updatedAt,
       });
-      await this.registerAdminWebhook(config.bot_token, created.isActive);
+      await this.registerAdminWebhook(config.bot_token, created.isActive, tenantId);
       return response;
     }
   }
@@ -159,9 +169,14 @@ export class TelegramService {
   /**
    * Get Telegram configuration
    */
-  static async getTelegramConfig(): Promise<TelegramConfig | null> {
+  static async getTelegramConfig(tenantId: number): Promise<TelegramConfig | null> {
     const config = await prisma.telegramConfig.findFirst({
-      where: { isActive: true }
+      where: {
+        isActive: true,
+        createdByUser: {
+          tenantId: tenantId
+        }
+      }
     });
 
     if (!config) {
@@ -181,8 +196,8 @@ export class TelegramService {
     };
   }
 
-  private static async getActiveConfigOrThrow(): Promise<TelegramConfig> {
-    const config = await this.getTelegramConfig();
+  private static async getActiveConfigOrThrow(tenantId: number): Promise<TelegramConfig> {
+    const config = await this.getTelegramConfig(tenantId);
     if (!config || !config.is_active) {
       throw new Error('Telegram not configured or disabled');
     }
@@ -264,12 +279,13 @@ export class TelegramService {
   }
 
   static async sendMessageByChatId(
+    tenantId: number,
     chatId: number | string,
     text: string,
     parseMode: 'Markdown' | 'HTML' = 'Markdown',
     replyMarkup?: Record<string, unknown>
   ): Promise<TelegramMessageResponse> {
-    const config = await this.getActiveConfigOrThrow();
+    const config = await this.getActiveConfigOrThrow(tenantId);
     if (replyMarkup) {
       return this.sendMessageWithMarkup(
         config.bot_token,
@@ -288,12 +304,13 @@ export class TelegramService {
   }
 
   static async sendMenuMessage(
+    tenantId: number,
     chatId: number | string,
     text: string,
     replyMarkup: Record<string, unknown>,
     parseMode: 'Markdown' | 'HTML' = 'Markdown'
   ): Promise<TelegramMessageResponse> {
-    const config = await this.getActiveConfigOrThrow();
+    const config = await this.getActiveConfigOrThrow(tenantId);
     return this.sendMessageWithMarkup(
       config.bot_token,
       chatId,
@@ -304,13 +321,14 @@ export class TelegramService {
   }
 
   static async editMenuMessage(
+    tenantId: number,
     chatId: number | string,
     messageId: number,
     text: string,
     replyMarkup: Record<string, unknown>,
     parseMode: 'Markdown' | 'HTML' = 'Markdown'
   ): Promise<TelegramMessageResponse> {
-    const config = await this.getActiveConfigOrThrow();
+    const config = await this.getActiveConfigOrThrow(tenantId);
     return this.editMessageWithMarkup(
       config.bot_token,
       chatId,
@@ -322,13 +340,14 @@ export class TelegramService {
   }
 
   static async editMessageByChatId(
+    tenantId: number,
     chatId: number | string,
     messageId: number,
     text: string,
     parseMode: 'Markdown' | 'HTML' = 'Markdown',
     replyMarkup?: Record<string, unknown>
   ): Promise<TelegramMessageResponse> {
-    const config = await this.getActiveConfigOrThrow();
+    const config = await this.getActiveConfigOrThrow(tenantId);
     return this.editMessageWithMarkup(
       config.bot_token,
       chatId,
@@ -340,10 +359,11 @@ export class TelegramService {
   }
 
   static async sendConfirmKeyboard(
+    tenantId: number,
     chatId: number | string,
     action: string
   ): Promise<TelegramMessageResponse> {
-    const config = await this.getActiveConfigOrThrow();
+    const config = await this.getActiveConfigOrThrow(tenantId);
     const replyMarkup = {
       inline_keyboard: [
         [
@@ -362,10 +382,11 @@ export class TelegramService {
   }
 
   static async answerCallback(
+    tenantId: number,
     callbackQueryId: string,
     message = 'OK'
   ): Promise<void> {
-    const config = await this.getActiveConfigOrThrow();
+    const config = await this.getActiveConfigOrThrow(tenantId);
     try {
       await axios.post(
         `${this.BASE_URL}${config.bot_token}/answerCallbackQuery`,
@@ -390,13 +411,14 @@ export class TelegramService {
    * Test Telegram connection
    */
   static async testConnection(
+    tenantId: number,
     botToken?: string,
     groupChatId?: string
   ): Promise<TestConnectionResponse> {
     // Use provided token/chatId or get from config
     const useStoredConfig = !(botToken && groupChatId);
     const config = useStoredConfig
-      ? await this.getTelegramConfig()
+      ? await this.getTelegramConfig(tenantId)
       : { bot_token: botToken!, group_chat_id: groupChatId! };
     const storedConfig = useStoredConfig ? (config as TelegramConfig) : null;
 
@@ -452,10 +474,11 @@ export class TelegramService {
   static async sendDailyReport(
     shiftId: number,
     currentUserId: number,
-    currentUserRole: string
+    currentUserRole: string,
+    tenantId: number
   ): Promise<SendReportResponse> {
     // 1. Get Telegram config
-    const config = await this.getTelegramConfig();
+    const config = await this.getTelegramConfig(tenantId);
     if (!config || !config.is_active) {
       throw new Error('Telegram not configured or disabled');
     }
@@ -537,9 +560,10 @@ export class TelegramService {
   static async sendDailyAggregateReport(
     date: string,
     currentUserId: number,
+    tenantId: number,
     bypassCache: boolean = false
   ): Promise<SendReportResponse> {
-    const config = await this.getTelegramConfig();
+    const config = await this.getTelegramConfig(tenantId);
     if (!config || !config.is_active) {
       throw new Error('Telegram not configured or disabled');
     }
@@ -687,7 +711,8 @@ export class TelegramService {
   static async resendReport(
     shiftId: number,
     currentUserId: number,
-    currentUserRole: string
+    currentUserRole: string,
+    tenantId: number
   ): Promise<SendReportResponse> {
     // Check if shift exists and report status is FAILED
     const shift = await ShiftService.getShift(shiftId, currentUserId, currentUserRole);
@@ -700,17 +725,18 @@ export class TelegramService {
     }
 
     // Resend report
-    return await this.sendDailyReport(shiftId, currentUserId, currentUserRole);
+    return await this.sendDailyReport(shiftId, currentUserId, currentUserRole, tenantId);
   }
 
   /**
    * Send an arbitrary message to the configured Telegram chat
    */
   static async sendCustomMessage(
+    tenantId: number,
     message: string,
     parseMode: 'Markdown' | 'HTML' = 'Markdown'
   ): Promise<void> {
-    const config = await this.getTelegramConfig();
+    const config = await this.getTelegramConfig(tenantId);
     if (!config || !config.is_active) {
       throw new Error('Telegram not configured or disabled');
     }
@@ -721,9 +747,9 @@ export class TelegramService {
   /**
    * Send low stock alert
    */
-  static async sendLowStockAlert(productId: number): Promise<void> {
+  static async sendLowStockAlert(productId: number, tenantId: number): Promise<void> {
     // 1. Get Telegram config
-    const config = await this.getTelegramConfig();
+    const config = await this.getTelegramConfig(tenantId);
     if (!config || !config.is_active) {
       return; // Silently fail if not configured
     }
@@ -802,41 +828,59 @@ export class TelegramService {
   }
 
   /**
-   * Send low stock alerts for all products that meet the threshold
+   * Send low stock alerts for all products that meet the threshold across all tenants
    */
   static async sendLowStockAlertsForAll(): Promise<void> {
-    const config = await this.getTelegramConfig();
-    if (!config || !config.is_active) {
-      return;
-    }
-
-    const lowStockItems = await prisma.stock.findMany({
+    // Get all tenants (Admins) who have telegram configured
+    const admins = await prisma.user.findMany({
       where: {
-        product: {
-          deactivatedDate: null,
-          lowStockThreshold: {
-            not: null,
-            gt: 0,
-          },
-        },
+        role: 'ADMIN',
+        telegram_config_telegram_config_created_byTousers: {
+          some: { isActive: true }
+        }
       },
-      include: {
-        product: true,
-      },
+      select: { userId: true, tenantId: true }
     });
 
-    const thresholdMatches = lowStockItems.filter(
-      (item) => item.quantity <= (item.product.lowStockThreshold ?? 0)
-    );
+    for (const admin of admins) {
+      const tenantId = admin.tenantId;
+      const config = await this.getTelegramConfig(tenantId);
+      if (!config || !config.is_active) {
+        continue;
+      }
 
-    for (const item of thresholdMatches) {
-      try {
-        await this.sendLowStockAlert(item.productId);
-      } catch (error: any) {
-        logger.error('Failed to send low stock alert during shift close', {
-          product_id: item.productId,
-          error: error.message,
-        });
+      const lowStockItems = await prisma.stock.findMany({
+        where: {
+          product: {
+            createdByUser: {
+              tenantId: tenantId
+            },
+            deactivatedDate: null,
+            lowStockThreshold: {
+              not: null,
+              gt: 0,
+            },
+          },
+        },
+        include: {
+          product: true,
+        },
+      });
+
+      const thresholdMatches = lowStockItems.filter(
+        (item) => item.quantity <= (item.product.lowStockThreshold ?? 0)
+      );
+
+      for (const item of thresholdMatches) {
+        try {
+          await this.sendLowStockAlert(item.productId, tenantId);
+        } catch (error: any) {
+          logger.error('Failed to send low stock alert during global check', {
+            product_id: item.productId,
+            tenant_id: tenantId,
+            error: error.message,
+          });
+        }
       }
     }
   }
@@ -863,11 +907,12 @@ export class TelegramService {
    * Delete a message by its ID
    */
   static async deleteMessage(
+    tenantId: number,
     chatId: number | string,
     messageId: number
   ): Promise<boolean> {
     try {
-      const config = await this.getActiveConfigOrThrow();
+      const config = await this.getActiveConfigOrThrow(tenantId);
       return await TelegramBotService.deleteMessage(
         config.bot_token,
         String(chatId),
@@ -875,6 +920,7 @@ export class TelegramService {
       );
     } catch (error: any) {
       logger.warn('Failed to delete message via TelegramService', {
+        tenantId,
         chatId,
         messageId,
         error: error.message,

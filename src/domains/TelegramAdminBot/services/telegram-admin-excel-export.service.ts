@@ -27,6 +27,7 @@ export class TelegramAdminExcelExportService {
   }
 
   static async editProcessingMessage(
+    tenantId: number,
     chatId: number,
     messageId: number,
     text: string,
@@ -35,7 +36,7 @@ export class TelegramAdminExcelExportService {
   ) {
     const replyMarkup = this.buildRestoreKeyboard(restoreMenu, options?.retryCallback);
     try {
-      return await TelegramService.editMessageByChatId(chatId, messageId, text, 'Markdown', replyMarkup);
+      return await TelegramService.editMessageByChatId(tenantId, chatId, messageId, text, 'Markdown', replyMarkup);
     } catch (error: any) {
       const message = String(error?.message || '');
       if (message.includes('message is not modified')) {
@@ -70,8 +71,8 @@ export class TelegramAdminExcelExportService {
     return undefined;
   }
 
-  static async sendDocumentByUrl(chatId: number, url: string, fileName?: string) {
-    const config = await TelegramService.getTelegramConfig();
+  static async sendDocumentByUrl(tenantId: number, chatId: number, url: string, fileName?: string) {
+    const config = await TelegramService.getTelegramConfig(tenantId);
     if (!config) throw new Error('Telegram not configured');
     try {
       return await TelegramBotService.sendDocument(
@@ -96,13 +97,13 @@ export class TelegramAdminExcelExportService {
       } finally {
         try {
           await fs.unlink(localPath);
-        } catch {}
+        } catch { }
       }
     }
   }
 
-  static async sendDocumentByLocalPath(chatId: number, filePath: string, fileName?: string) {
-    const config = await TelegramService.getTelegramConfig();
+  static async sendDocumentByLocalPath(tenantId: number, chatId: number, filePath: string, fileName?: string) {
+    const config = await TelegramService.getTelegramConfig(tenantId);
     if (!config) throw new Error('Telegram not configured');
     return TelegramBotService.sendDocument(
       config.bot_token,
@@ -130,14 +131,15 @@ export class TelegramAdminExcelExportService {
     range?: AdminExportRange;
     timezone?: string;
     requestedByUserId: number;
+    tenantId: number;
   }) {
     if (params.exportType === 'STOCK_ALL') {
-      return this.exportStockAll(params.requestedByUserId);
+      return this.exportStockAll(params.requestedByUserId, params.tenantId);
     }
-    return this.exportSalesRanking(params.range ?? 'all', params.timezone);
+    return this.exportSalesRanking(params.range ?? 'all', params.tenantId, params.timezone);
   }
 
-  static async exportStockAll(requestedByUserId: number) {
+  static async exportStockAll(requestedByUserId: number, tenantId: number) {
     const tQueryStart = Date.now();
     const rows = await prisma.$queryRaw<
       {
@@ -167,8 +169,9 @@ export class TelegramAdminExcelExportService {
         p.avg_cost,
         p.updated_at
       FROM products p
+      INNER JOIN users u ON u.user_id = p.created_by_user_id
       LEFT JOIN stocks s ON s.product_id = p.product_id
-      WHERE p.status = 'active'
+      WHERE p.status = 'active' AND u.tenant_id = ${tenantId}
       ORDER BY p.product_name ASC
     `;
 
@@ -191,8 +194,10 @@ export class TelegramAdminExcelExportService {
         sl.expired_at
       FROM stock_lots sl
       JOIN products p ON p.product_id = sl.product_id
+      JOIN users u ON u.user_id = p.created_by_user_id
       WHERE sl.qty_on_hand > 0
         AND sl.expired_at IS NOT NULL
+        AND u.tenant_id = ${tenantId}
       ORDER BY sl.expired_at ASC, sl.received_at ASC
     `;
 
@@ -255,7 +260,7 @@ export class TelegramAdminExcelExportService {
     return { fileName: finalFileName, t_query_ms: tQueryMs, t_export_ms: tExportMs };
   }
 
-  static async exportSalesRanking(range: AdminExportRange, timezone = DEFAULT_TIMEZONE) {
+  static async exportSalesRanking(range: AdminExportRange, tenantId: number, timezone = DEFAULT_TIMEZONE) {
     const { start, end, rangeLabel } = this.getRange(range, timezone);
 
     const tQueryStart = Date.now();
@@ -279,10 +284,11 @@ export class TelegramAdminExcelExportService {
         COALESCE(SUM(oi.subtotal), 0) AS revenue,
         MAX(o.order_date) AS last_sold_at
       FROM products p
+      INNER JOIN users u ON u.user_id = p.created_by_user_id
       LEFT JOIN order_items oi ON oi.product_id = p.product_id
       LEFT JOIN orders o ON o.order_id = oi.order_id
         ${start && end ? Prisma.sql`AND o.order_date >= ${start} AND o.order_date <= ${end}` : Prisma.empty}
-      WHERE p.status = 'active'
+      WHERE p.status = 'active' AND u.tenant_id = ${tenantId}
       GROUP BY p.product_id
       ORDER BY qty_sold DESC, revenue DESC
     `;

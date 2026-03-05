@@ -30,22 +30,25 @@ export class TelegramAdminReportService {
     chatId: number,
     args: string[],
     adminUserId: number,
-    telegramUserId: number
+    telegramUserId: number,
+    tenantId: number
   ) {
     const result = await this.handleReportCommandResult(
       chatId,
       args,
       adminUserId,
-      telegramUserId
+      telegramUserId,
+      tenantId
     );
-    return this.sendResult(chatId, result);
+    return this.sendResult(tenantId, chatId, result);
   }
 
   static async handleReportCommandResult(
     chatId: number,
     args: string[],
     adminUserId: number,
-    telegramUserId: number
+    telegramUserId: number,
+    tenantId: number
   ): Promise<TelegramAdminCallbackResult> {
     if (args[0] === 'custom') {
       const key = getPendingKey(chatId);
@@ -61,18 +64,18 @@ export class TelegramAdminReportService {
       TelegramAdminFormatService.isValidDate(args[0]) &&
       TelegramAdminFormatService.isValidDate(args[1])
     ) {
-      return this.buildReportMessageByDateRange(args[0], args[1], adminUserId, {
+      return this.buildReportMessageByDateRange(args[0], args[1], adminUserId, tenantId, {
         maxDays: MAX_CUSTOM_RANGE_DAYS,
       });
     }
 
     const range = args.join('_');
-    return this.buildReportMessageByRange(range || 'today', adminUserId);
+    return this.buildReportMessageByRange(range || 'today', adminUserId, tenantId);
   }
 
-  static async sendReportByRange(chatId: number, range: string, adminUserId: number) {
-    const result = await this.buildReportMessageByRange(range, adminUserId);
-    return this.sendResult(chatId, result);
+  static async sendReportByRange(tenantId: number, chatId: number, range: string, adminUserId: number) {
+    const result = await this.buildReportMessageByRange(range, adminUserId, tenantId);
+    return this.sendResult(tenantId, chatId, result);
   }
 
   static resolveReportRange(
@@ -115,6 +118,7 @@ export class TelegramAdminReportService {
   }
 
   static async sendReportByDateRange(
+    tenantId: number,
     chatId: number,
     startDate: string,
     endDate: string,
@@ -125,14 +129,16 @@ export class TelegramAdminReportService {
       startDate,
       endDate,
       adminUserId,
+      tenantId,
       options
     );
-    return this.sendResult(chatId, result);
+    return this.sendResult(tenantId, chatId, result);
   }
 
   static async buildReportMessageByRange(
     range: string,
-    adminUserId: number
+    adminUserId: number,
+    tenantId: number
   ): Promise<TelegramAdminCallbackResult> {
     const resolved = this.resolveReportRange(range);
     if (!resolved) {
@@ -146,7 +152,8 @@ export class TelegramAdminReportService {
     return this.buildReportMessageByDateRange(
       resolved.startDate,
       resolved.endDate,
-      adminUserId
+      adminUserId,
+      tenantId
     );
   }
 
@@ -154,6 +161,7 @@ export class TelegramAdminReportService {
     startDate: string,
     endDate: string,
     adminUserId: number,
+    tenantId: number,
     options?: { maxDays?: number }
   ): Promise<TelegramAdminCallbackResult> {
     if (
@@ -191,7 +199,8 @@ export class TelegramAdminReportService {
         limit,
       },
       adminUserId,
-      Role.ADMIN
+      Role.ADMIN,
+      tenantId
     );
 
     const summary = report.summary;
@@ -206,8 +215,8 @@ export class TelegramAdminReportService {
 
     const dailyLines = includeDaily
       ? report.sales.map((item, index) => {
-          return `${index + 1}) ${item.date} - $${item.total_sales.toLocaleString()} (${item.total_orders} orders)`;
-        })
+        return `${index + 1}) ${item.date} - $${item.total_sales.toLocaleString()} (${item.total_orders} orders)`;
+      })
       : [];
 
     const message = [
@@ -227,17 +236,19 @@ export class TelegramAdminReportService {
     chatId: number,
     text: string,
     adminUserId: number,
-    telegramUserId: number
+    telegramUserId: number,
+    tenantId: number
   ) {
     const result = await this.handleReportRangeInputResult(
       pendingKey,
       chatId,
       text,
       adminUserId,
-      telegramUserId
+      telegramUserId,
+      tenantId
     );
     if (!result) return;
-    return this.sendResult(chatId, result);
+    return this.sendResult(tenantId, chatId, result);
   }
 
   static async handleReportRangeInputResult(
@@ -245,7 +256,8 @@ export class TelegramAdminReportService {
     chatId: number,
     text: string,
     adminUserId: number,
-    telegramUserId: number
+    telegramUserId: number,
+    tenantId: number
   ): Promise<TelegramAdminCallbackResult | undefined> {
     const input = text.trim();
     if (input.startsWith('/')) {
@@ -266,12 +278,12 @@ export class TelegramAdminReportService {
             TelegramAdminFormatService.isValidDate(args[0]) &&
             TelegramAdminFormatService.isValidDate(args[1])
           ) {
-            return this.buildReportMessageByDateRange(args[0], args[1], adminUserId, {
+            return this.buildReportMessageByDateRange(args[0], args[1], adminUserId, tenantId, {
               maxDays: MAX_CUSTOM_RANGE_DAYS,
             });
           }
           const range = args.join('_');
-          return this.buildReportMessageByRange(range, adminUserId);
+          return this.buildReportMessageByRange(range, adminUserId, tenantId);
         }
 
         const dates = input.match(/\d{4}-\d{2}-\d{2}/g) || [];
@@ -283,12 +295,12 @@ export class TelegramAdminReportService {
               parseMode: MARKDOWN,
             };
           }
-          return this.buildReportMessageByDateRange(startDate, endDate, adminUserId, {
+          return this.buildReportMessageByDateRange(startDate, endDate, adminUserId, tenantId, {
             maxDays: MAX_CUSTOM_RANGE_DAYS,
           });
         }
         if (dates.length === 1) {
-          return this.buildReportMessageByRange(dates[0], adminUserId);
+          return this.buildReportMessageByRange(dates[0], adminUserId, tenantId);
         }
 
         return {
@@ -331,7 +343,7 @@ export class TelegramAdminReportService {
 
     const startDate = pending.startDate;
     pendingReportRanges.delete(pendingKey);
-    return this.buildReportMessageByDateRange(startDate, input, adminUserId, {
+    return this.buildReportMessageByDateRange(startDate, input, adminUserId, tenantId, {
       maxDays: MAX_CUSTOM_RANGE_DAYS,
     });
   }
@@ -341,17 +353,19 @@ export class TelegramAdminReportService {
     chatId: number,
     text: string,
     adminUserId: number,
-    telegramUserId: number
+    telegramUserId: number,
+    tenantId: number
   ) {
     const result = await this.handleTopProductsRangeInputResult(
       pendingKey,
       chatId,
       text,
       adminUserId,
-      telegramUserId
+      telegramUserId,
+      tenantId
     );
     if (!result) return;
-    return this.sendResult(chatId, result);
+    return this.sendResult(tenantId, chatId, result);
   }
 
   static async handleTopProductsRangeInputResult(
@@ -359,7 +373,8 @@ export class TelegramAdminReportService {
     chatId: number,
     text: string,
     adminUserId: number,
-    telegramUserId: number
+    telegramUserId: number,
+    tenantId: number
   ): Promise<TelegramAdminCallbackResult | undefined> {
     const input = text.trim();
     if (input.startsWith('/')) {
@@ -380,12 +395,12 @@ export class TelegramAdminReportService {
             TelegramAdminFormatService.isValidDate(args[0]) &&
             TelegramAdminFormatService.isValidDate(args[1])
           ) {
-            return this.buildTopProductsMessageByDateRange(args[0], args[1], adminUserId, {
+            return this.buildTopProductsMessageByDateRange(args[0], args[1], adminUserId, tenantId, {
               maxDays: MAX_TOP_PRODUCTS_RANGE_DAYS,
             });
           }
           const range = args.join('_');
-          return this.buildTopProductsMessageByRange(range, adminUserId);
+          return this.buildTopProductsMessageByRange(range, adminUserId, tenantId);
         }
 
         const dates = input.match(/\d{4}-\d{2}-\d{2}/g) || [];
@@ -397,12 +412,12 @@ export class TelegramAdminReportService {
               parseMode: MARKDOWN,
             };
           }
-          return this.buildTopProductsMessageByDateRange(startDate, endDate, adminUserId, {
+          return this.buildTopProductsMessageByDateRange(startDate, endDate, adminUserId, tenantId, {
             maxDays: MAX_TOP_PRODUCTS_RANGE_DAYS,
           });
         }
         if (dates.length === 1) {
-          return this.buildTopProductsMessageByRange(dates[0], adminUserId);
+          return this.buildTopProductsMessageByRange(dates[0], adminUserId, tenantId);
         }
 
         return {
@@ -441,21 +456,23 @@ export class TelegramAdminReportService {
 
     const startDate = pending.startDate;
     pendingTopProductsRanges.delete(pendingKey);
-    return this.buildTopProductsMessageByDateRange(startDate, input, adminUserId, {
+    return this.buildTopProductsMessageByDateRange(startDate, input, adminUserId, tenantId, {
       maxDays: MAX_TOP_PRODUCTS_RANGE_DAYS,
     });
   }
 
   static async sendTopProductsByRange(
+    tenantId: number,
     chatId: number,
     range: string,
     adminUserId: number
   ) {
-    const result = await this.buildTopProductsMessageByRange(range, adminUserId);
-    return this.sendResult(chatId, result);
+    const result = await this.buildTopProductsMessageByRange(range, adminUserId, tenantId);
+    return this.sendResult(tenantId, chatId, result);
   }
 
   static async sendTopProductsByDateRange(
+    tenantId: number,
     chatId: number,
     startDate: string,
     endDate: string,
@@ -466,14 +483,16 @@ export class TelegramAdminReportService {
       startDate,
       endDate,
       adminUserId,
+      tenantId,
       options
     );
-    return this.sendResult(chatId, result);
+    return this.sendResult(tenantId, chatId, result);
   }
 
   static async buildTopProductsMessageByRange(
     range: string,
-    adminUserId: number
+    adminUserId: number,
+    tenantId: number
   ): Promise<TelegramAdminCallbackResult> {
     const resolved = this.resolveReportRange(range);
     if (!resolved) {
@@ -487,7 +506,8 @@ export class TelegramAdminReportService {
       const report = await ReportService.getDailyReport(
         { date: resolved.startDate },
         adminUserId,
-        Role.ADMIN
+        Role.ADMIN,
+        tenantId
       );
       return this.buildTopProductsMessage(resolved.startDate, resolved.endDate, report.top_products);
     }
@@ -495,7 +515,8 @@ export class TelegramAdminReportService {
     return this.buildTopProductsMessageByDateRange(
       resolved.startDate,
       resolved.endDate,
-      adminUserId
+      adminUserId,
+      tenantId
     );
   }
 
@@ -503,6 +524,7 @@ export class TelegramAdminReportService {
     startDate: string,
     endDate: string,
     adminUserId: number,
+    tenantId: number,
     options?: { maxDays?: number }
   ): Promise<TelegramAdminCallbackResult> {
     if (
@@ -538,6 +560,7 @@ export class TelegramAdminReportService {
             gte: start,
             lte: end,
           },
+          tenantId,
         },
       },
       _sum: { quantity: true, subtotal: true },
@@ -552,7 +575,7 @@ export class TelegramAdminReportService {
 
     const productIds = topProductsRaw.map((p) => p.productId);
     const products = await prisma.product.findMany({
-      where: { productId: { in: productIds } },
+      where: { productId: { in: productIds }, createdByUser: { tenantId } },
       select: { productId: true, productName: true, productCode: true, price: true },
     });
     const productMap = new Map(products.map((p) => [p.productId, p]));
@@ -613,17 +636,19 @@ export class TelegramAdminReportService {
     chatId: number,
     text: string,
     adminUserId: number,
-    telegramUserId: number
+    telegramUserId: number,
+    tenantId: number
   ) {
     const result = await this.handleSlowProductsRangeInputResult(
       pendingKey,
       chatId,
       text,
       adminUserId,
-      telegramUserId
+      telegramUserId,
+      tenantId
     );
     if (!result) return;
-    return this.sendResult(chatId, result);
+    return this.sendResult(tenantId, chatId, result);
   }
 
   static async handleSlowProductsRangeInputResult(
@@ -631,7 +656,8 @@ export class TelegramAdminReportService {
     chatId: number,
     text: string,
     adminUserId: number,
-    telegramUserId: number
+    telegramUserId: number,
+    tenantId: number
   ): Promise<TelegramAdminCallbackResult | undefined> {
     const input = text.trim();
     if (input.startsWith('/')) {
@@ -652,12 +678,12 @@ export class TelegramAdminReportService {
             TelegramAdminFormatService.isValidDate(args[0]) &&
             TelegramAdminFormatService.isValidDate(args[1])
           ) {
-            return this.buildSlowProductsMessageByDateRange(args[0], args[1], adminUserId, {
+            return this.buildSlowProductsMessageByDateRange(args[0], args[1], adminUserId, tenantId, {
               maxDays: MAX_SLOW_PRODUCTS_RANGE_DAYS,
             });
           }
           const range = args.join('_');
-          return this.buildSlowProductsMessageByRange(range, adminUserId);
+          return this.buildSlowProductsMessageByRange(range, adminUserId, tenantId);
         }
 
         const dates = input.match(/\d{4}-\d{2}-\d{2}/g) || [];
@@ -669,12 +695,12 @@ export class TelegramAdminReportService {
               parseMode: MARKDOWN,
             };
           }
-          return this.buildSlowProductsMessageByDateRange(startDate, endDate, adminUserId, {
+          return this.buildSlowProductsMessageByDateRange(startDate, endDate, adminUserId, tenantId, {
             maxDays: MAX_SLOW_PRODUCTS_RANGE_DAYS,
           });
         }
         if (dates.length === 1) {
-          return this.buildSlowProductsMessageByRange(dates[0], adminUserId);
+          return this.buildSlowProductsMessageByRange(dates[0], adminUserId, tenantId);
         }
 
         return {
@@ -713,21 +739,23 @@ export class TelegramAdminReportService {
 
     const startDate = pending.startDate;
     pendingSlowProductsRanges.delete(pendingKey);
-    return this.buildSlowProductsMessageByDateRange(startDate, input, adminUserId, {
+    return this.buildSlowProductsMessageByDateRange(startDate, input, adminUserId, tenantId, {
       maxDays: MAX_SLOW_PRODUCTS_RANGE_DAYS,
     });
   }
 
   static async sendSlowProductsByRange(
+    tenantId: number,
     chatId: number,
     range: string,
     adminUserId: number
   ) {
-    const result = await this.buildSlowProductsMessageByRange(range, adminUserId);
-    return this.sendResult(chatId, result);
+    const result = await this.buildSlowProductsMessageByRange(range, adminUserId, tenantId);
+    return this.sendResult(tenantId, chatId, result);
   }
 
   static async sendSlowProductsByDateRange(
+    tenantId: number,
     chatId: number,
     startDate: string,
     endDate: string,
@@ -738,14 +766,16 @@ export class TelegramAdminReportService {
       startDate,
       endDate,
       adminUserId,
+      tenantId,
       options
     );
-    return this.sendResult(chatId, result);
+    return this.sendResult(tenantId, chatId, result);
   }
 
   static async buildSlowProductsMessageByRange(
     range: string,
-    adminUserId: number
+    adminUserId: number,
+    tenantId: number
   ): Promise<TelegramAdminCallbackResult> {
     const resolved = this.resolveReportRange(range);
     if (!resolved) {
@@ -758,7 +788,8 @@ export class TelegramAdminReportService {
     return this.buildSlowProductsMessageByDateRange(
       resolved.startDate,
       resolved.endDate,
-      adminUserId
+      adminUserId,
+      tenantId
     );
   }
 
@@ -766,6 +797,7 @@ export class TelegramAdminReportService {
     startDate: string,
     endDate: string,
     adminUserId: number,
+    tenantId: number,
     options?: { maxDays?: number }
   ): Promise<TelegramAdminCallbackResult> {
     if (
@@ -792,7 +824,6 @@ export class TelegramAdminReportService {
         parseMode: MARKDOWN,
       };
     }
-
     const salesRows = await prisma.orderItem.groupBy({
       by: ['productId'],
       where: {
@@ -801,6 +832,7 @@ export class TelegramAdminReportService {
             gte: start,
             lte: end,
           },
+          tenantId,
         },
       },
       _sum: { quantity: true, subtotal: true },
@@ -815,13 +847,12 @@ export class TelegramAdminReportService {
     });
 
     const products = await prisma.product.findMany({
-      where: { status: 'active', deactivatedDate: null },
+      where: { status: 'active', deactivatedDate: null, createdByUser: { tenantId } },
       select: {
         productId: true,
         productName: true,
         productCode: true,
         price: true,
-        avgCost: true,
         lastPurchaseCost: true,
       },
     });
@@ -830,19 +861,24 @@ export class TelegramAdminReportService {
       return { text: 'No products found.', parseMode: MARKDOWN };
     }
 
-    const stockRows = await prisma.stock.findMany({
-      where: { productId: { in: products.map((p) => p.productId) } },
-      select: { productId: true, quantity: true },
-    });
-    const stockMap = new Map(
-      stockRows.map((row) => [row.productId, Number(row.quantity || 0)])
+    const stockValuesRaw = await prisma.$queryRaw<
+      { productId: number; totalValue: any }[]
+    >(Prisma.sql`
+      SELECT product_id AS "productId", SUM(qty_on_hand * COALESCE(cost, 0)) AS "totalValue"
+      FROM stock_lots sl
+      JOIN products p ON p.product_id = sl.product_id
+      JOIN users u ON u.user_id = p.created_by
+      WHERE sl.qty_on_hand > 0
+        AND u.tenant_id = ${tenantId}
+      GROUP BY product_id
+    `);
+    const stockValueMap = new Map(
+      stockValuesRaw.map((v) => [v.productId, Number(v.totalValue || 0)])
     );
 
     const merged = products.map((p) => {
       const sales = salesMap.get(p.productId) || { quantity: 0, revenue: 0 };
-      const stockQty = stockMap.get(p.productId) ?? 0;
-      const costPerUnit = Number(p.avgCost ?? p.lastPurchaseCost ?? 0);
-      const stockValue = stockQty * costPerUnit;
+      const stockValue = stockValueMap.get(p.productId) ?? 0;
       return {
         product_id: p.productId,
         product_name: p.productName,
@@ -906,17 +942,19 @@ export class TelegramAdminReportService {
     chatId: number,
     text: string,
     adminUserId: number,
-    telegramUserId: number
+    telegramUserId: number,
+    tenantId: number
   ) {
     const result = await this.handleIncomeRangeInputResult(
       pendingKey,
       chatId,
       text,
       adminUserId,
-      telegramUserId
+      telegramUserId,
+      tenantId
     );
     if (!result) return;
-    return this.sendResult(chatId, result);
+    return this.sendResult(tenantId, chatId, result);
   }
 
   static async handleIncomeRangeInputResult(
@@ -924,7 +962,8 @@ export class TelegramAdminReportService {
     chatId: number,
     text: string,
     adminUserId: number,
-    telegramUserId: number
+    telegramUserId: number,
+    tenantId: number
   ): Promise<TelegramAdminCallbackResult | undefined> {
     const input = text.trim();
     if (input.startsWith('/')) {
@@ -945,12 +984,12 @@ export class TelegramAdminReportService {
             TelegramAdminFormatService.isValidDate(args[0]) &&
             TelegramAdminFormatService.isValidDate(args[1])
           ) {
-            return this.buildIncomeMessageByDateRange(args[0], args[1], adminUserId, {
+            return this.buildIncomeMessageByDateRange(args[0], args[1], adminUserId, tenantId, {
               maxDays: MAX_INCOME_RANGE_DAYS,
             });
           }
           const range = args.join('_');
-          return this.buildIncomeMessageByRange(range, adminUserId);
+          return this.buildIncomeMessageByRange(range, adminUserId, tenantId);
         }
 
         const dates = input.match(/\d{4}-\d{2}-\d{2}/g) || [];
@@ -962,12 +1001,12 @@ export class TelegramAdminReportService {
               parseMode: MARKDOWN,
             };
           }
-          return this.buildIncomeMessageByDateRange(startDate, endDate, adminUserId, {
+          return this.buildIncomeMessageByDateRange(startDate, endDate, adminUserId, tenantId, {
             maxDays: MAX_INCOME_RANGE_DAYS,
           });
         }
         if (dates.length === 1) {
-          return this.buildIncomeMessageByRange(dates[0], adminUserId);
+          return this.buildIncomeMessageByRange(dates[0], adminUserId, tenantId);
         }
 
         return {
@@ -1006,21 +1045,23 @@ export class TelegramAdminReportService {
 
     const startDate = pending.startDate;
     pendingIncomeRanges.delete(pendingKey);
-    return this.buildIncomeMessageByDateRange(startDate, input, adminUserId, {
+    return this.buildIncomeMessageByDateRange(startDate, input, adminUserId, tenantId, {
       maxDays: MAX_INCOME_RANGE_DAYS,
     });
   }
 
   static async sendIncomeByRange(
+    tenantId: number,
     chatId: number,
     range: string,
     adminUserId: number
   ) {
-    const result = await this.buildIncomeMessageByRange(range, adminUserId);
-    return this.sendResult(chatId, result);
+    const result = await this.buildIncomeMessageByRange(range, adminUserId, tenantId);
+    return this.sendResult(tenantId, chatId, result);
   }
 
   static async sendIncomeByDateRange(
+    tenantId: number,
     chatId: number,
     startDate: string,
     endDate: string,
@@ -1031,14 +1072,16 @@ export class TelegramAdminReportService {
       startDate,
       endDate,
       adminUserId,
+      tenantId,
       options
     );
-    return this.sendResult(chatId, result);
+    return this.sendResult(tenantId, chatId, result);
   }
 
   static async buildIncomeMessageByRange(
     range: string,
-    adminUserId: number
+    adminUserId: number,
+    tenantId: number
   ): Promise<TelegramAdminCallbackResult> {
     const resolved = this.resolveReportRange(range);
     if (!resolved) {
@@ -1051,7 +1094,8 @@ export class TelegramAdminReportService {
     return this.buildIncomeMessageByDateRange(
       resolved.startDate,
       resolved.endDate,
-      adminUserId
+      adminUserId,
+      tenantId
     );
   }
 
@@ -1059,6 +1103,7 @@ export class TelegramAdminReportService {
     startDate: string,
     endDate: string,
     adminUserId: number,
+    tenantId: number,
     options?: { maxDays?: number }
   ): Promise<TelegramAdminCallbackResult> {
     if (
@@ -1087,13 +1132,13 @@ export class TelegramAdminReportService {
     }
 
     const salesAgg = await prisma.order.aggregate({
-      where: { orderDate: { gte: start, lte: end } },
+      where: { orderDate: { gte: start, lte: end }, tenantId },
       _sum: { totalAmount: true },
       _count: { orderId: true },
     });
 
     const cogsAgg = await prisma.orderItem.aggregate({
-      where: { order: { orderDate: { gte: start, lte: end } } },
+      where: { order: { orderDate: { gte: start, lte: end }, tenantId } },
       _sum: { cogsLineTotal: true, quantity: true },
     });
 
@@ -1105,6 +1150,7 @@ export class TelegramAdminReportService {
       JOIN orders o ON o.order_id = oi.order_id
       WHERE o.order_date >= ${start}
         AND o.order_date <= ${end}
+        AND o.tenant_id = ${tenantId}
         AND oi.cogs_line_total IS NULL
     `);
     const missingCogsCount = Number(missingCogsRows[0]?.missing_count || 0);
@@ -1116,12 +1162,14 @@ export class TelegramAdminReportService {
       { total_cost: any; total_qty: any }[]
     >(Prisma.sql`
       SELECT
-        COALESCE(SUM(COALESCE(cost, 0) * COALESCE(quantity, 0)), 0) AS total_cost,
-        COALESCE(SUM(COALESCE(quantity, 0)), 0) AS total_qty
-      FROM stock_movements
-      WHERE movement_type = 'STOCK_IN'
-        AND created_at >= ${start}
-        AND created_at <= ${end}
+        COALESCE(SUM(COALESCE(sm.cost, 0) * COALESCE(sm.quantity, 0)), 0) AS total_cost,
+        COALESCE(SUM(COALESCE(sm.quantity, 0)), 0) AS total_qty
+      FROM stock_movements sm
+      JOIN users u ON u.user_id = sm.created_by
+      WHERE sm.movement_type = 'STOCK_IN'
+        AND sm.created_at >= ${start}
+        AND sm.created_at <= ${end}
+        AND u.tenant_id = ${tenantId}
     `);
 
     const totalSales = Number(salesAgg._sum.totalAmount || 0);
@@ -1175,18 +1223,21 @@ export class TelegramAdminReportService {
   }
 
   private static async sendResult(
+    tenantId: number,
     chatId: number,
     result: TelegramAdminCallbackResult
   ) {
     if (result.replyMarkup) {
       return TelegramService.sendMenuMessage(
+        tenantId,
         chatId,
         result.text,
-        result.replyMarkup,
+        result.replyMarkup as any,
         result.parseMode ?? 'Markdown'
       );
     }
     return TelegramService.sendMessageByChatId(
+      tenantId,
       chatId,
       result.text,
       result.parseMode ?? 'Markdown'

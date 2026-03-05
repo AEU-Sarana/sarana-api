@@ -118,7 +118,8 @@ export class TelegramAdminStockService {
     chatId: number,
     text: string,
     adminUserId: number,
-    telegramUserId: number
+    telegramUserId: number,
+    tenantId: number
   ): Promise<TelegramAdminCallbackResult> {
     const parsed = TelegramAdminCommandBlockParserService.parseCommandBlock(text);
     logger.info('Telegram admin stock in parsed', {
@@ -128,6 +129,7 @@ export class TelegramAdminStockService {
       warnings: parsed.warnings,
     });
     const validation = await TelegramAdminStockInValidator.validate(
+      tenantId,
       parsed.fields,
       adminUserId,
       parsed.warnings
@@ -187,6 +189,7 @@ export class TelegramAdminStockService {
       chatId,
       telegramUserId,
       adminUserId,
+      tenantId,
       createdAt: Date.now(),
       ...validation.value,
     };
@@ -203,14 +206,15 @@ export class TelegramAdminStockService {
 
   static async confirmStockIn(
     draftId: string,
-    adminUserId: number
+    adminUserId: number,
+    tenantId: number
   ): Promise<TelegramAdminCallbackResult> {
     const draft = getStockInDraft(draftId);
     if (!draft) {
       return { text: 'Draft not found or expired.', parseMode: 'Markdown' };
     }
 
-    if (draft.adminUserId !== adminUserId) {
+    if (draft.adminUserId !== adminUserId || draft.tenantId !== tenantId) {
       return { text: 'This draft does not belong to you.', parseMode: 'Markdown' };
     }
 
@@ -222,8 +226,11 @@ export class TelegramAdminStockService {
     const tStart = Date.now();
     const result = await prisma.$transaction(async (tx) => {
       const now = new Date();
-      const product = await tx.product.findUnique({
-        where: { productId: draft.product.productId },
+      const product = await tx.product.findFirst({
+        where: {
+          productId: draft.product.productId,
+          createdByUser: { tenantId },
+        },
       });
 
       if (!product || product.deactivatedDate || product.status !== ProductStatus.ACTIVE) {
@@ -288,15 +295,7 @@ export class TelegramAdminStockService {
       };
 
       if (draft.cost != null) {
-        const previousQty = stock.quantity;
-        const previousAvgCost = Number(product.avgCost ?? product.lastPurchaseCost ?? 0);
-        const newQty = previousQty + draft.qty;
-        const unitCost = Number(draft.cost);
-        const newAvgCost =
-          newQty > 0 ? (previousAvgCost * previousQty + unitCost * draft.qty) / newQty : unitCost;
-
-        productUpdate.avgCost = newAvgCost;
-        productUpdate.lastPurchaseCost = unitCost;
+        productUpdate.lastPurchaseCost = Number(draft.cost);
       }
 
       if (draft.price != null) {
@@ -436,7 +435,8 @@ export class TelegramAdminStockService {
     chatId: number,
     text: string,
     adminUserId: number,
-    telegramUserId: number
+    telegramUserId: number,
+    tenantId: number
   ): Promise<TelegramAdminCallbackResult> {
     const tParseStart = Date.now();
     const parsed = TelegramAdminCommandBlockParserService.parseCommandBlock(text);
@@ -451,6 +451,7 @@ export class TelegramAdminStockService {
 
     const tValidateStart = Date.now();
     const validation = await TelegramAdminStockAdjustValidator.validate(
+      tenantId,
       parsed.fields,
       adminUserId,
       chatId,
@@ -546,14 +547,15 @@ export class TelegramAdminStockService {
 
   static async confirmStockAdjust(
     draftId: string,
-    adminUserId: number
+    adminUserId: number,
+    tenantId: number
   ): Promise<TelegramAdminCallbackResult> {
     const draft = getStockAdjustDraft(draftId);
     if (!draft) {
       return { text: '⏱ Draft expired, please try again', parseMode: 'Markdown' };
     }
 
-    if (draft.adminUserId !== adminUserId) {
+    if (draft.adminUserId !== adminUserId || draft.tenantId !== tenantId) {
       return { text: 'This draft does not belong to you.', parseMode: 'Markdown' };
     }
 
@@ -574,8 +576,11 @@ export class TelegramAdminStockService {
     let result: { movement: any; updatedStock: any; beforeQty: number; afterQty: number };
     try {
       result = await prisma.$transaction(async (tx) => {
-        const product = await tx.product.findUnique({
-          where: { productId: draft.productId },
+        const product = await tx.product.findFirst({
+          where: {
+            productId: draft.productId,
+            createdByUser: { tenantId },
+          },
         });
 
         if (!product || product.deactivatedDate || product.status !== ProductStatus.ACTIVE) {
@@ -742,18 +747,26 @@ export class TelegramAdminStockService {
     return { inline_keyboard: rows };
   }
 
-  static async findProductsByQuery(query: string) {
+  static async findProductsByQuery(query: string, tenantId: number) {
     const trimmed = query.trim();
     if (!trimmed) return [];
 
     const exactCode = await prisma.product.findFirst({
-      where: { productCode: { equals: trimmed, mode: 'insensitive' }, status: 'active' },
+      where: {
+        productCode: { equals: trimmed, mode: 'insensitive' },
+        status: 'active',
+        createdByUser: { tenantId },
+      },
       select: { productId: true, productCode: true, productName: true },
     });
     if (exactCode) return [exactCode];
 
     const exactBarcode = await prisma.product.findFirst({
-      where: { barcode: { equals: trimmed, mode: 'insensitive' }, status: 'active' },
+      where: {
+        barcode: { equals: trimmed, mode: 'insensitive' },
+        status: 'active',
+        createdByUser: { tenantId },
+      },
       select: { productId: true, productCode: true, productName: true },
     });
     if (exactBarcode) return [exactBarcode];
@@ -762,6 +775,7 @@ export class TelegramAdminStockService {
       where: {
         status: 'active',
         productName: { contains: trimmed, mode: 'insensitive' },
+        createdByUser: { tenantId },
       },
       select: { productId: true, productCode: true, productName: true },
       orderBy: { productName: 'asc' },
@@ -771,10 +785,11 @@ export class TelegramAdminStockService {
 
   static async buildStockHistoryPreview(
     productId: number,
+    tenantId: number,
     limit = 20
   ): Promise<TelegramAdminCallbackResult> {
     const product = await prisma.product.findFirst({
-      where: { productId },
+      where: { productId, createdByUser: { tenantId } },
       select: { productId: true, productCode: true, productName: true },
     });
     if (!product) {
@@ -804,7 +819,7 @@ export class TelegramAdminStockService {
         orderId: m.orderId,
         shiftId: m.shiftId,
         lotId: m.lotId,
-  createdByLabel: m.user?.fullName || m.user?.username || String(m.createdBy),
+        createdByLabel: m.user?.fullName || m.user?.username || String(m.createdBy),
       })),
     });
 
@@ -815,14 +830,18 @@ export class TelegramAdminStockService {
     };
   }
 
-  static async handleProductLookup(productCode: string | undefined, adminUserId: number) {
+  static async handleProductLookup(
+    productCode: string | undefined,
+    adminUserId: number,
+    tenantId: number
+  ) {
     if (!productCode) {
       throw new Error('PRODUCT_CODE_REQUIRED');
     }
 
-    const product = await ProductService.getProductByCode(productCode, adminUserId);
+    const product = await ProductService.getProductByCode(productCode, adminUserId, tenantId);
     const msg = JSON.stringify(product, null, 2);
-    const config = await TelegramService.getTelegramConfig();
+    const config = await TelegramService.getTelegramConfig(tenantId);
     if (!config) throw new Error('Telegram not configured');
     await TelegramBotService.sendMessage(config.bot_token, config.group_chat_id, msg);
     return { sent: true };
@@ -832,7 +851,8 @@ export class TelegramAdminStockService {
     command: TelegramAdminCommand & { type: 'STOCK_WRITE' },
     text: string | undefined,
     telegramUserId: number,
-    adminUserId: number
+    adminUserId: number,
+    tenantId: number
   ) {
     if (!command.requestId) throw new Error('REQUEST_ID_REQUIRED');
     if (await TelegramAdminMessageModel.exists(command.requestId)) {
@@ -841,7 +861,7 @@ export class TelegramAdminStockService {
     if (!command.productCode) throw new Error('PRODUCT_CODE_REQUIRED');
     if (!command.qty || Number.isNaN(command.qty)) throw new Error('INVALID_QUANTITY');
 
-    const product = await ProductService.getProductByCode(command.productCode, adminUserId);
+    const product = await ProductService.getProductByCode(command.productCode, adminUserId, tenantId);
 
     const movementType = command.movementType;
     if (!movementType) throw new Error('MOVEMENT_TYPE_REQUIRED');

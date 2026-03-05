@@ -123,7 +123,13 @@ async function runOnce(): Promise<void> {
     saveState(now.date);
 
     const senderUserId = await resolveSenderUserId(settings.updatedBy);
-    await TelegramService.sendDailyAggregateReport(now.date, senderUserId, true);
+    const sender = await prisma.user.findUnique({
+      where: { userId: senderUserId },
+      select: { tenantId: true },
+    });
+    const tenantId = sender?.tenantId || 1;
+
+    await TelegramService.sendDailyAggregateReport(now.date, senderUserId, tenantId, true);
 
     // Check for near-expiry stock alerts (Disabled: user prefers milestone-only alerts)
     // await runTelegramAdminAlertsJob();

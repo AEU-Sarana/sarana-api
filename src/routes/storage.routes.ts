@@ -12,16 +12,16 @@ const router: IRouter = Router();
 router.use((req: Request, res: Response, next: any) => {
   // Allow public access for receipt images (Telegram bot needs to fetch them)
   const urlPath = req.url || req.path;
-  const isReceiptImage = urlPath.includes('/receipts/') || 
-                         urlPath.includes('/receipt-images/') || 
-                         urlPath.match(/\/receipt[-_]?images?\//i);
-  
+  const isReceiptImage = urlPath.includes('/receipts/') ||
+    urlPath.includes('/receipt-images/') ||
+    urlPath.match(/\/receipt[-_]?images?\//i);
+
   if (isReceiptImage) {
     // Skip authentication for receipt images
     logger.debug('Public access granted for receipt image:', urlPath);
     return next();
   }
-  
+
   // For other storage paths, apply authentication
   if (req.path.startsWith('/storage/')) {
     return authenticateToken(req, res, next);
@@ -32,10 +32,10 @@ router.use((req: Request, res: Response, next: any) => {
 
 router.get(/^\/storage\/([^\/]+)\/(.+)$/, async (req: Request, res: Response) => {
   try {
-    
+
     const urlPath = req.url || req.path;
     const match = urlPath.match(/^\/storage\/([^\/]+)\/(.+)$/);
-    
+
     if (!match) {
       logger.warn('Invalid storage path:', urlPath);
       return res.status(400).json({
@@ -44,16 +44,16 @@ router.get(/^\/storage\/([^\/]+)\/(.+)$/, async (req: Request, res: Response) =>
         code: 'STORAGE_INVALID_PATH',
       });
     }
-    
+
     const bucket = decodeURIComponent(match[1]);
     const key = decodeURIComponent(match[2]);
-    
+
     // Log file access with user information
     const user = req.user;
-    logger.info('Serving file:', { 
-      bucket, 
-      key, 
-      url: req.url, 
+    logger.info('Serving file:', {
+      bucket,
+      key,
+      url: req.url,
       path: req.path,
       userId: user?.userId,
       username: user?.username,
@@ -70,7 +70,7 @@ router.get(/^\/storage\/([^\/]+)\/(.+)$/, async (req: Request, res: Response) =>
 
     // S3-compatible storage (MinIO, R2, etc.)
     const { S3Client, GetObjectCommand } = await import('@aws-sdk/client-s3');
-    
+
     const s3Client = new S3Client({
       endpoint: env.STORAGE_ENDPOINT,
       region: env.STORAGE_REGION,
@@ -88,7 +88,7 @@ router.get(/^\/storage\/([^\/]+)\/(.+)$/, async (req: Request, res: Response) =>
 
     logger.debug('Fetching file from S3-compatible storage:', { bucket, key });
     const response = await s3Client.send(command);
-    
+
     // Get metadata from response
     const contentType = response.ContentType || 'application/octet-stream';
     const contentLength = response.ContentLength || 0;
@@ -100,7 +100,7 @@ router.get(/^\/storage\/([^\/]+)\/(.+)$/, async (req: Request, res: Response) =>
     }
     res.setHeader('Cache-Control', 'public, max-age=3600');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    
+
     // Stream the file
     if (response.Body) {
       // @ts-ignore - Body is a stream

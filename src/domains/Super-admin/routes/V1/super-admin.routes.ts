@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { SuperAdminController } from '../../controllers/V1/super-admin.controller';
 import { authenticateToken } from '@src/shared/middleware/auth.middleware';
 import { requireSuperAdmin } from '@src/shared/middleware/authorization.middleware';
-import { dashboardSummaryValidator, userGrowthValidator, tenantListValidator, createTenantValidator, closeSubscriptionValidator, createPackageValidator, createPlanValidator, upgradePlanValidator, renewSubscriptionValidator, updateTenantValidator } from '../../validators/V1';
+import { dashboardSummaryValidator, userGrowthValidator, tenantListValidator, createTenantValidator, closeSubscriptionValidator, createPackageValidator, createPlanValidator, updatePlanValidator, upgradePlanValidator, renewSubscriptionValidator, updateTenantValidator, updatePackageValidator } from '../../validators/V1';
 
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
 
@@ -60,6 +60,11 @@ router.get(
     SuperAdminController.listSubscriptions
 );
 
+router.get(
+    '/subscriptions/:id',
+    SuperAdminController.getSubscriptionById
+);
+
 router.post(
     '/subscriptions/:id/close',
     ...validateRequest(closeSubscriptionValidator),
@@ -89,6 +94,17 @@ router.get(
     SuperAdminController.getPackageById
 );
 
+router.patch(
+    '/saas/packages/:id/toggle-status',
+    SuperAdminController.togglePackageStatus
+);
+
+router.patch(
+    '/saas/packages/:id',
+    ...validateRequest(updatePackageValidator),
+    SuperAdminController.updatePackage
+);
+
 router.get(
     '/saas/plans',
     SuperAdminController.listPlans
@@ -105,12 +121,27 @@ router.post(
     SuperAdminController.createPackage
 );
 
+router.get(
+    '/saas/plans/:id',
+    SuperAdminController.getPlanById
+);
+
 router.post(
     '/saas/plans',
     ...validateRequest(createPlanValidator),
     SuperAdminController.createPlan
 );
 
+router.patch(
+    '/saas/plans/:id',
+    ...validateRequest(updatePlanValidator),
+    SuperAdminController.updatePlan
+);
+
+router.patch(
+    '/saas/plans/:id/toggle-status',
+    SuperAdminController.togglePlanStatus
+);
 
 
 export default router;

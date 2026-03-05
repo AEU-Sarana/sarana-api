@@ -8,6 +8,7 @@ const ALLOWED_KEYS = new Set(['product_code', 'qty', 'reason', 'note']);
 
 export class TelegramAdminStockAdjustValidator {
   static async validate(
+    tenantId: number,
     fields: Record<string, string>,
     adminUserId: number,
     chatId: number,
@@ -19,8 +20,8 @@ export class TelegramAdminStockAdjustValidator {
   > {
     const errors: string[] = [];
 
-    const user = await prisma.user.findUnique({
-      where: { userId: adminUserId },
+    const user = await prisma.user.findFirst({
+      where: { userId: adminUserId, tenantId },
       select: { role: true },
     });
     if (!user || user.role !== UserRole.ADMIN) {
@@ -68,6 +69,7 @@ export class TelegramAdminStockAdjustValidator {
         productCode: { equals: productCode, mode: 'insensitive' },
         status: 'active',
         deactivatedDate: null,
+        createdByUser: { tenantId },
       },
       select: {
         productId: true,
@@ -92,6 +94,7 @@ export class TelegramAdminStockAdjustValidator {
     }
     logger.info('Telegram admin stock adjust stock check', {
       productId: product.productId,
+      tenantId,
       qty,
       currentOnHand,
       t_stock_check_ms: tStockMs,
@@ -108,6 +111,7 @@ export class TelegramAdminStockAdjustValidator {
         chatId,
         telegramUserId,
         adminUserId,
+        tenantId,
         createdAt: now,
         expiresAt: now + 10 * 60 * 1000,
         productId: product.productId,

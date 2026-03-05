@@ -12,6 +12,7 @@ import { TelegramAdminStockService } from './telegram-admin-stock.service';
 type CallbackContext = {
   chatId: number;
   telegramUserId: number;
+  tenantId: number;
 };
 
 const buildKeyboard = (menuId: MenuId): MenuButton[][] => {

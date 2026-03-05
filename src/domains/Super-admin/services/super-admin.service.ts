@@ -1,4 +1,5 @@
 import prisma from '@src/database/client';
+import { encrypt } from '@src/shared/utils/encryption';
 import {
     DashboardSummaryResponse,
     UserGrowthResponse,
@@ -9,14 +10,19 @@ import {
     ListPlansResponse,
     CreatePlanRequest,
     CreatePlanResponse,
+    UpdatePlanRequest,
+    UpdatePlanResponse,
+    PlanDetailResponse,
     ListPaymentsResponse,
     UpgradePlanRequest,
     UpgradePlanResponse,
     RenewSubscriptionRequest,
     RenewSubscriptionResponse,
     ListSubscriptionsResponse,
+    SubscriptionDetailResponse,
     UpdateTenantRequest,
-    UpdateTenantResponse
+    UpdateTenantResponse,
+    UpdatePackageRequest
 } from '../types/V1';
 
 import bcrypt from 'bcrypt';
@@ -25,9 +31,12 @@ import { generateRandomString } from '@src/shared/utils/helpers';
 import { sendEmail } from '@src/shared/services/brevo-mail.service';
 import { logger } from '@src/shared/utils/logger';
 import { getWelcomeTenantEmailTemplate } from '@src/shared/templates/email/welcome-tenant.template';
+import { TelegramBotService } from '@src/domains/Telegram/services/telegram-bot.service';
+import { TelegramService } from '@src/domains/Telegram/services/telegram.service';
 
 
 import { GroupByType, PlanType, TenantStatus } from '../enums/V1';
+import { BusinessLogicException } from '@src/shared/exceptions/business-logic.exception';
 
 export class SuperAdminService {
     /**
@@ -44,19 +53,21 @@ export class SuperAdminService {
         // Aggregating subscription overview
         const monthly = await prisma.subscription.count({ where: { plan: { type: PlanType.MONTHLY }, status: 'ACTIVE' } });
         const yearly = await prisma.subscription.count({ where: { plan: { type: PlanType.YEARLY }, status: 'ACTIVE' } });
+        const trail = await prisma.subscription.count({ where: { plan: { type: PlanType.TRIAL }, status: 'ACTIVE' } });
+        const expired = await prisma.subscription.count({ where: { status: 'EXPIRED' } });
 
         return {
             stats: {
                 total_user: totalUser,
-                total_trail: 0, // Placeholder
+                total_trail: trail,
                 active_tenants: activeTenants,
                 total_subscriptions: totalSubscriptions,
             },
             subscriptions_overview: {
                 monthly,
                 yearly,
-                trail: 0,
-                expired: 0,
+                trail,
+                expired,
             }
         };
     }
@@ -65,13 +76,67 @@ export class SuperAdminService {
      * Get user growth data
      */
     static async getUserGrowth(groupBy: GroupByType, year?: number): Promise<UserGrowthResponse> {
-        // Simplified placeholder implementation
-        return {
-            group_by: groupBy,
-            year: year,
-            labels: groupBy === GroupByType.MONTH ? ['Jan', 'Feb', 'Mar'] : ['2024', '2025', '2026'],
-            data: [100, 200, 300],
-        };
+        const targetYear = year || new Date().getFullYear();
+
+        if (groupBy === GroupByType.MONTH) {
+            // Get counts by month for the target year
+            const result = await prisma.$queryRaw<Array<{ month: number; count: number }>>`
+                SELECT 
+                    EXTRACT(MONTH FROM created_at) as month,
+                    COUNT(*)::int as count
+                FROM users
+                WHERE role = 'ADMIN' AND EXTRACT(YEAR FROM created_at) = ${targetYear}
+                GROUP BY month
+                ORDER BY month
+            `;
+
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const counts = new Array(12).fill(0);
+
+            result.forEach(row => {
+                // months are 1-12 from EXTRACT(MONTH...)
+                const monthIndex = Number(row.month) - 1;
+                if (monthIndex >= 0 && monthIndex < 12) {
+                    counts[monthIndex] = row.count;
+                }
+            });
+
+            return {
+                group_by: groupBy,
+                year: targetYear,
+                labels: months,
+                data: counts,
+            };
+        } else {
+            // Get counts by year for the last 5 years
+            const currentYear = new Date().getFullYear();
+            const startYear = currentYear - 4;
+
+            const result = await prisma.$queryRaw<Array<{ year: number; count: number }>>`
+                SELECT 
+                    EXTRACT(YEAR FROM created_at) as year,
+                    COUNT(*)::int as count
+                FROM users
+                WHERE role = 'ADMIN' AND EXTRACT(YEAR FROM created_at) >= ${startYear}
+                GROUP BY year
+                ORDER BY year
+            `;
+
+            const years = [];
+            const counts = [];
+
+            for (let y = startYear; y <= currentYear; y++) {
+                years.push(y.toString());
+                const row = result.find(r => Number(r.year) === y);
+                counts.push(row ? row.count : 0);
+            }
+
+            return {
+                group_by: groupBy,
+                labels: years,
+                data: counts,
+            };
+        }
     }
 
     /**
@@ -82,7 +147,7 @@ export class SuperAdminService {
         const skip = (Number(page) - 1) * Number(limit);
 
         const where: any = {};
-        if (status) where.status = status;
+        if (status && status !== 'all') where.status = status;
         if (search) {
             where.user = {
                 OR: [
@@ -111,7 +176,6 @@ export class SuperAdminService {
                 id: s.id,
                 tenant_id: s.tenantId,
                 business_name: s.user.businessName ?? null,
-                username: s.user.username,
                 plan_id: s.planId,
                 plan_name: s.plan.name,
                 plan_type: s.plan.type,
@@ -119,7 +183,6 @@ export class SuperAdminService {
                 status: s.status,
                 start_date: s.startDate,
                 end_date: s.endDate ?? null,
-                close_reason: s.closeReason ?? null,
                 created_at: s.createdAt,
                 updated_at: s.updatedAt,
             })),
@@ -129,6 +192,85 @@ export class SuperAdminService {
                 total,
                 totalPages: Math.ceil(total / Number(limit)),
             },
+        };
+    }
+
+    /**
+     * Get a specific subscription by ID
+     */
+    static async getSubscriptionById(id: number): Promise<SubscriptionDetailResponse> {
+        const s = await prisma.subscription.findUnique({
+            where: { id },
+            include: {
+                plan: {
+                    include: {
+                        package: {
+                            include: {
+                                package_features: {
+                                    where: { isEnabled: true }
+                                }
+                            }
+                        }
+                    }
+                },
+                user: {
+                    select: {
+                        userId: true,
+                        businessName: true,
+                        username: true,
+                        email: true,
+                        phone: true
+                    }
+                },
+                subscription_payments: {
+                    orderBy: { paymentDate: 'desc' }
+                }
+            },
+        });
+
+        if (!s) {
+            throw new BusinessLogicException('Subscription not found', 'SUBSCRIPTION_NOT_FOUND', 404);
+        }
+
+        const sub = s as any;
+
+        return {
+            id: sub.id,
+            tenant_id: sub.tenantId,
+            business_name: sub.user.businessName ?? null,
+            username: sub.user.username,
+            email: sub.user.email ?? null,
+            phone: sub.user.phone ?? null,
+            status: sub.status,
+            start_date: sub.startDate,
+            end_date: sub.endDate ?? null,
+            close_reason: sub.closeReason ?? null,
+            effective_close_date: sub.effectiveCloseDate ?? null,
+            created_at: sub.createdAt,
+            updated_at: sub.updatedAt,
+            plan: {
+                id: sub.plan.id,
+                name: sub.plan.name,
+                type: sub.plan.type,
+                price: Number(sub.plan.price),
+                package: {
+                    id: sub.plan.package.id,
+                    name: sub.plan.package.name,
+                    description: sub.plan.package.description ?? null,
+                    features: sub.plan.package.package_features.map((f: any) => ({
+                        feature_code: f.featureCode,
+                        feature_value: f.featureValue ?? null,
+                    }))
+                }
+            },
+            payments: sub.subscription_payments.map((p: any) => ({
+                id: p.id,
+                amount: Number(p.amount),
+                payment_date: p.paymentDate,
+                payment_method: p.paymentMethod,
+                status: p.status,
+                transaction_id: p.transactionId ?? null
+            }))
         };
     }
 
@@ -205,6 +347,7 @@ export class SuperAdminService {
                     plan_status: t.subscriptions[0].status,
                     start_date: t.subscriptions[0].startDate,
                     end_date: t.subscriptions[0].endDate,
+                    price: Number(t.subscriptions[0].plan.price) // ensure numeric
                 } : null
             })),
             pagination: {
@@ -227,6 +370,10 @@ export class SuperAdminService {
                     orderBy: { linkedAt: 'desc' },
                     take: 1,
                 },
+                telegram_config_telegram_config_created_byTousers: {
+                    where: { isActive: true },
+                    take: 1,
+                },
                 subscriptions: {
                     include: {
                         plan: { include: { package: true } },
@@ -247,6 +394,7 @@ export class SuperAdminService {
         const activeSubscription = tenant.subscriptions.find(s => s.status === 'ACTIVE') ?? tenant.subscriptions[0] ?? null;
         const latestPayment = activeSubscription?.subscription_payments[0] ?? null;
         const telegramLink = tenant.telegram_admin_links[0] ?? null;
+        const botConfig = tenant.telegram_config_telegram_config_created_byTousers[0] ?? null;
 
         return {
             personal_information: {
@@ -261,13 +409,21 @@ export class SuperAdminService {
                 created_at: tenant.createdAt,
                 updated_at: tenant.updatedAt,
             },
-            telegram_bot: telegramLink ? {
-                telegram_user_id: telegramLink.telegramUserId.toString(),
-                chat_id: telegramLink.chatId.toString(),
-                status: telegramLink.status,
-                linked_at: telegramLink.linkedAt,
-                last_seen_at: telegramLink.lastSeenAt,
-                revoked_at: telegramLink.revokedAt,
+            telegram_bot: (botConfig || telegramLink) ? {
+                bot_config: botConfig ? {
+                    chat_id: botConfig.groupChatId,
+                    status: botConfig.isActive ? 'ACTIVE' : 'INACTIVE',
+                    last_test_time: botConfig.lastTestTime,
+                    last_test_status: botConfig.lastTestStatus,
+                } : null,
+                admin_link: telegramLink ? {
+                    telegram_user_id: telegramLink.telegramUserId.toString(),
+                    chat_id: telegramLink.chatId.toString(),
+                    status: telegramLink.status,
+                    linked_at: telegramLink.linkedAt,
+                    last_seen_at: telegramLink.lastSeenAt,
+                    revoked_at: telegramLink.revokedAt,
+                } : null,
             } : null,
             payment: latestPayment ? {
                 id: latestPayment.id,
@@ -353,9 +509,68 @@ export class SuperAdminService {
                 email: data.email,
                 phone: data.phone,
                 address: data.address,
-                status: data.status,
+                status: data.status?.toLowerCase() as any,
             }
         });
+
+        // Update Telegram Config if provided
+        if (data.telegram_bot_token && data.telegram_group_id) {
+            const encryptedToken = encrypt(data.telegram_bot_token, process.env.ENCRYPTION_KEY!);
+
+            // Try to find existing config
+            const existingConfig = await prisma.telegramConfig.findFirst({
+                where: { createdBy: tenantId }
+            });
+
+            if (existingConfig) {
+                await prisma.telegramConfig.update({
+                    where: { configId: existingConfig.configId },
+                    data: {
+                        botToken: encryptedToken,
+                        groupChatId: data.telegram_group_id,
+                        isActive: true,
+                        updatedBy: tenantId // Assuming tenantId is appropriate here
+                    }
+                });
+            } else {
+                await prisma.telegramConfig.create({
+                    data: {
+                        botToken: encryptedToken,
+                        groupChatId: data.telegram_group_id,
+                        isActive: true,
+                        createdBy: tenantId,
+                        updatedBy: tenantId
+                    }
+                });
+
+                // Send a test/confirmation message if telegram was updated
+                try {
+                    const confirmationMessage = `✅ *Telegram Configuration Updated*
+    
+Your business *${data.business_name || tenant.businessName}* has updated its Telegram settings. 
+Test message sent successfully!`;
+
+                    await TelegramBotService.sendMessage(
+                        data.telegram_bot_token!,
+                        data.telegram_group_id!,
+                        confirmationMessage,
+                        'Markdown'
+                    );
+
+                    // Register webhook for this bot
+                    await TelegramService.registerAdminWebhook(
+                        data.telegram_bot_token!,
+                        true,
+                        tenantId
+                    );
+                } catch (telegramErr: any) {
+                    logger.error('Failed to send Telegram update confirmation', {
+                        tenantId,
+                        error: telegramErr.message
+                    });
+                }
+            }
+        }
 
         return {
             id: updated.userId,
@@ -395,13 +610,25 @@ export class SuperAdminService {
                 }
             });
 
+            // after creating the admin user we must set its tenantId to its own id
+            await tx.user.update({
+                where: { userId: user.userId },
+                data: { tenantId: user.userId },
+            });
+
             // Find plan
             const plan = await tx.plan.findFirst({
                 where: { packageId: data.package_id, type: data.plan_type }
             });
 
             if (!plan) {
-                throw new Error(`Plan not found for package ID ${data.package_id} and type ${data.plan_type}`);
+                // plan must exist in database; return a clear business error instead of raw exception
+                throw new BusinessLogicException(
+                    `Plan not found for package ID ${data.package_id} and type ${data.plan_type}`,
+                    'PLAN_NOT_FOUND',
+                    400,
+                    { packageId: data.package_id, planType: data.plan_type }
+                );
             }
 
             const subscription = await tx.subscription.create({
@@ -418,12 +645,55 @@ export class SuperAdminService {
                 await tx.subscriptionPayment.create({
                     data: {
                         subscriptionId: subscription.id,
-                        amount: data.price ?? plan.price,
+                        amount: plan.price,
                         paymentMethod: data.payment_method,
                         transactionId: data.transaction_id,
                         status: 'COMPLETED'
                     }
                 });
+            }
+
+            // Create Telegram Config if provided
+            if (data.telegram_bot_token && data.telegram_group_id) {
+                const encryptedToken = encrypt(data.telegram_bot_token, process.env.ENCRYPTION_KEY!);
+                await tx.telegramConfig.create({
+                    data: {
+                        botToken: encryptedToken,
+                        groupChatId: data.telegram_group_id,
+                        isActive: true,
+                        createdBy: user.userId,
+                        updatedBy: user.userId,
+                    }
+                });
+
+                // Send welcome message to Telegram
+                try {
+                    const welcomeMessage = `🚀 *Welcome to Chlat-POS!*
+    
+Hello *${data.full_name}*, 
+Your business *${data.business_name}* is successfully connected to this group. 
+
+From now on, you will receive notifications and reports directly here!`;
+
+                    await TelegramBotService.sendMessage(
+                        data.telegram_bot_token,
+                        data.telegram_group_id,
+                        welcomeMessage,
+                        'Markdown'
+                    );
+
+                    // Register webhook for this bot
+                    await TelegramService.registerAdminWebhook(
+                        data.telegram_bot_token,
+                        true,
+                        user.userId
+                    );
+                } catch (telegramErr: any) {
+                    logger.error('Failed to send Telegram welcome message', {
+                        tenantId: user.userId,
+                        error: telegramErr.message
+                    });
+                }
             }
 
             // Send email to tenant with their credentials
@@ -491,11 +761,8 @@ export class SuperAdminService {
                 name: pkg.name,
                 description: pkg.description,
                 is_active: pkg.isActive,
-                features: pkg.package_features.map(f => ({
-                    feature_code: f.featureCode,
-                    feature_value: f.featureValue
-                })),
                 created_at: pkg.createdAt,
+                updated_at: pkg.updatedAt
             }))
         };
     }
@@ -508,7 +775,6 @@ export class SuperAdminService {
             where: { id },
             include: {
                 package_features: true,
-                plans: true
             }
         });
 
@@ -525,13 +791,36 @@ export class SuperAdminService {
                 feature_code: f.featureCode,
                 feature_value: f.featureValue
             })),
-            plans: pkg.plans.map(p => ({
-                id: p.id,
-                name: p.name,
-                type: p.type,
-                price: Number(p.price)
-            })),
             created_at: pkg.createdAt,
+        };
+    }
+
+    /**
+     * Toggle package status: active → inactive / inactive → active
+     */
+    static async togglePackageStatus(id: number) {
+        const pkg = await prisma.package.findUnique({
+            where: { id },
+            select: { id: true, isActive: true },
+        });
+
+        if (!pkg) {
+            throw new Error(`Package with ID ${id} not found`);
+        }
+
+        const newStatus = !pkg.isActive;
+
+        const updated = await prisma.package.update({
+            where: { id },
+            data: { isActive: newStatus },
+            select: { id: true, name: true, isActive: true, updatedAt: true },
+        });
+
+        return {
+            id: updated.id,
+            name: updated.name,
+            is_active: updated.isActive,
+            updated_at: updated.updatedAt,
         };
     }
 
@@ -580,6 +869,68 @@ export class SuperAdminService {
     }
 
     /**
+     * Update an existing SaaS package
+     */
+    static async updatePackage(id: number, data: UpdatePackageRequest): Promise<any> {
+        const result = await prisma.$transaction(async (tx) => {
+            // Check if package exists
+            const existing = await tx.package.findUnique({ where: { id } });
+            if (!existing) {
+                throw new Error(`Package with ID ${id} not found`);
+            }
+
+            // Update package basic info
+            const pkg = await tx.package.update({
+                where: { id },
+                data: {
+                    name: data.name,
+                    description: data.description,
+                    isActive: data.is_active,
+                }
+            });
+
+            // Update features if provided
+            if (data.features) {
+                // Delete existing features
+                await tx.packageFeature.deleteMany({
+                    where: { packageId: id }
+                });
+
+                // Create new features
+                if (data.features.length > 0) {
+                    await tx.packageFeature.createMany({
+                        data: data.features.map(f => ({
+                            packageId: id,
+                            featureCode: f.feature_code,
+                            featureValue: f.feature_value ?? "",
+                            isEnabled: true
+                        }))
+                    });
+                }
+            }
+
+            const features = await tx.packageFeature.findMany({
+                where: { packageId: id }
+            });
+
+            return { pkg, features };
+        });
+
+        return {
+            id: result.pkg.id,
+            name: result.pkg.name,
+            description: result.pkg.description,
+            is_active: result.pkg.isActive,
+            features: result.features.map(f => ({
+                feature_code: f.featureCode,
+                feature_value: f.featureValue
+            })),
+            created_at: result.pkg.createdAt,
+            updated_at: result.pkg.updatedAt
+        };
+    }
+
+    /**
      * List all SaaS plans
      */
     static async listPlans(): Promise<ListPlansResponse> {
@@ -598,7 +949,57 @@ export class SuperAdminService {
                 name: p.name,
                 price: Number(p.price),
                 duration_days: p.type === PlanType.MONTHLY ? 30 : 365,
+                is_active: p.isActive,
+                created_at: p.createdAt,
+                updated_at: p.updatedAt,
             }))
+        };
+    }
+
+    /**
+     * Get a SaaS plan by ID
+     */
+    static async getPlanById(id: number): Promise<PlanDetailResponse> {
+        const plan = await prisma.plan.findUnique({
+            where: { id },
+            include: {
+                package: {
+                    include: {
+                        package_features: true
+                    }
+                }
+            }
+        });
+
+        if (!plan) {
+            throw new Error(`Plan with ID ${id} not found`);
+        }
+
+        const [totalSubscriptions, activeSubscriptions] = await Promise.all([
+            prisma.subscription.count({ where: { planId: id } }),
+            prisma.subscription.count({ where: { planId: id, status: 'ACTIVE' } })
+        ]);
+
+        return {
+            id: plan.id,
+            package_id: plan.packageId,
+            package_name: plan.package.name,
+            package_description: plan.package.description,
+            plan_type: plan.type,
+            name: plan.name,
+            price: Number(plan.price),
+            duration_days: plan.type === PlanType.MONTHLY ? 30 : 365,
+            is_active: plan.isActive,
+            created_at: plan.createdAt,
+            updated_at: plan.updatedAt,
+            features: plan.package.package_features.map((f: any) => ({
+                feature_code: f.featureCode,
+                feature_value: f.featureValue
+            })),
+            stats: {
+                total_subscriptions: totalSubscriptions,
+                active_subscriptions: activeSubscriptions
+            }
         };
     }
 
@@ -621,41 +1022,122 @@ export class SuperAdminService {
             package_id: plan.packageId,
             plan_type: plan.type,
             price: Number(plan.price),
+            is_active: plan.isActive,
             created_at: plan.createdAt
+        };
+    }
+
+    /**
+     * Update an existing SaaS plan
+     */
+    static async updatePlan(id: number, data: UpdatePlanRequest): Promise<UpdatePlanResponse> {
+        const existing = await prisma.plan.findUnique({ where: { id } });
+        if (!existing) {
+            throw new Error(`Plan with ID ${id} not found`);
+        }
+
+        const updated = await prisma.plan.update({
+            where: { id },
+            data: {
+                ...(data.plan_name !== undefined && { name: data.plan_name }),
+                ...(data.package_id !== undefined && { packageId: data.package_id }),
+                ...(data.plan_type !== undefined && { type: data.plan_type }),
+                ...(data.price !== undefined && { price: data.price }),
+                ...(data.is_active !== undefined && { isActive: data.is_active }),
+            },
+        });
+
+        return {
+            id: updated.id,
+            plan_name: updated.name,
+            package_id: updated.packageId,
+            plan_type: updated.type,
+            price: Number(updated.price),
+            is_active: updated.isActive,
+            created_at: updated.createdAt,
+            updated_at: updated.updatedAt,
+        };
+    }
+
+    /**
+     * Toggle plan status: active → inactive / inactive → active
+     */
+    static async togglePlanStatus(id: number) {
+        const plan = await prisma.plan.findUnique({
+            where: { id },
+            select: { id: true, isActive: true },
+        });
+
+        if (!plan) {
+            throw new Error(`Plan with ID ${id} not found`);
+        }
+
+        const newStatus = !plan.isActive;
+
+        const updated = await prisma.plan.update({
+            where: { id },
+            data: { isActive: newStatus },
+            select: { id: true, name: true, isActive: true, updatedAt: true },
+        });
+
+        return {
+            id: updated.id,
+            name: updated.name,
+            is_active: updated.isActive,
+            updated_at: updated.updatedAt,
         };
     }
 
     /**
      * List all subscription payments
      */
-    static async listPayments(): Promise<ListPaymentsResponse> {
-        const [payments, summaryData] = await Promise.all([
+    static async listPayments(params: any): Promise<any> {
+        const { page = 1, limit = 10, status, payment_method, search } = params;
+        const skip = (Number(page) - 1) * Number(limit);
+
+        const where: any = {};
+        if (status) where.status = { equals: status, mode: 'insensitive' };
+        if (payment_method) where.paymentMethod = { equals: payment_method, mode: 'insensitive' };
+
+        if (search) {
+            where.subscription = {
+                user: {
+                    OR: [
+                        { businessName: { contains: search, mode: 'insensitive' } },
+                        { username: { contains: search, mode: 'insensitive' } },
+                    ]
+                }
+            };
+        }
+
+        const [payments, total, summaryData, pendingCount] = await Promise.all([
             prisma.subscriptionPayment.findMany({
+                where,
                 include: {
                     subscription: {
                         include: {
-                            plan: true,
+                            plan: {
+                                include: {
+                                    package: true
+                                }
+                            },
                             user: true
                         }
                     }
                 },
+                skip,
+                take: Number(limit),
                 orderBy: { paymentDate: 'desc' }
             }),
+            prisma.subscriptionPayment.count({ where }),
             prisma.subscriptionPayment.aggregate({
-                _sum: {
-                    amount: true
-                },
-                where: {
-                    status: 'COMPLETED'
-                }
+                _sum: { amount: true },
+                where: { status: 'COMPLETED' }
+            }),
+            prisma.subscriptionPayment.count({
+                where: { status: 'PENDING' }
             }),
         ]);
-
-        const pendingCount = await prisma.subscriptionPayment.count({
-            where: {
-                status: 'PENDING'
-            }
-        });
 
         return {
             payments: payments.map((p: any) => ({
@@ -663,13 +1145,26 @@ export class SuperAdminService {
                 paid_at: p.paymentDate,
                 tenant_name: p.subscription.user.businessName || p.subscription.user.fullName,
                 plan_name: p.subscription.plan.name,
+                package_name: p.subscription.plan.package.name,
                 amount: Number(p.amount),
+                currency: 'USD', // Mapping default if not in DB
                 payment_method: p.paymentMethod,
                 status: p.status,
+                transaction_ref: p.transactionId,
+                business_name: p.subscription.user.businessName,
+                username: p.subscription.user.username,
+                tenant_id: p.subscription.tenantId,
             })),
             summary: {
                 total_revenue: Number(summaryData._sum.amount || 0),
-                pending_count: pendingCount
+                pending_count: pendingCount,
+                total
+            },
+            pagination: {
+                page: Number(page),
+                limit: Number(limit),
+                total,
+                totalPages: Math.ceil(total / Number(limit)),
             }
         };
     }

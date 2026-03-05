@@ -22,6 +22,7 @@ const ALLOWED_KEYS = new Set([
 
 export class TelegramAdminStockInValidator {
   static async validate(
+    tenantId: number,
     fields: StockInFields,
     adminUserId: number,
     warnings: string[] = []
@@ -31,8 +32,8 @@ export class TelegramAdminStockInValidator {
   > {
     const errors: string[] = [];
 
-    const user = await prisma.user.findUnique({
-      where: { userId: adminUserId },
+    const user = await prisma.user.findFirst({
+      where: { userId: adminUserId, tenantId },
       select: { role: true },
     });
     if (!user || user.role !== UserRole.ADMIN) {
@@ -116,6 +117,7 @@ export class TelegramAdminStockInValidator {
         productCode: { equals: productCode, mode: 'insensitive' },
         status: 'active',
         deactivatedDate: null,
+        createdByUser: { tenantId },
       },
       select: {
         productId: true,
@@ -125,7 +127,6 @@ export class TelegramAdminStockInValidator {
         price: true,
         lowStockThreshold: true,
         reorderPoint: true,
-        avgCost: true,
         lastPurchaseCost: true,
       },
     });

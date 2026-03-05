@@ -20,7 +20,8 @@ export class TelegramAdminInputRouterService {
     chatId: number,
     text: string | undefined,
     adminUserId: number,
-    telegramUserId: number
+    telegramUserId: number,
+    tenantId: number
   ): Promise<TelegramAdminCallbackResult | null> {
     if (!text) return null;
     const pendingKey = getPendingKey(chatId);
@@ -29,6 +30,7 @@ export class TelegramAdminInputRouterService {
     logger.info('Telegram admin input router start', {
       chatId,
       fromId: telegramUserId,
+      tenantId,
       text,
     });
 
@@ -38,7 +40,8 @@ export class TelegramAdminInputRouterService {
         chatId,
         text,
         adminUserId,
-        telegramUserId
+        telegramUserId,
+        tenantId
       );
       return result ?? null;
     }
@@ -48,7 +51,8 @@ export class TelegramAdminInputRouterService {
         chatId,
         text,
         adminUserId,
-        telegramUserId
+        telegramUserId,
+        tenantId
       );
       return result ?? null;
     }
@@ -58,7 +62,8 @@ export class TelegramAdminInputRouterService {
         chatId,
         text,
         adminUserId,
-        telegramUserId
+        telegramUserId,
+        tenantId
       );
       return result ?? null;
     }
@@ -68,7 +73,8 @@ export class TelegramAdminInputRouterService {
         chatId,
         text,
         adminUserId,
-        telegramUserId
+        telegramUserId,
+        tenantId
       );
       return result ?? null;
     }
@@ -86,7 +92,8 @@ export class TelegramAdminInputRouterService {
         chatId,
         text,
         adminUserId,
-        telegramUserId
+        telegramUserId,
+        tenantId
       );
     }
 
@@ -103,7 +110,8 @@ export class TelegramAdminInputRouterService {
         chatId,
         text,
         adminUserId,
-        telegramUserId
+        telegramUserId,
+        tenantId
       );
     }
 
@@ -123,10 +131,11 @@ export class TelegramAdminInputRouterService {
           };
         }
 
-        const products = await TelegramAdminStockService.findProductsByQuery(query);
+        const products = await TelegramAdminStockService.findProductsByQuery(query, tenantId);
         if (!products.length) {
           logger.info('Telegram admin stock history not found', {
             chatId,
+            tenantId,
             query,
           });
           return {
@@ -136,7 +145,7 @@ export class TelegramAdminInputRouterService {
         }
         if (products.length === 1) {
           clearStockHistoryPending(chatId, telegramUserId);
-          return TelegramAdminStockService.buildStockHistoryPreview(products[0].productId, 20);
+          return TelegramAdminStockService.buildStockHistoryPreview(products[0].productId, tenantId, 20);
         }
         return {
           text: 'សូមជ្រើសរើសទំនិញ៖',
@@ -146,6 +155,7 @@ export class TelegramAdminInputRouterService {
       } catch (error: any) {
         logger.error('Telegram admin stock history input failed', {
           chatId,
+          tenantId,
           error: error.message,
         });
         return {

@@ -46,7 +46,8 @@ export class ShiftService {
   static async startShift(
     request: StartShiftRequest,
     currentUserId: number,
-    currentUserRole: string
+    currentUserRole: string,
+    currentTenantId?: number
   ): Promise<StartShiftResponse> {
     const { opening_cash, exchange_rate } = request;
 
@@ -61,7 +62,7 @@ export class ShiftService {
     // Pull stock snapshot (server → device)
     // StockService exposes `getStock()`. When called with a `version` param it will
     // also include `version` + `last_sync_time` in the response (used by sync clients).
-    const stockSnapshot = await StockService.getStock({ version: 0, page: 1, limit: 1000 }, currentUserId);
+    const stockSnapshot = await StockService.getStock({ version: 0, page: 1, limit: 1000 }, currentUserId, currentTenantId);
 
     const shift = await prisma.shift.create({
       data: {
@@ -142,10 +143,19 @@ export class ShiftService {
     shiftId: number,
     request: CloseShiftRequest,
     currentUserId: number,
-    currentUserRole: string
+    currentUserRole: string,
+    currentTenantId?: number
   ): Promise<CloseShiftResponse> {
-    const shift = await prisma.shift.findUnique({ where: { shiftId } });
+    const shift = await prisma.shift.findUnique({
+      where: { shiftId },
+      include: { user: { select: { tenantId: true } } },
+    });
     if (!shift) throw new ValidationException('Shift not found');
+
+    // Tenant isolation: ADMIN can only close shifts belonging to their own tenant's sellers
+    if (currentUserRole === 'ADMIN' && currentTenantId && shift.user.tenantId !== currentTenantId) {
+      throw new ValidationException('Shift not found');
+    }
 
     const pendingOrdersCount = request.pending_orders_count;
     const closedAt = new Date();
@@ -238,6 +248,7 @@ export class ShiftService {
       closed_at: updated.endTime!,
       performed_by: currentUserId,
       performed_by_role: currentUserRole,
+      tenant_id: updated.user?.tenantId || 1,
     } satisfies ShiftClosedEvent);
 
     return {
@@ -261,14 +272,25 @@ export class ShiftService {
   static async listShifts(
     request: ListShiftsRequest,
     currentUserId: number,
-    currentUserRole: string
+    currentUserRole: string,
+    currentTenantId?: number
   ): Promise<ListShiftsResponse> {
     const { page = 1, limit = 20, seller_id, status, start_date, end_date } = request;
 
     const where: any = {};
     if (currentUserRole === 'ADMIN') {
-      if (seller_id) where.sellerId = seller_id;
+      // Restrict to sellers who belong to the same tenant as this admin
+      if (currentTenantId) {
+        where.user = { tenantId: currentTenantId };
+      }
+      // Allow further filtering by specific seller within the tenant
+      if (seller_id) {
+        where.sellerId = seller_id;
+        // Remove nested user filter if we set sellerId directly (avoids conflict)
+        delete where.user;
+      }
     } else {
+      // Sellers can only see their own shifts
       where.sellerId = currentUserId;
     }
     if (status) where.status = status;
@@ -301,9 +323,16 @@ export class ShiftService {
       },
     });
 
-    // Get all unique sellers who have shifts (for filtering dropdown)
+    // Get all unique sellers who have shifts (for filtering dropdown) — scoped to same tenant
+    const allShiftsWhere: any =
+      currentUserRole === 'ADMIN'
+        ? currentTenantId
+          ? { user: { tenantId: currentTenantId } }
+          : {}
+        : { sellerId: currentUserId };
+
     const allShifts = await prisma.shift.findMany({
-      where: currentUserRole === 'ADMIN' ? {} : { sellerId: currentUserId },
+      where: allShiftsWhere,
       select: {
         sellerId: true,
         user: {
@@ -362,12 +391,18 @@ export class ShiftService {
   static async getShift(
     shiftId: number,
     currentUserId: number,
-    currentUserRole: string
+    currentUserRole: string,
+    currentTenantId?: number
   ): Promise<GetShiftResponse> {
     const where: any = { shiftId };
 
-    // Sellers can only view their own shifts, Admins can view all
-    if (currentUserRole !== 'ADMIN') {
+    if (currentUserRole === 'ADMIN') {
+      // Admins can only view shifts belonging to their own tenant
+      if (currentTenantId) {
+        where.user = { tenantId: currentTenantId };
+      }
+    } else {
+      // Sellers can only view their own shifts
       where.sellerId = currentUserId;
     }
 

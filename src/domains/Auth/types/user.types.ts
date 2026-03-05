@@ -19,7 +19,9 @@ export interface CurrentUser {
   phone: string | null;
   status: UserStatus;
   device_id: string | null;
-  is_device_bound: boolean; 
+  is_device_bound: boolean;
+  bio: string | null;
+  profile: string | null;
 }
 
 export interface CreateUserRequest {

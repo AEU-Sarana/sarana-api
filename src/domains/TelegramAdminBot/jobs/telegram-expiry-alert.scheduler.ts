@@ -1,6 +1,7 @@
 import { logger } from '@src/shared/utils/logger';
 import { TelegramAdminInventoryService } from '../services/telegram-admin-inventory.service';
 import { formatDate } from '@src/shared/utils/date-utils';
+import prisma from '@src/database/client';
 import fs from 'fs';
 import path from 'path';
 
@@ -82,6 +83,22 @@ async function runTieredExpiryCheck() {
     lastCheckDate = currentDate;
     saveState(currentDate);
 
-    await TelegramAdminInventoryService.sendTieredExpiryAlerts();
-    logger.info('Tiered stock expiry check completed', { date: currentDate });
+    // Fetch all active telegram configs to get the list of tenants to alert
+    const configs = await prisma.telegramConfig.findMany({
+        where: { isActive: true },
+        include: { createdByUser: { select: { tenantId: true } } }
+    });
+
+    const tenantIds = Array.from(new Set(configs.map(c => (c.createdByUser as any)?.tenantId).filter(Boolean)));
+
+    for (const tenantId of tenantIds) {
+        try {
+            await TelegramAdminInventoryService.sendTieredExpiryAlerts(tenantId as number);
+        } catch (error: any) {
+            logger.error(`Failed to send tiered expiry alerts for tenant ${tenantId}`, {
+                error: error.message
+            });
+        }
+    }
+    logger.info('Tiered stock expiry check completed', { date: currentDate, tenantCount: tenantIds.length });
 }

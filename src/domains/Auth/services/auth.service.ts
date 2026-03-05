@@ -11,11 +11,13 @@ import {
   RefreshTokenResponse,
   ChangePasswordRequest,
   ResetPasswordRequest,
+  UpdateProfileRequest,
 } from '@src/domains/Auth/types/auth.types';
 import { BusinessLogicException, ValidationException } from '@src/shared/exceptions';
 import { logger } from '@src/shared/utils/logger';
 import { sendPasswordResetEmailJob } from '@src/domains/Auth/jobs/send-password-reset-email.job';
 import { auditLogService } from '@src/shared/services/audit-log.service';
+import { fileStorageService } from '@src/shared/services/file-storage.service';
 import { CurrentUser } from '../types/user.types';
 import { hashPIN, verifyPIN } from '@src/shared/services/pin.service';
 
@@ -64,7 +66,7 @@ export class AuthService {
       tenantId: user.tenantId ?? 1,
     });
 
-    // const refreshToken = TokenService.generateRefreshToken(user.userId);
+    const refreshToken = TokenService.generateRefreshToken(user.userId);
 
     // Get token expiry in Phnom Penh timezone
     const expiresAt = TokenService.getTokenExpiryPhnomPenh(accessToken);
@@ -78,12 +80,15 @@ export class AuthService {
 
     return {
       token: accessToken,
+      refresh_token: refreshToken,
       user: {
         user_id: user.userId,
         username: user.username,
         full_name: user.fullName,
         role: user.role,
         status: user.status,
+        bio: (user as any).bio,
+        profile: (user as any).profileImage,
       },
       expires_at: expiresAt || null,
     };
@@ -182,6 +187,8 @@ export class AuthService {
         status: true,
         deviceId: true,
         isDeviceBound: true,
+        bio: true,
+        profileImage: true,
       },
     });
 
@@ -201,10 +208,127 @@ export class AuthService {
       full_name: user.fullName,
       role: user.role as UserRole,
       phone: user.phone,
-      status: user.status,
+      status: user.status as UserStatus,
       device_id: user.deviceId,
       is_device_bound: user.isDeviceBound,
+      bio: user.bio,
+      profile: AuthService.normalizeImageUrl(user.profileImage),
     };
+  }
+
+  static async updateProfile(
+    userId: number,
+    request: UpdateProfileRequest,
+    imageFile?: Express.Multer.File
+  ): Promise<void> {
+    const { full_name, username, email, phone, bio } = request;
+
+    // Check if user exists
+    const user = (await prisma.user.findUnique({
+      where: { userId },
+    })) as any;
+
+    if (!user) {
+      throw new ValidationException('User not found');
+    }
+
+    // Check if username is taken
+    if (username && username !== user.username) {
+      const existing = await prisma.user.findFirst({
+        where: {
+          username,
+          userId: { not: userId }
+        }
+      });
+      if (existing) throw new BusinessLogicException('Username already taken');
+    }
+
+    // Handle image upload if provided
+    let finalProfilePath = request.profile ?? user.profileImage;
+
+    if (imageFile) {
+      try {
+        // Upload new image
+        const uploadResult = await fileStorageService.uploadFile(
+          imageFile,
+          'users/avatars',
+          {
+            filename: `user-${userId}-${Date.now()}`,
+            public: true,
+            metadata: {
+              userId: userId.toString(),
+            }
+          }
+        );
+        finalProfilePath = uploadResult.url;
+
+        // Delete old image if it exists
+        if (user.profileImage) {
+          const oldKey = fileStorageService.extractKeyFromUrl(user.profileImage);
+          if (oldKey) {
+            void fileStorageService.deleteFile(oldKey).catch(err => {
+              logger.warn('Failed to delete old profile image', { userId, oldKey, error: err });
+            });
+          }
+        }
+      } catch (error) {
+        logger.error('Failed to upload user profile image:', error);
+        throw new BusinessLogicException('Failed to upload profile image');
+      }
+    }
+
+    // Update user
+    await prisma.user.update({
+      where: { userId },
+      data: {
+        fullName: full_name,
+        username: username,
+        email,
+        phone,
+        bio,
+        profileImage: finalProfilePath,
+        updatedAt: new Date(),
+      } as any,
+    });
+
+    logger.info('User profile updated', { userId });
+  }
+
+  /**
+   * Normalize image URL - convert old MinIO URLs to new nginx proxy format
+  */
+  private static normalizeImageUrl(imagePath: string | null): string | null {
+    if (!imagePath) return null;
+
+    // Already a storage URL format we want?
+    if (imagePath.startsWith('/storage/')) {
+      let baseUrl = env.API_BASE_URL || env.APP_URL;
+      if (!baseUrl) {
+        baseUrl = 'http://localhost:8080'; // Fallback
+      }
+      baseUrl = baseUrl.replace(/\/$/, '');
+      return `${baseUrl}${imagePath}`;
+    }
+
+    // Is it a full URL containing /storage/?
+    if (imagePath.includes('/storage/')) {
+      try {
+        const parsed = new URL(imagePath);
+        const storageIndex = parsed.pathname.indexOf('/storage/');
+        if (storageIndex !== -1) {
+          const storagePath = parsed.pathname.substring(storageIndex);
+          let baseUrl = env.API_BASE_URL || env.APP_URL;
+          if (baseUrl) {
+            baseUrl = baseUrl.replace(/\/$/, '');
+            return `${baseUrl}${storagePath}`;
+          }
+        }
+      } catch (err) {
+        // Not a valid URL, just return it
+      }
+    }
+
+    return imagePath;
   }
 
   /**
@@ -307,7 +431,7 @@ export class AuthService {
       toEmail: user.email,
       username: user.username,
       fullName: user.fullName,
-      otpCode: resetToken, 
+      otpCode: resetToken,
     }).catch((error) => {
       logger.error('Failed to enqueue/send password reset email', {
         userId: user.userId,

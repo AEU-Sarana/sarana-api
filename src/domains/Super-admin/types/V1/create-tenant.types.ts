@@ -13,6 +13,7 @@ export interface CreateTenantRequest {
     start_time: string;
     end_time: string;
     payment_method?: string;
-    price?: number;
     transaction_id?: string;
+    telegram_bot_token?: string;
+    telegram_group_id?: string;
 }

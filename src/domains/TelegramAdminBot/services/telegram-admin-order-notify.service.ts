@@ -23,14 +23,16 @@ export class TelegramAdminOrderNotifyService {
   static async notifyOrderSyncSuccess(input: NotifyOrderSyncInput): Promise<void> {
     const { order, status, orderId, fallbackSellerId, orderDate } = input;
 
-    const chatIds = await this.resolveTargetChatIds();
-    if (!chatIds.length) return;
-
     const sellerId = order.seller_id ?? fallbackSellerId;
     const seller = await prisma.user.findUnique({
       where: { userId: sellerId },
-      select: { fullName: true },
+      select: { fullName: true, tenantId: true },
     });
+
+    const tenantId = seller?.tenantId ?? 1;
+
+    const chatIds = await this.resolveTargetChatIds(tenantId);
+    if (!chatIds.length) return;
 
     const message = buildOrderSyncMessage({
       order_uuid: order.order_uuid,
@@ -51,9 +53,10 @@ export class TelegramAdminOrderNotifyService {
 
     for (const chatId of chatIds) {
       try {
-        await TelegramService.sendMessageByChatId(chatId, message, 'Markdown');
+        await TelegramService.sendMessageByChatId(tenantId, chatId, message, 'Markdown');
       } catch (error: unknown) {
         logger.error('Failed to send order sync message to Telegram admin', {
+          tenantId,
           error: getErrorMessage(error),
           chatId,
           order_uuid: order.order_uuid,
@@ -62,9 +65,14 @@ export class TelegramAdminOrderNotifyService {
     }
   }
 
-  private static async resolveTargetChatIds(): Promise<Array<number | string>> {
+  private static async resolveTargetChatIds(tenantId: number): Promise<Array<number | string>> {
     const chatLinks = await prisma.telegramAdminLink.findMany({
-      where: { status: 'ACTIVE' },
+      where: {
+        status: 'ACTIVE',
+        user: {
+          tenantId: tenantId
+        }
+      },
       select: { chatId: true },
     });
 
@@ -77,7 +85,7 @@ export class TelegramAdminOrderNotifyService {
     // Fallback: if no admin links exist yet, send to configured Telegram group chat (if any).
     if (ids.size === 0) {
       try {
-        const config = await TelegramService.getTelegramConfig();
+        const config = await TelegramService.getTelegramConfig(tenantId);
         if (config?.group_chat_id) {
           ids.add(String(config.group_chat_id));
         }

@@ -7,16 +7,16 @@ import { TelegramAdminLinkService } from './telegram-admin-link.service';
 import { TelegramAdminWebhookService } from './telegram-admin-webhook.service';
 
 export class TelegramAdminBotService {
-  static async handleUpdate(update: TelegramWebhookPayload) {
-    return TelegramAdminWebhookService.handleUpdate(update);
+  static async handleUpdate(update: TelegramWebhookPayload, tenantId: number) {
+    return TelegramAdminWebhookService.handleUpdate(update, tenantId);
   }
 
-  static async handleCommand(message: any, adminUserId = 0) {
-    return TelegramAdminWebhookService.handleCommand(message, adminUserId);
+  static async handleCommand(message: any, tenantId: number, adminUserId = 0) {
+    return TelegramAdminWebhookService.handleCommand(message, tenantId, adminUserId);
   }
 
-  static async handleCallback(callback: any, adminUserId = 0) {
-    return TelegramAdminWebhookService.handleCallback(callback, adminUserId);
+  static async handleCallback(callback: any, tenantId: number, adminUserId = 0) {
+    return TelegramAdminWebhookService.handleCallback(callback, tenantId, adminUserId);
   }
 
   static async createLinkCode(

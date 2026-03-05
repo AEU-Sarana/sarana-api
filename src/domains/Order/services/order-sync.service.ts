@@ -61,30 +61,6 @@ export class OrderSyncService {
         }
 
         const result = await prisma.$transaction(async (tx) => {
-          const productIds = Array.from(
-            new Set(orderData.items.map((item) => item.product_id))
-          );
-          const products = await tx.product.findMany({
-            where: { productId: { in: productIds } },
-            select: { productId: true, avgCost: true, lastPurchaseCost: true },
-          });
-          const costMap = new Map<number, { avgCost: number | null; lastPurchaseCost: number | null }>(
-            products.map((p) => [
-              p.productId,
-              {
-                avgCost: p.avgCost != null ? Number(p.avgCost) : null,
-                lastPurchaseCost: p.lastPurchaseCost != null ? Number(p.lastPurchaseCost) : null,
-              },
-            ])
-          );
-          const resolveCostPerUnit = (productId: number) => {
-            const costInfo = costMap.get(productId);
-            if (costInfo?.avgCost != null) return costInfo.avgCost;
-            if (costInfo?.lastPurchaseCost != null) return costInfo.lastPurchaseCost;
-            logger.warn('Missing avgCost for product, defaulting cost to 0', { productId });
-            return 0;
-          };
-
           // Check if order exists by UUID (idempotency)
           const existingOrder = await tx.order.findUnique({
             where: { orderUuid: orderData.order_uuid },
@@ -116,17 +92,29 @@ export class OrderSyncService {
             });
 
             for (const item of orderData.items) {
-              // Fetch product name if not provided
-              let productName = item.product_name;
-              if (!productName) {
-                const product = await tx.product.findUnique({
-                  where: { productId: item.product_id },
-                  select: { productName: true },
-                });
-                productName = product?.productName || 'Unknown Product';
-              }
+              // Fetch product info including lastPurchaseCost as fallback
+              const product = await tx.product.findUnique({
+                where: { productId: item.product_id },
+                select: { productName: true, lastPurchaseCost: true },
+              });
+              const productName = item.product_name || product?.productName || 'Unknown Product';
+              const fallbackUnitCost = product?.lastPurchaseCost != null ? Number(product.lastPurchaseCost) : 0;
 
-              const costPerUnitAtSale = resolveCostPerUnit(item.product_id);
+              // FIFO Stock Out: Correct cost is calculated from lots
+              const { totalCost: fifoCOGS } = await StockService.stockOut(
+                item.product_id,
+                item.quantity,
+                item.unit_price,
+                updated.orderId,
+                orderData.shift_id,
+                currentUserId,
+                tx,
+                { allowNegative: true, reason: 'ORDER_SYNC_UPDATE' }
+              );
+
+              // Use fallback cost if COGS returned is 0 and it was an oversell (negative stock)
+              const finalCOGS = fifoCOGS > 0 ? fifoCOGS : fallbackUnitCost * item.quantity;
+
               await tx.orderItem.create({
                 data: {
                   orderId: updated.orderId,
@@ -134,8 +122,8 @@ export class OrderSyncService {
                   productName: productName,
                   quantity: item.quantity,
                   unitPrice: item.unit_price,
-                  costPerUnitAtSale,
-                  cogsLineTotal: costPerUnitAtSale * item.quantity,
+                  costPerUnitAtSale: finalCOGS / item.quantity,
+                  cogsLineTotal: finalCOGS,
                   discountAmount: item.discount_amount || 0,
                   subtotal: item.subtotal,
                 },
@@ -184,19 +172,31 @@ export class OrderSyncService {
               },
             });
 
-            // Create order items
+            // Create order items + Auto stock deduction (FIFO)
             for (const item of orderData.items) {
-              // Fetch product name if not provided
-              let productName = item.product_name;
-              if (!productName) {
-                const product = await tx.product.findUnique({
-                  where: { productId: item.product_id },
-                  select: { productName: true },
-                });
-                productName = product?.productName || 'Unknown Product';
-              }
+              // Fetch product info including lastPurchaseCost as fallback
+              const product = await tx.product.findUnique({
+                where: { productId: item.product_id },
+                select: { productName: true, lastPurchaseCost: true },
+              });
+              const productName = item.product_name || product?.productName || 'Unknown Product';
+              const fallbackUnitCost = product?.lastPurchaseCost != null ? Number(product.lastPurchaseCost) : 0;
 
-              const costPerUnitAtSale = resolveCostPerUnit(item.product_id);
+              // FIFO Stock Out: Correct cost is calculated by taking it from the lots
+              const { totalCost: fifoCOGS } = await StockService.stockOut(
+                item.product_id,
+                item.quantity,
+                item.unit_price,
+                newOrder.orderId,
+                orderData.shift_id,
+                currentUserId,
+                tx,
+                { allowNegative: true, reason: 'ORDER_SYNC' }
+              );
+
+              // Use fallback cost if COGS returned is 0 and it was an oversell (negative stock)
+              const finalCOGS = fifoCOGS > 0 ? fifoCOGS : fallbackUnitCost * item.quantity;
+
               await tx.orderItem.create({
                 data: {
                   orderId: newOrder.orderId,
@@ -204,8 +204,8 @@ export class OrderSyncService {
                   productName: productName,
                   quantity: item.quantity,
                   unitPrice: item.unit_price,
-                  costPerUnitAtSale,
-                  cogsLineTotal: costPerUnitAtSale * item.quantity,
+                  costPerUnitAtSale: finalCOGS / item.quantity,
+                  cogsLineTotal: finalCOGS,
                   discountAmount: item.discount_amount || 0,
                   subtotal: item.subtotal,
                 },
@@ -223,20 +223,6 @@ export class OrderSyncService {
                 createdBy: currentUserId,
               }
             });
-
-            // Auto stock deduction (Stock Out)
-            for (const item of orderData.items) {
-              await StockService.stockOut(
-                item.product_id,
-                item.quantity,
-                item.unit_price,
-                newOrder.orderId,
-                orderData.shift_id,
-                currentUserId,
-                tx,
-                { allowNegative: true, reason: 'ORDER_SYNC' }
-              );
-            }
 
             syncedCount++;
             return {

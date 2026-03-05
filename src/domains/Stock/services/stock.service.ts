@@ -25,21 +25,32 @@ export class StockService {
    */
   static async getStock(
     request: GetStockRequest,
-    currentUserId: number
+    currentUserId: number,
+    currentTenantId?: number
   ): Promise<GetStockResponse> {
     const { product_id, version } = request;
 
     if (product_id) {
-      // Get stock for specific product
-      const stock = await prisma.stock.findUnique({
-        where: { productId: product_id },
+      // Get stock for specific product (scoped to this tenant)
+      const stock = await prisma.stock.findFirst({
+        where: {
+          productId: product_id,
+          ...(currentTenantId
+            ? { product: { createdByUser: { tenantId: currentTenantId } } }
+            : {}),
+        },
         include: { product: true },
       });
 
-      // If stock doesn't exist, check if product exists and create stock record automatically
+      // If stock doesn't exist, check if product exists within this tenant
       if (!stock) {
-        const product = await prisma.product.findUnique({
-          where: { productId: product_id },
+        const product = await prisma.product.findFirst({
+          where: {
+            productId: product_id,
+            ...(currentTenantId
+              ? { createdByUser: { tenantId: currentTenantId } }
+              : {}),
+          },
         });
 
         if (!product || product.deactivatedDate) {
@@ -169,14 +180,23 @@ export class StockService {
     // Get all stock levels (with pagination and filters)
     const { page = 1, limit = 50, version: stockVersion, status, category, search, barcode, product_status } = request;
 
-    // Build where clause for stock
+    // Build where clause for stock — scoped to this tenant's products
     const stockWhere: any = {};
     if (stockVersion) {
       stockWhere.stockVersion = stockVersion;
     }
 
+    // Always scope to the tenant's products
+    if (currentTenantId) {
+      stockWhere.product = {
+        ...(stockWhere.product || {}),
+        createdByUser: { tenantId: currentTenantId },
+      };
+    }
+
     if (product_status) {
       stockWhere.product = {
+        ...(stockWhere.product || {}),
         status: product_status,
       };
     }
@@ -421,22 +441,16 @@ export class StockService {
       });
 
       if (cost != null) {
-        const previousQty = stock.quantity;
-        const previousAvgCost = Number(product.avgCost ?? product.lastPurchaseCost ?? 0);
-        const newQty = previousQty + quantity;
-        const unitCost = Number(cost);
-        const newAvgCost =
-          newQty > 0 ? (previousAvgCost * previousQty + unitCost * quantity) / newQty : unitCost;
-
+        // FIFO: cost is tracked at the lot level (stock_lots.cost).
+        // We only update lastPurchaseCost as a reference — no WAC calculation.
         await tx.product.update({
           where: { productId: product_id },
           data: {
-            avgCost: newAvgCost,
-            lastPurchaseCost: unitCost,
+            lastPurchaseCost: Number(cost),
           },
         });
       } else {
-        logger.warn('Stock in without cost, avgCost not updated', {
+        logger.warn('Stock in without cost, lastPurchaseCost not updated', {
           productId: product_id,
           quantity,
         });
@@ -758,7 +772,7 @@ export class StockService {
     currentUserId: number,
     tx?: PrismaTransaction,
     options?: { allowExpired?: boolean; allowNegative?: boolean; reason?: string }
-  ): Promise<void> {
+  ): Promise<{ totalCost: number }> {
     const execute = async (db: PrismaTransaction) => {
       const stock = await db.stock.findUnique({
         where: { productId },
@@ -768,7 +782,7 @@ export class StockService {
         throw new ValidationException('Stock not found for product');
       }
 
-      await StockLotService.allocateStockOutFEFO(
+      const { totalCost } = await StockLotService.allocateStockOutFEFO(
         {
           productId,
           quantity,
@@ -791,12 +805,14 @@ export class StockService {
           updatedAt: new Date(),
         },
       });
+
+      return { totalCost };
     };
 
     if (tx) {
-      await execute(tx);
+      return execute(tx);
     } else {
-      await prisma.$transaction(async (db) => execute(db));
+      return prisma.$transaction(async (db) => execute(db));
     }
 
     logger.info('Stock Out (automatic)', {

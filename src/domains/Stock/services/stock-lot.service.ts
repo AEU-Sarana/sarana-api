@@ -149,9 +149,21 @@ export class StockLotService {
         });
       }
 
+      let totalCost = 0;
+      const detailedAllocations = [];
+
       for (const allocation of allocations) {
         const lot = lots.find((l) => l.id === allocation.lotId);
         if (!lot) continue;
+
+        const allocationCost = lot.cost != null ? Number(lot.cost) : 0;
+        totalCost += allocationCost * allocation.quantity;
+
+        detailedAllocations.push({
+          ...allocation,
+          cost: allocationCost
+        });
+
         await db.stockLot.update({
           where: { id: allocation.lotId },
           data: {
@@ -177,7 +189,11 @@ export class StockLotService {
         });
       }
 
-      return { allocations };
+      return {
+        allocations: detailedAllocations,
+        totalCost,
+        remaining
+      };
     };
 
     if (tx) {
@@ -187,7 +203,10 @@ export class StockLotService {
     return prisma.$transaction(async (db) => execute(db));
   }
 
-  static async listNearExpiry(days = 30): Promise<NearExpiryResponse> {
+  static async listNearExpiry(
+    tenantId: number,
+    days = 30
+  ): Promise<NearExpiryResponse> {
     const start = startOfDay(new Date());
     const end = endOfDay(addDays(start, days));
 
@@ -198,6 +217,9 @@ export class StockLotService {
           gte: start,
           lte: end,
         },
+        product: {
+          createdByUser: { tenantId }
+        }
       },
       include: {
         product: { select: { productName: true, productCode: true } },
@@ -214,13 +236,16 @@ export class StockLotService {
     };
   }
 
-  static async listExpired(): Promise<ExpiredLotsResponse> {
+  static async listExpired(tenantId: number): Promise<ExpiredLotsResponse> {
     const today = startOfDay(new Date());
 
     const lots = await prisma.stockLot.findMany({
       where: {
         qtyOnHand: { gt: 0 },
         expiredAt: { lt: today },
+        product: {
+          createdByUser: { tenantId }
+        }
       },
       include: {
         product: { select: { productName: true, productCode: true } },
@@ -236,7 +261,7 @@ export class StockLotService {
     };
   }
 
-  static async listLotsExpiringIn(days: number): Promise<StockLotInfo[]> {
+  static async listLotsExpiringIn(tenantId: number, days: number): Promise<StockLotInfo[]> {
     const targetDate = startOfDay(addDays(new Date(), days));
     const nextDate = addDays(targetDate, 1);
 
@@ -247,6 +272,9 @@ export class StockLotService {
           gte: targetDate,
           lt: nextDate,
         },
+        product: {
+          createdByUser: { tenantId }
+        }
       },
       include: {
         product: { select: { productName: true, productCode: true } },

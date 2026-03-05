@@ -16,6 +16,7 @@ export async function processTelegramAdminExportJob(
   const payload = job.data;
   const {
     chatId,
+    tenantId,
     requestedByUserId,
     processingMessageId,
     exportType,
@@ -30,10 +31,11 @@ export async function processTelegramAdminExportJob(
     const cachedUrl = await redisConnection.get(cacheKey);
     if (cachedUrl) {
       const tSendStart = Date.now();
-      await TelegramAdminExcelExportService.sendDocumentByUrl(chatId, cachedUrl);
+      await TelegramAdminExcelExportService.sendDocumentByUrl(tenantId, chatId, cachedUrl);
       const tSendMs = Date.now() - tSendStart;
 
       await TelegramAdminExcelExportService.editProcessingMessage(
+        tenantId,
         chatId,
         processingMessageId,
         '✅ Excel បានផ្ញើរួចរាល់',
@@ -57,6 +59,7 @@ export async function processTelegramAdminExportJob(
       range,
       timezone,
       requestedByUserId,
+      tenantId,
     });
     const tQueryMs = t_query_ms ?? (Date.now() - tQueryStart);
     const tExportMs = t_export_ms ?? 0;
@@ -70,14 +73,15 @@ export async function processTelegramAdminExportJob(
     await redisConnection.set(cacheKey, uploadResult.url, 'EX', CACHE_TTL_SECONDS);
 
     const tSendStart = Date.now();
-    await TelegramAdminExcelExportService.sendDocumentByLocalPath(chatId, localFilePath, uploadResult.filename);
+    await TelegramAdminExcelExportService.sendDocumentByLocalPath(tenantId, chatId, localFilePath, uploadResult.filename);
     const tSendMs = Date.now() - tSendStart;
 
     try {
       await fs.unlink(localFilePath);
-    } catch {}
+    } catch { }
 
     await TelegramAdminExcelExportService.editProcessingMessage(
+      tenantId,
       chatId,
       processingMessageId,
       '✅ Excel បានផ្ញើរួចរាល់',
@@ -109,6 +113,7 @@ export async function processTelegramAdminExportJob(
     });
 
     await TelegramAdminExcelExportService.editProcessingMessage(
+      tenantId,
       chatId,
       processingMessageId,
       '❌ Export failed',

@@ -31,15 +31,27 @@ export interface ResetPINRequest {
   new_pin: string;
 }
 
+export interface UpdateProfileRequest {
+  full_name?: string;
+  username?: string;
+  email?: string;
+  phone?: string;
+  bio?: string;
+  profile?: any;
+}
+
 // Response Types
 export interface LoginResponse {
   token: string;
+  refresh_token: string;
   user: {
     user_id: number;
     username: string;
     full_name: string;
     role: string;
     status: string;
+    bio: string | null;
+    profile: string | null;
   };
   expires_at: string | null;
 }
@@ -60,6 +72,7 @@ export interface UserPayload {
 export interface TokenPayload extends UserPayload {
   iat: number;
   exp?: number;
+  jti?: string;
 }
 
 export interface RefreshTokenPayload {
@@ -67,6 +80,7 @@ export interface RefreshTokenPayload {
   tokenType: 'refresh';
   iat: number;
   exp?: number;
+  jti?: string;
 }
 
 // Jobs

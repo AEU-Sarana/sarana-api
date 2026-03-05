@@ -23,7 +23,7 @@ const MAX_ROWS = 50_000;
 export async function processTelegramAdminStockHistoryExportJob(
   job: Job<TelegramAdminStockHistoryExportJobPayload>
 ) {
-  const { chatId, processingMessageId, productId, range, timezone } = job.data;
+  const { chatId, tenantId, processingMessageId, productId, range, timezone } = job.data;
   const tz = timezone ?? DEFAULT_TIMEZONE;
   const cacheKey = buildCacheKey(productId, range, tz);
 
@@ -41,12 +41,14 @@ export async function processTelegramAdminStockHistoryExportJob(
       const tSendStart = Date.now();
       const localPath = await downloadToTemp(cachedUrl);
       await sendDocumentByLocalPath(
+        tenantId,
         chatId,
         localPath,
         buildCaption(product.productCode, product.productName, range, false)
       );
       const tSendMs = Date.now() - tSendStart;
       await safeEditMessage(
+        tenantId,
         chatId,
         processingMessageId,
         '✅ Excel បានផ្ញើរួចរាល់',
@@ -97,7 +99,7 @@ export async function processTelegramAdminStockHistoryExportJob(
       'Order ID': m.orderId ?? '-',
       'Shift ID': m.shiftId ?? '-',
       'Lot ID': m.lotId ?? '-',
-  'Created By': m.user?.fullName || m.user?.username || String(m.createdBy),
+      'Created By': m.user?.fullName || m.user?.username || String(m.createdBy),
     }));
 
     const tExportStart = Date.now();
@@ -118,6 +120,7 @@ export async function processTelegramAdminStockHistoryExportJob(
 
     const tSendStart = Date.now();
     await sendDocumentByLocalPath(
+      tenantId,
       chatId,
       localFilePath,
       buildCaption(product.productCode, product.productName, range, capped)
@@ -125,6 +128,7 @@ export async function processTelegramAdminStockHistoryExportJob(
     const tSendMs = Date.now() - tSendStart;
 
     await safeEditMessage(
+      tenantId,
       chatId,
       processingMessageId,
       '✅ Excel បានផ្ញើរួចរាល់',
@@ -157,6 +161,7 @@ export async function processTelegramAdminStockHistoryExportJob(
     });
 
     await safeEditMessage(
+      tenantId,
       chatId,
       processingMessageId,
       '❌ Export failed',
@@ -203,8 +208,8 @@ function getNowInTimezone(timeZone: string) {
   return new Date(new Date().toLocaleString('en-US', { timeZone }));
 }
 
-async function sendDocumentByLocalPath(chatId: number, filePath: string, caption: string) {
-  const config = await TelegramService.getTelegramConfig();
+async function sendDocumentByLocalPath(tenantId: number, chatId: number, filePath: string, caption: string) {
+  const config = await TelegramService.getTelegramConfig(tenantId);
   if (!config) throw new Error('Telegram not configured');
   return TelegramBotService.sendDocument(config.bot_token, String(chatId), filePath, caption);
 }
@@ -256,13 +261,14 @@ async function downloadToTemp(url: string) {
 }
 
 async function safeEditMessage(
+  tenantId: number,
   chatId: number,
   messageId: number,
   text: string,
   replyMarkup?: Record<string, unknown>
 ) {
   try {
-    return await TelegramService.editMessageByChatId(chatId, messageId, text, 'Markdown', replyMarkup);
+    return await TelegramService.editMessageByChatId(tenantId, chatId, messageId, text, 'Markdown', replyMarkup);
   } catch (error: any) {
     const message = String(error?.message || '');
     if (message.includes('message is not modified')) {
@@ -275,5 +281,5 @@ async function safeEditMessage(
 async function safeUnlink(filePath: string) {
   try {
     await fs.unlink(filePath);
-  } catch {}
+  } catch { }
 }

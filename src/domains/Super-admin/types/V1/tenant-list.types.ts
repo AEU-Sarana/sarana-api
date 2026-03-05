@@ -8,6 +8,7 @@ export interface TenantListItem {
         id: number;
         plan_name: string;
         plan_type: string;
+        price: number;
         plan_status: string;
         start_date: string;
         end_date?: string;

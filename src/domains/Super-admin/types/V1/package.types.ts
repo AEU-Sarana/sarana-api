@@ -8,8 +8,8 @@ export interface PackageResponse {
     name: string;
     description: string | null;
     is_active: boolean;
-    features?: Feature[];
     created_at: Date;
+    updated_at: Date;
 }
 
 export interface ListPackagesResponse {
@@ -30,4 +30,11 @@ export interface CreatePackageResponse {
     is_active: boolean;
     features?: Feature[];
     created_at: Date;
+}
+
+export interface UpdatePackageRequest {
+    name?: string;
+    description?: string;
+    is_active?: boolean;
+    features?: Feature[];
 }

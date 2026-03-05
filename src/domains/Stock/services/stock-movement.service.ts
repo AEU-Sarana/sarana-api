@@ -13,7 +13,8 @@ export class StockMovementService {
    */
   static async getStockMovements(
     request: GetStockMovementsRequest,
-    currentUserId: number
+    currentUserId: number,
+    currentTenantId?: number
   ): Promise<GetStockMovementsResponse> {
     const {
       product_id,
@@ -27,6 +28,11 @@ export class StockMovementService {
     } = request;
 
     const where: any = {};
+
+    // Scope movements to the current admin's tenant
+    if (currentTenantId) {
+      where.user = { tenantId: currentTenantId };
+    }
 
     if (product_id) where.productId = product_id;
     if (movement_type) where.movementType = movement_type;

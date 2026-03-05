@@ -117,7 +117,10 @@ export class UserController {
       const user = req.user as UserPayload;
       const request: CreateUserRequest = req.body;
 
-      const response = await UserService.createUser(request, user.userId);
+      const response = await UserService.createUser(request, {
+        userId: user.userId,
+        tenantId: user.tenantId,
+      });
 
       res.status(201).json({
         success: true,

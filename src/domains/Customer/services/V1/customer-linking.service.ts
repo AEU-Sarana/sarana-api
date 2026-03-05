@@ -38,7 +38,7 @@ export class CustomerLinkingService {
     /**
      * Handle customer linking from deep link token
      */
-    static async handleCustomerLink(token: string, telegramUserId: number, telegramChatId: number, username?: string) {
+    static async handleCustomerLink(token: string, telegramUserId: number, telegramChatId: number, username?: string, tenantId: number = 1) {
         // 1. Find and validate token
         const storedToken = await prisma.customerLinkingToken.findUnique({
             where: { token },
@@ -87,7 +87,7 @@ export class CustomerLinkingService {
 
         // 4. Send Confirmation & Receipt
         // 5. Send Confirmation & Receipt
-        const telegramConfig = await TelegramService.getTelegramConfig();
+        const telegramConfig = await TelegramService.getTelegramConfig(tenantId);
         if (telegramConfig) {
             await TelegramBotService.sendMessage(
                 telegramConfig.bot_token,

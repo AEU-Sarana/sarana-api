@@ -8,6 +8,7 @@ export type StockAdjustDraft = {
   chatId: number;
   telegramUserId: number;
   adminUserId: number;
+  tenantId: number;
   createdAt: number;
   expiresAt: number;
   productId: number;
