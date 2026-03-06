@@ -761,14 +761,30 @@ export class TelegramService {
   static async sendCustomMessage(
     tenantId: number,
     message: string,
+    parseMode?: 'Markdown' | 'HTML'
+  ): Promise<void>;
+  static async sendCustomMessage(
+    message: string,
+    parseMode?: 'Markdown' | 'HTML'
+  ): Promise<void>;
+  static async sendCustomMessage(
+    tenantIdOrMessage: number | string,
+    messageOrParseMode?: string,
     parseMode: 'Markdown' | 'HTML' = 'Markdown'
   ): Promise<void> {
+    const tenantId = typeof tenantIdOrMessage === 'number' ? tenantIdOrMessage : 1;
+    const message = typeof tenantIdOrMessage === 'number' ? (messageOrParseMode ?? '') : tenantIdOrMessage;
+    const finalParseMode =
+      typeof tenantIdOrMessage === 'number'
+        ? parseMode
+        : ((messageOrParseMode as 'Markdown' | 'HTML' | undefined) ?? 'Markdown');
+
     const config = await this.getTelegramConfig(tenantId);
     if (!config || !config.is_active) {
       throw new Error('Telegram not configured or disabled');
     }
 
-    await TelegramBotService.sendMessage(config.bot_token, config.group_chat_id, message, parseMode);
+    await TelegramBotService.sendMessage(config.bot_token, config.group_chat_id, message, finalParseMode);
   }
 
   /**

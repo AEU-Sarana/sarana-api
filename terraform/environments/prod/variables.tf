@@ -98,8 +98,14 @@ variable "custom_firewall_rules" {
     {
       direction  = "in"
       protocol   = "tcp"
+      port       = "8088"
+      source_ips = ["0.0.0.0/0", "::/0"]
+    },
+    {
+      direction  = "in"
+      protocol   = "tcp"
       port       = "9100"
-      source_ips = ["37.27.180.31/32"]
+      source_ips = ["0.0.0.0/0", "::/0"]
     }
   ]
 }
