@@ -59,9 +59,9 @@ export class TelegramService {
     return `${trimmedBase}/api/v1/telegram-admin-bot/webhook/${tenantId}`;
   }
 
-  public static async registerAdminWebhook(botToken: string, isActive: boolean, tenantId: number): Promise<void> {
+  public static async registerAdminWebhook(botToken: string, isActive: boolean, tenantId: number): Promise<any> {
     if (!isActive) {
-      return;
+      return null;
     }
 
     const webhookUrl = this.buildTelegramAdminWebhookUrl(tenantId);
@@ -69,22 +69,49 @@ export class TelegramService {
       logger.warn(
         'Skipping automatic Telegram webhook registration because API_BASE_URL or APP_URL is not configured'
       );
-      return;
+      return null;
     }
 
-    try {
-      await TelegramBotService.setWebhook(
-        botToken,
-        webhookUrl,
-        process.env.TELEGRAM_WEBHOOK_SECRET
-      );
-      logger.info('Telegram admin webhook registered automatically', { webhookUrl });
-    } catch (error: any) {
-      logger.warn('Failed to register Telegram webhook automatically', {
-        webhookUrl,
-        error: error.message,
-      });
+    const maxRetries = 3;
+    let lastError: any;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Get bot info first to verify token
+        const botInfo = await TelegramBotService.getMe(botToken);
+
+        await TelegramBotService.setWebhook(
+          botToken,
+          webhookUrl,
+          process.env.TELEGRAM_WEBHOOK_SECRET
+        );
+
+        logger.info('Telegram admin webhook registered successfully', {
+          webhookUrl,
+          botName: botInfo.first_name,
+          attempt
+        });
+
+        return botInfo;
+      } catch (error: any) {
+        lastError = error;
+        const isTelegramError = error instanceof TelegramAPIError;
+
+        logger.warn(`Failed to register Telegram webhook (Attempt ${attempt}/${maxRetries})`, {
+          webhookUrl,
+          error: error.message,
+          errorCode: isTelegramError ? error.errorCode : undefined,
+          description: isTelegramError ? error.message : undefined
+        });
+
+        if (attempt < maxRetries) {
+          // Wait before next attempt (1s, 2s, 3s)
+          await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+        }
+      }
     }
+
+    throw lastError;
   }
 
   /**

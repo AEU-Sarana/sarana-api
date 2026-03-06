@@ -14,12 +14,12 @@ export class TelegramController {
       const response: TelegramConfigResponse = await TelegramService.configureTelegram(
         { bot_token, group_chat_id, is_active },
         user.userId,
-        user.tenantId || 1
+        user.tenantId ?? 1
       );
 
       try {
         await TelegramService.sendCustomMessage(
-          user.tenantId || 1,
+          user.tenantId ?? 1,
           'Telegram configured successfully',
           'Markdown'
         );
@@ -52,7 +52,7 @@ export class TelegramController {
       const user = req.user as UserPayload;
 
       const response: TestConnectionResponse = await TelegramService.testConnection(
-        user.tenantId || 1,
+        user.tenantId ?? 1,
         bot_token,
         group_chat_id
       );
@@ -80,7 +80,7 @@ export class TelegramController {
       const text = message?.trim() || '✅ Telegram test message';
 
       const user = req.user as UserPayload;
-      await TelegramService.sendCustomMessage(user.tenantId || 1, text, parse_mode);
+      await TelegramService.sendCustomMessage(user.tenantId ?? 1, text, parse_mode);
 
       res.json({
         success: true,
@@ -105,7 +105,7 @@ export class TelegramController {
       const response: SendReportResponse = await TelegramService.sendDailyAggregateReport(
         today,
         user.userId,
-        user.tenantId || 1
+        user.tenantId ?? 1
       );
 
       res.json({
@@ -134,7 +134,7 @@ export class TelegramController {
         shift_id,
         user.userId,
         user.role,
-        user.tenantId || 1
+        user.tenantId ?? 1
       );
 
       res.json({

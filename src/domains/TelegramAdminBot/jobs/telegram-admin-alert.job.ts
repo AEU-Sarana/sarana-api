@@ -13,7 +13,7 @@ export async function runTelegramAdminAlertsJob() {
       select: { tenantId: true }
     });
 
-    if (user && user.tenantId) {
+    if (user && user.tenantId !== null && user.tenantId !== undefined) {
       await TelegramAdminInventoryService.sendNearExpiryAlert(user.tenantId);
     }
   }

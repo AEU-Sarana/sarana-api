@@ -89,16 +89,23 @@ async function runTieredExpiryCheck() {
         include: { createdByUser: { select: { tenantId: true } } }
     });
 
-    const tenantIds = Array.from(new Set(configs.map(c => (c.createdByUser as any)?.tenantId).filter(Boolean)));
+    const tenantIds = Array.from(
+        new Set(
+            configs
+                .map(c => c.createdByUser?.tenantId)
+                .filter(t => t !== null && t !== undefined)
+        )
+    ) as number[];
 
     for (const tenantId of tenantIds) {
         try {
-            await TelegramAdminInventoryService.sendTieredExpiryAlerts(tenantId as number);
+            await TelegramAdminInventoryService.sendNearExpiryAlert(tenantId);
+            await TelegramAdminInventoryService.sendTieredExpiryAlerts(tenantId);
         } catch (error: any) {
-            logger.error(`Failed to send tiered expiry alerts for tenant ${tenantId}`, {
+            logger.error(`Failed to send expiry alerts for tenant ${tenantId}`, {
                 error: error.message
             });
         }
     }
-    logger.info('Tiered stock expiry check completed', { date: currentDate, tenantCount: tenantIds.length });
+    logger.info('Tiered and near stock expiry check completed', { date: currentDate, tenantCount: tenantIds.length });
 }

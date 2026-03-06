@@ -12,6 +12,8 @@ CREATE TABLE users (
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'inactive')),
     device_id VARCHAR(255),
     is_device_bound BOOLEAN NOT NULL DEFAULT FALSE,
+    bio TEXT,
+    profile_image VARCHAR(500),
     created_by INTEGER REFERENCES users(user_id),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     end_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

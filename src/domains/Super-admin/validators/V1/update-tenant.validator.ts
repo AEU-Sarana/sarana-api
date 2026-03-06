@@ -1,5 +1,5 @@
 import { body } from 'express-validator';
-import { TenantStatus } from '../../enums/V1';
+import { TenantStatus, PlanType } from '../../enums/V1';
 
 export const updateTenantValidator = [
     body('business_name')
@@ -43,4 +43,20 @@ export const updateTenantValidator = [
         .optional()
         .isString()
         .withMessage('Group ID must be a string'),
+    body('plan_type')
+        .optional()
+        .isIn(Object.values(PlanType))
+        .withMessage(`Plan type must be one of: ${Object.values(PlanType).join(', ')}`),
+    body('payment_method')
+        .optional()
+        .isString()
+        .withMessage('Payment method must be a string'),
+    body('start_time')
+        .optional()
+        .isISO8601()
+        .withMessage('Start time must be a valid ISO8601 date'),
+    body('end_time')
+        .optional()
+        .isISO8601()
+        .withMessage('End time must be a valid ISO8601 date'),
 ];

@@ -177,8 +177,20 @@ export class TelegramBotService {
    * Test bot token validity
   */
   static async getMe(botToken: string): Promise<TelegramBotInfo> {
-    const response = await axios.get(`${this.BASE_URL}${botToken}/getMe`);
-    return response.data.result;
+    try {
+      const response = await axios.get(`${this.BASE_URL}${botToken}/getMe`, {
+        timeout: 10000
+      });
+      return response.data.result;
+    } catch (error: any) {
+      if (error.response) {
+        throw new TelegramAPIError(
+          error.response.data.error_code,
+          error.response.data.description
+        );
+      }
+      throw new TelegramAPIError(0, error.message);
+    }
   }
 
   /**

@@ -146,7 +146,10 @@ export class ProductService {
       where,
       skip,
       take: limit,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [
+        { status: 'asc' }, // 'active' comes before 'inactive' alphabetically
+        { createdAt: 'desc' }
+      ],
       include: {
         stock: true,
         stock_lots: {
