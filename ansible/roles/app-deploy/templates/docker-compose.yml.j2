@@ -133,35 +133,6 @@ services:
       - internal-network
 {% endif %}
 
-{% if node_exporter_enabled | default(true) | bool %}
-  # Node Exporter for host metrics
-  node-exporter:
-    image: prom/node-exporter:latest
-    container_name: {{ app_name }}-node-exporter
-    command:
-      - "--path.rootfs=/host"
-      - "--path.procfs=/host/proc"
-      - "--path.sysfs=/host/sys"
-      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($|/)"
-    ports:
-      - "{{ node_exporter_bind_address | default('127.0.0.1') }}:{{ node_exporter_port | default(9100) }}:9100"
-    pid: host
-    restart: unless-stopped
-    read_only: true
-    volumes:
-      - /:/host:ro,rslave
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-    healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:9100/metrics || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 20s
-    networks:
-      - internal-network
-{% endif %}
-
 {% if cadvisor_enabled | default(false) | bool %}
   # cAdvisor for container-level metrics
   cadvisor:
