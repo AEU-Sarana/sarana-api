@@ -1,4 +1,4 @@
-import { TenantStatus } from '../../enums/V1';
+import { TenantStatus, PlanType } from '../../enums/V1';
 
 export interface UpdateTenantRequest {
     business_name?: string;
@@ -10,6 +10,10 @@ export interface UpdateTenantRequest {
     status?: TenantStatus;
     telegram_bot_token?: string;
     telegram_group_id?: string;
+    plan_type?: PlanType;
+    payment_method?: string;
+    start_time?: string;
+    end_time?: string;
 }
 
 export interface UpdateTenantResponse {

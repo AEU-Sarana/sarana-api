@@ -174,6 +174,25 @@ export class SuperAdminController {
     }
 
     /**
+     * POST /api/v1/super-admin/tenants/:id/telegram/connect-webhook
+     */
+    static async connectTelegramWebhook(req: Request, res: Response): Promise<void> {
+        try {
+            const { id } = req.params;
+            const data = await SuperAdminService.connectTelegramWebhook(Number(id), req.body);
+
+            res.status(200).json({
+                success: true,
+                data,
+                message: 'Telegram Webhook connected successfully',
+            });
+        } catch (error: any) {
+            logger.error('Connect Telegram Webhook error', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
      * POST /api/v1/super-admin/subscriptions/:id/close
      */
     static async closeSubscription(req: Request, res: Response): Promise<void> {

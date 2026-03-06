@@ -131,7 +131,7 @@ async function runOnce(): Promise<void> {
 
     await TelegramService.sendDailyAggregateReport(now.date, senderUserId, tenantId, true);
 
-    // Check for near-expiry stock alerts (Disabled: user prefers milestone-only alerts)
+    // Check for near-expiry stock alerts (Moved to independent scheduler)
     // await runTelegramAdminAlertsJob();
 
     logger.info('Telegram daily report sent', {

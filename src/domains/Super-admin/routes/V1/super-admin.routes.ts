@@ -54,6 +54,11 @@ router.post(
     SuperAdminController.createTenant
 );
 
+router.post(
+    '/tenants/:id/telegram/connect-webhook',
+    SuperAdminController.connectTelegramWebhook
+);
+
 // Subscription Routes
 router.get(
     '/subscriptions',

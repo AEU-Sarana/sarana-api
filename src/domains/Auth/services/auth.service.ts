@@ -39,6 +39,8 @@ export class AuthService {
         role: true,
         status: true,
         tenantId: true,
+        bio: true,
+        profileImage: true,
         createdAt: true,
       },
     });
@@ -211,8 +213,8 @@ export class AuthService {
       status: user.status as UserStatus,
       device_id: user.deviceId,
       is_device_bound: user.isDeviceBound,
-      bio: user.bio,
-      profile: AuthService.normalizeImageUrl(user.profileImage),
+      bio: (user as any).bio,
+      profile: AuthService.normalizeImageUrl((user as any).profileImage),
     };
   }
 

@@ -34,27 +34,81 @@ import { getWelcomeTenantEmailTemplate } from '@src/shared/templates/email/welco
 import { TelegramBotService } from '@src/domains/Telegram/services/telegram-bot.service';
 import { TelegramService } from '@src/domains/Telegram/services/telegram.service';
 
-
 import { GroupByType, PlanType, TenantStatus } from '../enums/V1';
 import { BusinessLogicException } from '@src/shared/exceptions/business-logic.exception';
+import { startOfDay, startOfWeek, startOfMonth, startOfYear } from 'date-fns';
 
 export class SuperAdminService {
     /**
      * Get platform statistics summary
      */
     static async getDashboardSummary(period: string): Promise<DashboardSummaryResponse> {
-        // Note: In a real implementation, we would filter by period
-        const totalUser = await prisma.user.count();
-        const activeTenants = await prisma.user.count({
-            where: { role: 'ADMIN', status: 'active' }
-        });
-        const totalSubscriptions = await prisma.subscription.count();
+        const now = new Date();
+        let startDate: Date | undefined;
 
-        // Aggregating subscription overview
-        const monthly = await prisma.subscription.count({ where: { plan: { type: PlanType.MONTHLY }, status: 'ACTIVE' } });
-        const yearly = await prisma.subscription.count({ where: { plan: { type: PlanType.YEARLY }, status: 'ACTIVE' } });
-        const trail = await prisma.subscription.count({ where: { plan: { type: PlanType.TRIAL }, status: 'ACTIVE' } });
-        const expired = await prisma.subscription.count({ where: { status: 'EXPIRED' } });
+        switch (period.toLowerCase()) {
+            case 'daily':
+                startDate = startOfDay(now);
+                break;
+            case 'weekly':
+                startDate = startOfWeek(now, { weekStartsOn: 1 });
+                break;
+            case 'monthly':
+                startDate = startOfMonth(now);
+                break;
+            case 'yearly':
+                startDate = startOfYear(now);
+                break;
+            default:
+                startDate = undefined;
+        }
+
+        const dateFilter = startDate ? { createdAt: { gte: startDate } } : {};
+
+        const totalUser = await prisma.user.count({
+            where: { ...dateFilter }
+        });
+
+        const activeTenants = await prisma.user.count({
+            where: {
+                role: 'ADMIN',
+                status: 'active',
+                ...dateFilter
+            }
+        });
+
+        const totalSubscriptions = await prisma.subscription.count({
+            where: { ...dateFilter }
+        });
+
+        // Aggregating subscription overview for the selected period
+        const monthly = await prisma.subscription.count({
+            where: {
+                plan: { type: PlanType.MONTHLY },
+                status: 'ACTIVE',
+                ...dateFilter
+            }
+        });
+        const yearly = await prisma.subscription.count({
+            where: {
+                plan: { type: PlanType.YEARLY },
+                status: 'ACTIVE',
+                ...dateFilter
+            }
+        });
+        const trail = await prisma.subscription.count({
+            where: {
+                plan: { type: PlanType.TRIAL },
+                status: 'ACTIVE',
+                ...dateFilter
+            }
+        });
+        const expired = await prisma.subscription.count({
+            where: {
+                status: 'EXPIRED',
+                ...dateFilter
+            }
+        });
 
         return {
             stats: {
@@ -513,6 +567,66 @@ export class SuperAdminService {
             }
         });
 
+        // Update Subscription if provided
+        if (data.plan_type || data.start_time || data.end_time || data.payment_method) {
+            const activeSubscription = await prisma.subscription.findFirst({
+                where: { tenantId, status: 'ACTIVE' },
+                include: { plan: true }
+            });
+
+            if (activeSubscription) {
+                // If plan type changes, find the new plan
+                let newPlanId = activeSubscription.planId;
+                let newPlanPrice = activeSubscription.plan.price;
+
+                if (data.plan_type && data.plan_type !== activeSubscription.plan.type) {
+                    const plan = await prisma.plan.findFirst({
+                        where: { type: data.plan_type, packageId: activeSubscription.plan.packageId }
+                    });
+                    if (plan) {
+                        newPlanId = plan.id;
+                        newPlanPrice = plan.price;
+                    }
+                }
+
+                const newStartDate = data.start_time ? new Date(data.start_time) : activeSubscription.startDate;
+                const newEndDate = data.end_time ? new Date(data.end_time) : activeSubscription.endDate;
+
+                await prisma.subscription.update({
+                    where: { id: activeSubscription.id },
+                    data: {
+                        planId: newPlanId,
+                        startDate: newStartDate,
+                        endDate: newEndDate,
+                    }
+                });
+
+                if (data.end_time) {
+                    await prisma.user.update({
+                        where: { userId: tenantId },
+                        data: { endAt: new Date(data.end_time) }
+                    });
+                }
+
+                if (data.payment_method || (data.plan_type && data.plan_type !== activeSubscription.plan.type)) {
+                    const payment = await prisma.subscriptionPayment.findFirst({
+                        where: { subscriptionId: activeSubscription.id },
+                        orderBy: { paymentDate: 'desc' }
+                    });
+
+                    if (payment) {
+                        await prisma.subscriptionPayment.update({
+                            where: { id: payment.id },
+                            data: {
+                                paymentMethod: data.payment_method || payment.paymentMethod,
+                                amount: newPlanPrice
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
         // Update Telegram Config if provided
         if (data.telegram_bot_token && data.telegram_group_id) {
             const encryptedToken = encrypt(data.telegram_bot_token, process.env.ENCRYPTION_KEY!);
@@ -586,6 +700,71 @@ Test message sent successfully!`;
     }
 
     /**
+     * Manually connect Telegram Webhook for a tenant
+     */
+    static async connectTelegramWebhook(tenantId: number, data?: { bot_token?: string, group_chat_id?: string }) {
+        const tenant = await prisma.user.findFirst({
+            where: { userId: tenantId, role: 'ADMIN' },
+            include: {
+                telegram_config_telegram_config_created_byTousers: {
+                    take: 1
+                }
+            }
+        });
+
+        if (!tenant) {
+            throw new BusinessLogicException('Tenant not found', 'TENANT_NOT_FOUND', 404);
+        }
+
+        let tokenToUse = data?.bot_token;
+
+        // If no new token provided, try to use existing config
+        if (!tokenToUse) {
+            const config = await TelegramService.getTelegramConfig(tenantId);
+            if (!config || !config.bot_token) {
+                throw new BusinessLogicException('No Telegram Bot Token found for this tenant', 'NO_TOKEN_FOUND', 400);
+            }
+            tokenToUse = config.bot_token;
+        }
+
+        // Attempt to register
+        const botInfo = await TelegramService.registerAdminWebhook(tokenToUse, true, tenantId);
+
+        // If they provided new data, update the config
+        if (data?.bot_token || data?.group_chat_id) {
+            const encryptedToken = data.bot_token ? encrypt(data.bot_token, process.env.ENCRYPTION_KEY!) : undefined;
+            const existingConfig = tenant.telegram_config_telegram_config_created_byTousers[0];
+
+            if (existingConfig) {
+                await prisma.telegramConfig.update({
+                    where: { configId: existingConfig.configId },
+                    data: {
+                        ...(encryptedToken && { botToken: encryptedToken }),
+                        ...(data.group_chat_id && { groupChatId: data.group_chat_id }),
+                        isActive: true,
+                        updatedBy: tenantId
+                    }
+                });
+            } else if (data.bot_token && data.group_chat_id) {
+                await prisma.telegramConfig.create({
+                    data: {
+                        botToken: encryptedToken!,
+                        groupChatId: data.group_chat_id,
+                        isActive: true,
+                        createdBy: tenantId,
+                        updatedBy: tenantId
+                    }
+                });
+            }
+        }
+
+        return {
+            success: true,
+            bot_info: botInfo
+        };
+    }
+
+    /**
      * Create a new tenant with initial subscription
      */
     static async createTenant(data: CreateTenantRequest) {
@@ -594,7 +773,7 @@ Test message sent successfully!`;
         const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS) || 10;
         const hashedPassword = await bcrypt.hash(randomPassword, saltRounds);
 
-        return prisma.$transaction(async (tx) => {
+        const user = await prisma.$transaction(async (tx) => {
             const user = await tx.user.create({
                 data: {
                     username: data.username,
@@ -665,65 +844,68 @@ Test message sent successfully!`;
                         updatedBy: user.userId,
                     }
                 });
+            }
 
-                // Send welcome message to Telegram
-                try {
-                    const welcomeMessage = `🚀 *Welcome to Chlat-POS!*
+            return user;
+        });
+
+        // Operations after transaction: Telegram registration & Welcome message
+        if (data.telegram_bot_token && data.telegram_group_id) {
+            try {
+                const welcomeMessage = `🚀 *Welcome to Chlat-POS!*
     
 Hello *${data.full_name}*, 
 Your business *${data.business_name}* is successfully connected to this group. 
 
 From now on, you will receive notifications and reports directly here!`;
 
-                    await TelegramBotService.sendMessage(
-                        data.telegram_bot_token,
-                        data.telegram_group_id,
-                        welcomeMessage,
-                        'Markdown'
-                    );
+                await TelegramBotService.sendMessage(
+                    data.telegram_bot_token,
+                    data.telegram_group_id,
+                    welcomeMessage,
+                    'Markdown'
+                );
 
-                    // Register webhook for this bot
-                    await TelegramService.registerAdminWebhook(
-                        data.telegram_bot_token,
-                        true,
-                        user.userId
-                    );
-                } catch (telegramErr: any) {
-                    logger.error('Failed to send Telegram welcome message', {
-                        tenantId: user.userId,
-                        error: telegramErr.message
-                    });
-                }
-            }
-
-            // Send email to tenant with their credentials
-            try {
-                const { html, text } = getWelcomeTenantEmailTemplate({
-                    fullName: data.full_name,
-                    businessName: data.business_name,
-                    username: data.username,
-                    password: randomPassword
-                });
-
-                await sendEmail({
-                    to: data.email,
-                    subject: 'Welcome to Chlat-POS - Your Account Credentials',
-                    html,
-                    text
-                });
-
-                logger.info('Tenant credentials email sent', { email: data.email, username: data.username });
-            } catch (err: any) {
-                // We don't want to fails the whole transaction if email fails, 
-                // but we should log it
-                logger.error('Failed to send tenant welcome email', {
-                    email: data.email,
-                    error: err.message
+                // Register webhook for this bot
+                await TelegramService.registerAdminWebhook(
+                    data.telegram_bot_token,
+                    true,
+                    user.userId
+                );
+            } catch (telegramErr: any) {
+                logger.error('Failed to setup Telegram for new tenant', {
+                    tenantId: user.userId,
+                    error: telegramErr.message
                 });
             }
+        }
 
-            return user;
-        });
+        // Send email to tenant with their credentials
+        try {
+            const { html, text } = getWelcomeTenantEmailTemplate({
+                fullName: data.full_name,
+                businessName: data.business_name,
+                username: data.username,
+                password: randomPassword
+            });
+
+            await sendEmail({
+                to: data.email,
+                subject: 'Welcome to Chlat-POS - Your Account Credentials',
+                html,
+                text
+            });
+
+            logger.info('Tenant credentials email sent', { email: data.email, username: data.username });
+        } catch (err: any) {
+            // We don't want to fail the whole process if email fails
+            logger.error('Failed to send tenant welcome email', {
+                email: data.email,
+                error: err.message
+            });
+        }
+
+        return user;
     }
 
     /**
