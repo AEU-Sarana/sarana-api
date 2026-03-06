@@ -21,10 +21,6 @@ active_color_default: blue
 active_color_state_file: "{{ app_directory }}/.active_color"
 blue_app_port: 3001
 green_app_port: 3002
-node_exporter_enabled: true
-node_exporter_port: 9100
-node_exporter_bind_address: 127.0.0.1
-
 # Database migration/seed
 run_db_migrations: true
 run_db_seed: false

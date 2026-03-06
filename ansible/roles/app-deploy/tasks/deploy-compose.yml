@@ -57,7 +57,7 @@
       {{
         ['db', 'redis']
         + (['minio'] if (storage_provider | default('minio') | lower) == 'minio' else [])
-        + ['node-exporter', 'nginx', deploy_service_name]
+        + ['nginx', deploy_service_name]
       }}
     pull: always
     build: never
@@ -75,7 +75,7 @@
       {{
         ['db', 'redis']
         + (['minio'] if (storage_provider | default('minio') | lower) == 'minio' else [])
-        + ['node-exporter', 'nginx', deploy_service_name]
+        + ['nginx', deploy_service_name]
       }}
     state: present
     pull: "{{ 'always' if pull_images | bool else 'never' }}"
