@@ -659,10 +659,10 @@ export class SuperAdminService {
 
                 // Send a test/confirmation message if telegram was updated
                 try {
-                    const confirmationMessage = `✅ *Telegram Configuration Updated*
+                    const confirmationMessage = `*ការតំឡើង Telegram បានជោគជ័យ*
     
-Your business *${data.business_name || tenant.businessName}* has updated its Telegram settings. 
-Test message sent successfully!`;
+អាជីវកម្ម *${data.business_name || tenant.businessName}* បានតំឡើង Telegram ដោយជោគជ័យ។ 
+តទៅនេះលោកអ្នកនឹងទទួលបានការជូនដំណឹង និងរបាយការណ៍ដោយផ្ទាល់នៅទីនេះ!`;
 
                     await TelegramBotService.sendMessage(
                         data.telegram_bot_token!,
@@ -852,12 +852,11 @@ Test message sent successfully!`;
         // Operations after transaction: Telegram registration & Welcome message
         if (data.telegram_bot_token && data.telegram_group_id) {
             try {
-                const welcomeMessage = `🚀 *Welcome to Chlat-POS!*
+                const welcomeMessage = `*សូមស្វាគមន៍មកកាន់ Chlart-POS!*
     
-Hello *${data.full_name}*, 
-Your business *${data.business_name}* is successfully connected to this group. 
-
-From now on, you will receive notifications and reports directly here!`;
+សួរស្តី *${data.full_name}*, 
+អាជីវកម្ម *${data.business_name}* បានតភ្ជាប់ដោយជោគជ័យមកកាន់ក្រុមនេះ។ 
+តទៅនេះលោកអ្នកនឹងទទួលបានការជូនដំណឹង និងរបាយការណ៍ដោយផ្ទាល់នៅទីនេះ!`
 
                 await TelegramBotService.sendMessage(
                     data.telegram_bot_token,
@@ -1126,6 +1125,7 @@ From now on, you will receive notifications and reports directly here!`;
         return {
             plans: plans.map((p: any) => ({
                 id: p.id,
+                package_id: p.packageId,
                 package_name: p.package.name,
                 plan_type: p.type,
                 name: p.name,

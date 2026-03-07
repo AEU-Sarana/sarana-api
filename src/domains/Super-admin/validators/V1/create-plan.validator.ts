@@ -22,6 +22,6 @@ export const createPlanValidator = [
         .withMessage('Plan type must be MONTHLY, YEARLY, LIFETIME, or TRIAL'),
 
     body('price')
-        .isDecimal()
-        .withMessage('Price must be a decimal number'),
+        .isFloat({ min: 0 })
+        .withMessage('Price must be a positive number or zero'),
 ];

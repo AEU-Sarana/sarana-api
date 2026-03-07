@@ -28,14 +28,14 @@ export const updatePackageValidator = [
         .withMessage('Features must be an array'),
 
     body('features.*.feature_code')
-        .if(body('features').exists())
+        .if(body('features').isArray({ min: 1 }))
         .isString()
         .trim()
         .notEmpty()
         .withMessage('Feature code is required'),
 
     body('features.*.feature_value')
-        .if(body('features').exists())
+        .if(body('features').isArray({ min: 1 }))
         .isString()
         .trim()
         .notEmpty()

@@ -26,8 +26,8 @@ export const updatePlanValidator = [
 
     body('price')
         .optional()
-        .isDecimal()
-        .withMessage('Price must be a decimal number'),
+        .isFloat({ min: 0 })
+        .withMessage('Price must be a positive number or zero'),
 
     body('is_active')
         .optional()
