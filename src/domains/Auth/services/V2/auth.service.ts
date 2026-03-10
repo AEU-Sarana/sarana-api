@@ -21,13 +21,39 @@ export class AuthService {
    */
   async requestPasswordReset(identifier: string): Promise<void> {
     // Get user by username or email
+    const isEmail = identifier.includes('@');
+
+    if (isEmail) {
+      const users = await prisma.user.findMany({
+        where: { email: identifier },
+        select: {
+          userId: true,
+          username: true,
+          email: true,
+          fullName: true,
+          role: true,
+          status: true,
+          tenantId: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (users.length > 1) {
+        throw new Error('Multiple accounts use this email. Please use username instead.');
+      }
+
+      if (users.length === 0) {
+        logger.warn('Password reset requested for non-existent user', { identifier });
+        return;
+      }
+
+      const user = users[0];
+      await this.sendResetOtp(user);
+      return;
+    }
+
     const user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { username: identifier },
-          { email: identifier },
-        ],
-      },
+      where: { username: identifier },
       select: {
         userId: true,
         username: true,
@@ -51,108 +77,97 @@ export class AuthService {
       return;
     }
 
-    // Restriction: Only Admin can reset password via OTP
-    if (user.role === 'SELLER') {
-      throw new Error('This account is for a seller. Please contact admin.');
-    }
-
-    // Send password reset email (async job)
-    if (!user.email) {
-      logger.warn('Password reset requested but user has no email', { userId: user.userId });
-      return;
-    }
-
-    // Generate 6-digit OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // Set expiration to 15 minutes from now
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-
-    // Delete any existing unused OTPs for this user
-    await prisma.$executeRaw`
-      DELETE FROM password_reset_otps 
-      WHERE user_id = ${user.userId} 
-      AND used_at IS NULL
-    `;
-
-    // Store OTP in database
-    await prisma.$executeRaw`
-      INSERT INTO password_reset_otps (user_id, otp_code, expires_at)
-      VALUES (${user.userId}, ${otpCode}, ${expiresAt})
-    `;
-
-    // Fire-and-forget email sending
-    void sendPasswordResetEmailJob({
-      toEmail: user.email,
-      username: user.username,
-      fullName: user.fullName,
-      otpCode,
-    }).catch((error) => {
-      logger.error('Failed to enqueue/send password reset email', {
-        userId: user.userId,
-        error: (error as any)?.message || error,
-      });
-    });
-
-    logger.info('Password reset OTP generated', { userId: user.userId });
+    await this.sendResetOtp(user);
   }
 
   /**
    * Verify OTP and return tokens for password reset flow
    */
   async verifyOtp(input: {
-    email: string;
+    identifier: string;
     otpCode: string;
   }): Promise<void> {
-    // Find user by email
-    const user = await prisma.user.findFirst({
-      where: { email: input.email },
-      select: {
-        userId: true,
-        username: true,
-        email: true,
-        status: true,
-        role: true,
-        tenantId: true,
-      },
-    });
+    const isEmail = input.identifier.includes('@');
 
-    if (!user) {
-      throw new Error('Invalid email or OTP');
+    if (isEmail) {
+      const users = await prisma.user.findMany({
+        where: { email: input.identifier },
+        select: { userId: true },
+      });
+
+      if (users.length > 1) {
+        throw new Error('Multiple accounts use this email. Please use username instead.');
+      }
     }
 
-    // Check user status
-    if (user.status !== 'active') {
-      throw new Error('User account is not active');
-    }
-
-    // Restriction: Only Admin can reset password via OTP
-    if (user.role === 'SELLER') {
-      throw new Error('This account is for a seller. Please contact admin.');
-    }
-
-    // Verify OTP
-    const otpRecord = await prisma.$queryRaw<Array<{
+    // Find OTP by identifier + code (avoids ambiguity when duplicate emails exist)
+    let otpRecord: Array<{
       id: number;
       user_id: number;
       otp_code: string;
       expires_at: Date;
       used_at: Date | null;
-    }>>`
-      SELECT id, user_id, otp_code, expires_at, used_at
-      FROM password_reset_otps
-      WHERE user_id = ${user.userId}
-      AND otp_code = ${input.otpCode}
-      AND used_at IS NULL
-      ORDER BY created_at DESC
-      LIMIT 1
-    `;
+      status: string;
+      role: string;
+    }> = [];
+
+    if (isEmail) {
+      otpRecord = await prisma.$queryRaw<Array<{
+        id: number;
+        user_id: number;
+        otp_code: string;
+        expires_at: Date;
+        used_at: Date | null;
+        status: string;
+        role: string;
+      }>>`
+        SELECT o.id, o.user_id, o.otp_code, o.expires_at, o.used_at,
+               u.status, u.role
+        FROM password_reset_otps o
+        JOIN users u ON u.user_id = o.user_id
+        WHERE u.email = ${input.identifier}
+        AND o.otp_code = ${input.otpCode}
+        AND o.used_at IS NULL
+        ORDER BY o.created_at DESC
+        LIMIT 1
+      `;
+    } else {
+      otpRecord = await prisma.$queryRaw<Array<{
+        id: number;
+        user_id: number;
+        otp_code: string;
+        expires_at: Date;
+        used_at: Date | null;
+        status: string;
+        role: string;
+      }>>`
+        SELECT o.id, o.user_id, o.otp_code, o.expires_at, o.used_at,
+               u.status, u.role
+        FROM password_reset_otps o
+        JOIN users u ON u.user_id = o.user_id
+        WHERE u.username = ${input.identifier}
+        AND o.otp_code = ${input.otpCode}
+        AND o.used_at IS NULL
+        ORDER BY o.created_at DESC
+        LIMIT 1
+      `;
+    }
 
     if (!otpRecord || otpRecord.length === 0) {
       throw new Error('Invalid or expired OTP');
     }
 
     const otp = otpRecord[0];
+
+    // Check user status
+    if (otp.status !== 'active') {
+      throw new Error('User account is not active');
+    }
+
+    // Restriction: Only Admin can reset password via OTP
+    if (otp.role === 'SELLER') {
+      throw new Error('This account is for a seller. Please contact admin.');
+    }
 
     // Check if OTP is expired
     if (new Date() > new Date(otp.expires_at)) {
@@ -173,7 +188,64 @@ export class AuthService {
     //   tenantId: user.tenantId ?? 1,
     // });
 
-    logger.info('OTP verified successfully', { userId: user.userId });
+    logger.info('OTP verified successfully', { userId: otp.user_id });
+  }
+
+  private async sendResetOtp(user: {
+    userId: number;
+    username: string;
+    email: string | null;
+    fullName: string | null;
+    role: string;
+    status: string;
+  }): Promise<void> {
+    // Check user status
+    if (user.status !== 'active') {
+      logger.warn('Password reset requested for inactive user', { userId: user.userId });
+      return;
+    }
+
+    // Restriction: Only Admin can reset password via OTP
+    if (user.role === 'SELLER') {
+      throw new Error('This account is for a seller. Please contact admin.');
+    }
+
+    // Send password reset email (async job)
+    if (!user.email) {
+      logger.warn('Password reset requested but user has no email', { userId: user.userId });
+      return;
+    }
+
+    // Generate 6-digit OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Delete any existing unused OTPs for this user
+    await prisma.$executeRaw`
+      DELETE FROM password_reset_otps 
+      WHERE user_id = ${user.userId} 
+      AND used_at IS NULL
+    `;
+
+    // Store OTP in database
+    await prisma.$executeRaw`
+      INSERT INTO password_reset_otps (user_id, otp_code, expires_at)
+      VALUES (${user.userId}, ${otpCode}, NOW() + INTERVAL '15 minutes')
+    `;
+
+    // Fire-and-forget email sending
+    void sendPasswordResetEmailJob({
+      toEmail: user.email,
+      username: user.username,
+      fullName: user.fullName,
+      otpCode,
+    }).catch((error) => {
+      logger.error('Failed to enqueue/send password reset email', {
+        userId: user.userId,
+        error: (error as any)?.message || error,
+      });
+    });
+
+    logger.info('Password reset OTP generated', { userId: user.userId });
   }
 
   /**

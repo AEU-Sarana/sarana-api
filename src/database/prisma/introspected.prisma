@@ -118,9 +118,9 @@ model orders {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model products {
   product_id                       Int               @id @default(autoincrement())
-  product_code                     String            @unique @db.VarChar(50)
+  product_code                     String            @db.VarChar(50)
   product_name                     String            @db.VarChar(200)
-  barcode                          String            @unique @db.VarChar(255)
+  barcode                          String            @db.VarChar(255)
   price                            Decimal           @db.Decimal(10, 2)
   avg_cost                         Decimal?          @db.Decimal(10, 2)
   last_purchase_cost               Decimal?          @db.Decimal(10, 2)
@@ -131,6 +131,7 @@ model products {
   low_stock_threshold              Int?
   reorder_point                    Int               @default(0)
   status                           String            @default("active") @db.VarChar(20)
+  tenant_id                       Int               @default(1)
   created_by                       Int
   created_at                       DateTime          @default(now()) @db.Timestamp(6)
   updated_by                       Int
@@ -143,9 +144,11 @@ model products {
   stock_movements                  stock_movements[]
   stocks                           stocks?
 
-  @@index([barcode], map: "idx_products_barcode")
   @@index([category], map: "idx_products_category")
   @@index([has_expiry], map: "idx_products_has_expiry")
+  @@unique([tenant_id, barcode], map: "idx_products_tenant_barcode")
+  @@unique([tenant_id, product_code], map: "idx_products_tenant_product_code")
+  @@index([tenant_id], map: "idx_products_tenant_id")
   @@index([product_code], map: "idx_products_product_code")
   @@index([status], map: "idx_products_status")
 }

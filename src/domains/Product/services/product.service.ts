@@ -122,9 +122,9 @@ export class ProductService {
       deactivatedDate: null,
     };
 
-    // Scope products to the current admin's tenant via the creator's tenantId
+    // Scope products to the current admin's tenant
     if (currentTenantId) {
-      where.createdByUser = { tenantId: currentTenantId };
+      where.tenantId = currentTenantId;
     }
 
     if (status) where.status = status;
@@ -205,7 +205,7 @@ export class ProductService {
     const product = await prisma.product.findFirst({
       where: {
         productId,
-        ...(currentTenantId ? { createdByUser: { tenantId: currentTenantId } } : {}),
+        ...(currentTenantId ? { tenantId: currentTenantId } : {}),
       },
       include: {
         stock: true,
@@ -259,7 +259,7 @@ export class ProductService {
       where: {
         productCode,
         deactivatedDate: null,
-        ...(currentTenantId ? { createdByUser: { tenantId: currentTenantId } } : {}),
+        ...(currentTenantId ? { tenantId: currentTenantId } : {}),
       },
       include: {
         stock: true,
@@ -311,7 +311,8 @@ export class ProductService {
   static async createProduct(
     request: CreateProductRequest,
     currentUserId: number,
-    imageFile?: Express.Multer.File
+    imageFile?: Express.Multer.File,
+    currentTenantId?: number
   ): Promise<CreateProductResponse> {
     const {
       product_name,
@@ -323,6 +324,8 @@ export class ProductService {
       low_stock_threshold,
       has_expiry,
     } = request;
+
+    const resolvedTenantId = currentTenantId ?? 1;
 
     // Convert string values to numbers if needed
     const priceNumber = typeof price === 'string' ? parseFloat(price) : price;
@@ -362,6 +365,7 @@ export class ProductService {
     const similarProducts = await prisma.product.findMany({
       where: {
         productCode: { startsWith: `${slug}-` },
+        tenantId: resolvedTenantId,
       },
       select: { productCode: true },
     });
@@ -387,7 +391,7 @@ export class ProductService {
       const suffix = String(counter).padStart(3, '0');
       const candidate = `${slug}-${suffix}`;
       const existing = await prisma.product.findFirst({
-        where: { productCode: candidate, deactivatedDate: null },
+        where: { productCode: candidate, tenantId: resolvedTenantId, deactivatedDate: null },
       });
       if (!existing) {
         finalProductCode = candidate;
@@ -406,7 +410,7 @@ export class ProductService {
     logger.debug('Final product code determined for create', { finalProductCode, userId: currentUserId });
 
     const existingBarcode = await prisma.product.findFirst({
-      where: { barcode: barcode, deactivatedDate: null },
+      where: { barcode: barcode, tenantId: resolvedTenantId, deactivatedDate: null },
     });
     if (existingBarcode) throw new BusinessLogicException('Barcode already exists');
 
@@ -454,6 +458,7 @@ export class ProductService {
           lowStockThreshold: lowStockThresholdNumber,
           hasExpiry: hasExpiryBoolean,
           status: 'active',
+          tenantId: resolvedTenantId,
           createdBy: currentUserId,
           updatedBy: currentUserId,
         },
@@ -551,7 +556,7 @@ export class ProductService {
     const existing = await prisma.product.findFirst({
       where: {
         productId,
-        ...(currentTenantId ? { createdByUser: { tenantId: currentTenantId } } : {}),
+        ...(currentTenantId ? { tenantId: currentTenantId } : {}),
       },
     });
     if (!existing || existing.deactivatedDate) throw new ValidationException('Product not found');
@@ -570,6 +575,7 @@ export class ProductService {
       const barcodeUsed = await prisma.product.findFirst({
         where: {
           barcode: request.barcode,
+          ...(currentTenantId ? { tenantId: currentTenantId } : {}),
           productId: { not: productId },
           deactivatedDate: null,
         },
@@ -721,7 +727,7 @@ export class ProductService {
     const existing = await prisma.product.findFirst({
       where: {
         productId,
-        ...(currentTenantId ? { createdByUser: { tenantId: currentTenantId } } : {}),
+        ...(currentTenantId ? { tenantId: currentTenantId } : {}),
       },
     });
     if (!existing || existing.deactivatedDate) throw new ValidationException('Product not found');
@@ -785,7 +791,7 @@ export class ProductService {
     const existing = await prisma.product.findFirst({
       where: {
         productId,
-        ...(currentTenantId ? { createdByUser: { tenantId: currentTenantId } } : {}),
+        ...(currentTenantId ? { tenantId: currentTenantId } : {}),
       },
       include: { stock: true },
     });
@@ -844,7 +850,7 @@ export class ProductService {
       where: {
         deactivatedDate: null,
         category: { not: null },
-        ...(currentTenantId ? { createdByUser: { tenantId: currentTenantId } } : {}),
+        ...(currentTenantId ? { tenantId: currentTenantId } : {}),
       },
       select: {
         category: true,

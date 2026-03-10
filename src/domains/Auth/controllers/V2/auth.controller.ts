@@ -77,10 +77,11 @@ export class AuthV2Controller {
   }
 
   async verifyOtpResetPassword(req: Request, res: Response): Promise<void> {
-    const { email, otp_code } = req.body;
+    const { email, username, otp_code } = req.body;
+    const identifier = username || email;
 
     await service.verifyOtp({
-      email,
+      identifier,
       otpCode: otp_code,
     });
 

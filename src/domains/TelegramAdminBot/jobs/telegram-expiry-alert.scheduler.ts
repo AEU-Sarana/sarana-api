@@ -7,7 +7,12 @@ import path from 'path';
 
 const STATE_FILE = path.join(process.cwd(), 'logs', 'tiered-alert-state.json');
 
+const DEFAULT_TIMEZONE = 'Asia/Phnom_Penh';
+const TARGET_ALERT_TIME = '08:00'; // Target time to send alerts
+const TICK_INTERVAL_MS = 60 * 1000; // Check every 1 minute for precision
+
 let lastCheckDate: string | null = null;
+let isRunning = false; // Prevent overlapping runs
 
 /**
  * Load persistent state from file
@@ -51,7 +56,7 @@ export async function startTelegramExpiryAlertScheduler() {
     try { fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true }); } catch (_) { /* ignore */ }
     loadState();
 
-    // Check every hour
+    // Check every minute
     setInterval(async () => {
         try {
             await runTieredExpiryCheck();
@@ -60,52 +65,84 @@ export async function startTelegramExpiryAlertScheduler() {
                 error: error.message,
             });
         }
-    }, 60 * 60 * 1000); // 1 hour
+    }, TICK_INTERVAL_MS);
 
     // Run once on startup
     await runTieredExpiryCheck();
 }
 
-async function runTieredExpiryCheck() {
+/**
+ * Helper to get current time in specific timezone
+ */
+function getNowInTimezone(timeZone: string): { date: string; time: string } {
     const now = new Date();
-    const currentDate = formatDate(now);
-
-    // Ensure we only run the tiered check once per day (since milestones are day-based)
-    if (lastCheckDate === currentDate) {
-        logger.debug('Tiered expiry check already conducted today', { date: currentDate });
-        return;
-    }
-
-    logger.info('Running tiered stock expiry check', { date: currentDate });
-
-    // Save state BEFORE sending — prevents duplicate alerts if the server
-    // restarts mid-execution (next startup reads today's date from the file)
-    lastCheckDate = currentDate;
-    saveState(currentDate);
-
-    // Fetch all active telegram configs to get the list of tenants to alert
-    const configs = await prisma.telegramConfig.findMany({
-        where: { isActive: true },
-        include: { createdByUser: { select: { tenantId: true } } }
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
     });
 
-    const tenantIds = Array.from(
-        new Set(
-            configs
-                .map(c => c.createdByUser?.tenantId)
-                .filter(t => t !== null && t !== undefined)
-        )
-    ) as number[];
+    const parts = formatter.formatToParts(now);
+    const lookup = (type: string) => parts.find(part => part.type === type)?.value ?? '';
+    const date = `${lookup('year')}-${lookup('month')}-${lookup('day')}`;
+    const time = `${lookup('hour')}:${lookup('minute')}`;
+    return { date, time };
+}
 
-    for (const tenantId of tenantIds) {
-        try {
-            await TelegramAdminInventoryService.sendNearExpiryAlert(tenantId);
-            await TelegramAdminInventoryService.sendTieredExpiryAlerts(tenantId);
-        } catch (error: any) {
-            logger.error(`Failed to send expiry alerts for tenant ${tenantId}`, {
-                error: error.message
-            });
+async function runTieredExpiryCheck() {
+    if (isRunning) return;
+    isRunning = true;
+
+    try {
+        const now = getNowInTimezone(DEFAULT_TIMEZONE);
+        const currentDate = now.date;
+        const currentTime = now.time;
+
+        // Ensure we only run the tiered check once per day
+        if (lastCheckDate === currentDate) {
+            return;
         }
+
+        // Only run at or after the target time
+        if (currentTime < TARGET_ALERT_TIME) {
+            return;
+        }
+
+        logger.info('Running tiered stock expiry check', { date: currentDate, time: currentTime });
+
+        // Save state BEFORE sending — prevents duplicate alerts
+        lastCheckDate = currentDate;
+        saveState(currentDate);
+
+        // Fetch all active telegram configs to get the list of tenants to alert
+        const configs = await prisma.telegramConfig.findMany({
+            where: { isActive: true },
+            include: { createdByUser: { select: { tenantId: true } } }
+        });
+
+        const tenantIds = Array.from(
+            new Set(
+                configs
+                    .map(c => c.createdByUser?.tenantId)
+                    .filter(t => t !== null && t !== undefined)
+            )
+        ) as number[];
+
+        for (const tenantId of tenantIds) {
+            try {
+                await TelegramAdminInventoryService.sendNearExpiryAlert(tenantId);
+            } catch (error: any) {
+                logger.error(`Failed to send expiry alerts for tenant ${tenantId}`, {
+                    error: error.message
+                });
+            }
+        }
+        logger.info('Tiered and near stock expiry check completed', { date: currentDate, tenantCount: tenantIds.length });
+    } finally {
+        isRunning = false;
     }
-    logger.info('Tiered and near stock expiry check completed', { date: currentDate, tenantCount: tenantIds.length });
 }
