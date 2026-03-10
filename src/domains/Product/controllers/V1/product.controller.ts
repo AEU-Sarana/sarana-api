@@ -68,7 +68,7 @@ export class ProductController {
     try {
       const user = req.user as UserPayload;
       const imageFile = req.file;
-      const response = await ProductService.createProduct(req.body, user.userId, imageFile);
+      const response = await ProductService.createProduct(req.body, user.userId, imageFile, user.tenantId);
 
       res.status(201).json({
         success: true,

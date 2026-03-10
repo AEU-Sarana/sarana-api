@@ -352,7 +352,7 @@ export class SuperAdminService {
             };
         }
         if (plan_status) {
-            const effectivePlanStatus = plan_status.toUpperCase() === 'CLOSE' ? 'CLOSED' : plan_status;
+            const effectivePlanStatus = plan_status.toUpperCase() === 'CLOSE' ? 'CANCELLED' : plan_status;
             where.subscriptions = {
                 ...where.subscriptions,
                 some: {
@@ -914,7 +914,7 @@ export class SuperAdminService {
         return prisma.subscription.update({
             where: { id },
             data: {
-                status: 'CLOSED',
+                status: 'CANCELLED',
                 closeReason: data.reason,
                 effectiveCloseDate: new Date(),
             },

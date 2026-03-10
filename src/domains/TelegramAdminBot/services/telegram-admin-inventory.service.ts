@@ -4,7 +4,7 @@ import { StockLotService } from '@src/domains/Stock/services/stock-lot.service';
 import { TelegramService } from '@src/domains/Telegram/services/telegram.service';
 import { logger } from '@src/shared/utils/logger';
 import { Role } from '@src/shared/config/permissions';
-import { formatDate } from '@src/shared/utils/date-utils';
+import { formatDate, getStartOfDay } from '@src/shared/utils/date-utils';
 import { TelegramAdminFormatService } from './telegram-admin-format.service';
 import { TelegramAdminUiService } from './telegram-admin-ui.service';
 import { NAV_ROW } from '@src/domains/Telegram/menu/menu-registry';
@@ -61,9 +61,9 @@ export class TelegramAdminInventoryService {
 
       // We check for 3 milestones: 30 days, 7 days, and 0 days (today)
       const milestones = [
-        { days: 30, title: '⚠️ Stock Expiry Warning (30 Days)', type: 'Early warning' },
-        { days: 7, title: '⚠️ Stock Expiry Warning (7 Days)', type: 'Urgent warning' },
-        { days: 0, title: '🚨 Stock Expired Today', type: 'Mark as expired' },
+        { days: 30, title: '⚠️ ការជូនដំណឹង: ទំនិញជិតហួសកំណត់ (នៅសល់ ៣០ ថ្ងៃ)', type: 'ជិតហួសកំណត់' },
+        { days: 7, title: '⚠️ ការជូនដំណឹង: ទំនិញជិតហួសកំណត់ (នៅសល់ ៧ ថ្ងៃ)', type: 'ជិតហួសកំណត់បំផុត' },
+        { days: 0, title: '🚨 ការជូនដំណឹង: ទំនិញហួសកំណត់នៅថ្ងៃនេះ', type: 'ហួសកំណត់ហើយ' },
       ];
 
       for (const milestone of milestones) {
@@ -87,9 +87,9 @@ export class TelegramAdminInventoryService {
       const code = TelegramAdminFormatService.escapeMarkdown(lot.product_code ?? '-');
       const expiredAt = lot.expired_at ? formatDate(new Date(lot.expired_at)) : '-';
       return `${index + 1}) ${name} (${code})
-• Qty: ${lot.qty_on_hand}
-• Expiry Date: ${expiredAt}
-• Status: ${type}`;
+• ចំនួន: ${lot.qty_on_hand}
+• ថ្ងៃហួសកំណត់: ${expiredAt}
+• ស្ថានភាព: ${type}`;
     });
 
     return [
@@ -261,17 +261,55 @@ export class TelegramAdminInventoryService {
       };
     }
 
-    const lines = report.lots.map((lot, index) => {
+    const today = getStartOfDay(new Date());
+
+    // Group lots by urgency
+    const expiredToday: string[] = [];
+    const expiringSoon: string[] = [];     // Within 7 days
+    const expiringLater: string[] = [];    // Within 30 days
+
+    report.lots.forEach((lot) => {
       const name = TelegramAdminFormatService.escapeMarkdown(lot.product_name);
       const code = TelegramAdminFormatService.escapeMarkdown(lot.product_code ?? '-');
       const expiredAt = lot.expired_at ? formatDate(new Date(lot.expired_at)) : '-';
-      return `${index + 1}) ${name} (${code})
-• ចំនួននៅសល់: ${lot.qty_on_hand}
-• ផុតកំណត់: ${expiredAt}`;
+
+      const lotLine = `• ${name} (${code}) | ថ្ងែអស់កាលកំណត់: ${expiredAt} | ចំនួន: ${lot.qty_on_hand}`;
+
+      if (!lot.expired_at) return;
+      const expDate = new Date(lot.expired_at);
+
+      const diffTime = expDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 0) {
+        expiredToday.push(lotLine);
+      } else if (diffDays <= 7) {
+        expiringSoon.push(lotLine);
+      } else {
+        expiringLater.push(lotLine);
+      }
     });
 
+    const lines: string[] = [];
+
+    if (expiredToday.length > 0) {
+      lines.push('🚨 *ទំនិញហួសកំណត់នៅថ្ងៃនេះ ឬបានហួសកំណត់*');
+      lines.push(...expiredToday);
+      lines.push('');
+    }
+    if (expiringSoon.length > 0) {
+      lines.push('⚠️ *ទំនិញជិតហួសកំណត់ (ក្នុងរយៈពេល ៧ ថ្ងៃ)*');
+      lines.push(...expiringSoon);
+      lines.push('');
+    }
+    if (expiringLater.length > 0) {
+      lines.push('⏳ *ទំនិញជិតហួសកំណត់ (ក្នុងរយៈពេល ៣០ ថ្ងៃ)*');
+      lines.push(...expiringLater);
+      lines.push('');
+    }
+
     const message = [
-      `⏳ *ស្តុកជិតផុតកំណត់* (${report.days} ថ្ងៃ)`,
+      `📊 *របាយការណ៍ស្តុកជិតផុតកំណត់*`,
       '',
       ...lines,
     ].join('\n');

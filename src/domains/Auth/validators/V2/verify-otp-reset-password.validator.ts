@@ -1,12 +1,20 @@
-import { body } from 'express-validator';
+import { body, oneOf } from 'express-validator';
 
 export const verifyOtpResetPasswordValidator = [
-    body('email')
-        .trim()
-        .notEmpty()
-        .withMessage('Email is required')
-        .isEmail()
-        .withMessage('Invalid email format'),
+    oneOf([
+        body('username')
+            .trim()
+            .notEmpty()
+            .withMessage('Username is required')
+            .isLength({ min: 3, max: 50 })
+            .withMessage('Username must be between 3 and 50 characters'),
+        body('email')
+            .trim()
+            .notEmpty()
+            .withMessage('Email is required')
+            .isEmail()
+            .withMessage('Invalid email format'),
+    ], { message: 'Username or Email is required' }),
     body('otp_code')
         .trim()
         .notEmpty()
@@ -16,4 +24,3 @@ export const verifyOtpResetPasswordValidator = [
         .isNumeric()
         .withMessage('OTP code must contain only numbers'),
 ];
-
