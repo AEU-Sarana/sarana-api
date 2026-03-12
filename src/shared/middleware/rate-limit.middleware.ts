@@ -9,7 +9,7 @@ const noOpRateLimiter = (req: Request, res: Response, next: NextFunction) => {
 
 // General API rate limit (production only)
 const apiRateLimiterConfig = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 1 * 60 * 1000, // 1 minute
   max: 100, // Limit each IP to 100 requests per windowMs
   message: {
     success: false,
