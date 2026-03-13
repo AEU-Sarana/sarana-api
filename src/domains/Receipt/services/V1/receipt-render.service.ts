@@ -5,19 +5,21 @@ import path from 'path';
 
 export class ReceiptRenderService {
   static async renderReceiptText(orderId: number): Promise<string> {
-    const [settings, order] = await Promise.all([
-      prisma.receiptSetting.findFirst(),
-      prisma.order.findUnique({
-        where: { orderId },
-        include: {
-          order_items: true,
-        },
-      }),
-    ]);
+    const order = await prisma.order.findUnique({
+      where: { orderId },
+      include: {
+        order_items: true,
+      },
+    });
 
     if (!order) {
       throw new ValidationException('Order not found');
     }
+
+    const settings = await prisma.receiptSetting.findFirst({
+      where: { tenantId: order.tenantId } as any,
+      orderBy: { updatedAt: 'desc' },
+    });
 
     const storeName = settings?.storeName || 'My Store';
     const footerEnabled = settings?.isFooterEnabled ?? true;

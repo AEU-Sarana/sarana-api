@@ -3,9 +3,10 @@ import { ReceiptSettingService } from '@src/domains/Receipt/services/V1/receipt-
 import { logger } from '@src/shared/utils/logger';
 
 export class ReceiptSettingsController {
-  static async getSettings(_req: Request, res: Response): Promise<void> {
+  static async getSettings(req: Request, res: Response): Promise<void> {
     try {
-      const data = await ReceiptSettingService.getSettings();
+      const user = req.user as { userId: number; tenantId?: number };
+      const data = await ReceiptSettingService.getSettings(user.tenantId);
 
       res.status(200).json({
         success: true,
@@ -20,8 +21,8 @@ export class ReceiptSettingsController {
 
   static async updateSettings(req: Request, res: Response): Promise<void> {
     try {
-      const user = req.user as { userId: number };
-      const data = await ReceiptSettingService.updateSettings(req.body, user.userId);
+      const user = req.user as { userId: number; tenantId?: number };
+      const data = await ReceiptSettingService.updateSettings(req.body, user.userId, user.tenantId);
 
       res.status(200).json({
         success: true,
@@ -39,8 +40,8 @@ export class ReceiptSettingsController {
         throw new Error('No file uploaded');
       }
 
-      const user = req.user as { userId: number };
-      const data = await ReceiptSettingService.uploadLogo(req.file, user.userId);
+      const user = req.user as { userId: number; tenantId?: number };
+      const data = await ReceiptSettingService.uploadLogo(req.file, user.userId, user.tenantId);
 
       res.status(200).json({
         success: true,
