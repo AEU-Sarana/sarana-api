@@ -131,7 +131,7 @@ model products {
   low_stock_threshold              Int?
   reorder_point                    Int               @default(0)
   status                           String            @default("active") @db.VarChar(20)
-  tenant_id                       Int               @default(1)
+  tenant_id                        Int               @default(1)
   created_by                       Int
   created_at                       DateTime          @default(now()) @db.Timestamp(6)
   updated_by                       Int
@@ -144,10 +144,10 @@ model products {
   stock_movements                  stock_movements[]
   stocks                           stocks?
 
-  @@index([category], map: "idx_products_category")
-  @@index([has_expiry], map: "idx_products_has_expiry")
   @@unique([tenant_id, barcode], map: "idx_products_tenant_barcode")
   @@unique([tenant_id, product_code], map: "idx_products_tenant_product_code")
+  @@index([category], map: "idx_products_category")
+  @@index([has_expiry], map: "idx_products_has_expiry")
   @@index([tenant_id], map: "idx_products_tenant_id")
   @@index([product_code], map: "idx_products_product_code")
   @@index([status], map: "idx_products_status")
@@ -188,6 +188,7 @@ model receipt_settings {
   footer_note       String?
   is_logo_enabled   Boolean  @default(true)
   is_footer_enabled Boolean  @default(true)
+  tenant_id         Int      @unique(map: "idx_receipt_settings_tenant_id") @default(1)
   updated_by        Int?
   updated_at        DateTime @default(now()) @db.Timestamp(6)
   created_at        DateTime @default(now()) @db.Timestamp(6)

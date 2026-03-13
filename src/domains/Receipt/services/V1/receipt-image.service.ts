@@ -18,7 +18,7 @@ interface ReceiptImageBufferResult {
   filename: string;
 }
 
-const DEFAULT_LOGO_URL = 'https://sokly.sgp1.digitaloceanspaces.com/image-2022-07-02-164325-1656755040dyQxA.jpg';
+const DEFAULT_LOGO_URL = 'https://www.techey.tech/_next/image?url=%2Fimages%2Ftechey-logo-white.png&w=640&q=75&dpl=dpl_Gt47Qm69npMNskEchtZXKRJgRxkV';
 
 export class ReceiptImageService {
   /**
@@ -84,18 +84,19 @@ export class ReceiptImageService {
     buffer: Buffer;
     receiptNumber: string;
   }> {
-    const [settings, order] = await Promise.all([
-      prisma.receiptSetting.findFirst({
-        orderBy: { updatedAt: 'desc' }
-      }),
-      prisma.order.findUnique({
-        where: { orderId },
-        include: { order_items: true, shift: true },
-      }),
-    ]);
+    const order = await prisma.order.findUnique({
+      where: { orderId },
+      include: { order_items: true, shift: true },
+    });
 
+    if (!order) {
+      throw new ValidationException('Order not found');
+    }
 
-    if (!order) throw new ValidationException('Order not found');
+    const settings = await prisma.receiptSetting.findFirst({
+      where: { tenantId: order.tenantId } as any,
+      orderBy: { updatedAt: 'desc' },
+    });
 
     const logoSource = await this.resolveLogoSource(settings?.logoPath || null);
 

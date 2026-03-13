@@ -5,19 +5,24 @@ import { auditLogService } from '@src/shared/services/audit-log.service';
 import { fileStorageService } from '@src/shared/services/file-storage.service';
 
 export class ReceiptSettingService {
-  static async getSettings(): Promise<any> {
+  static async getSettings(currentTenantId?: number): Promise<any> {
+    const resolvedTenantId = currentTenantId ?? 1;
     let settings = await prisma.receiptSetting.findFirst({
+      where: { tenantId: resolvedTenantId } as any,
       orderBy: { updatedAt: 'desc' },
     });
 
     if (!settings) {
+      const createData = {
+        storeName: 'My Store',
+        isLogoEnabled: true,
+        isFooterEnabled: true,
+        tenantId: resolvedTenantId,
+        updatedBy: 1,
+      } as any;
+
       settings = await prisma.receiptSetting.create({
-        data: {
-          storeName: 'My Store',
-          isLogoEnabled: true,
-          isFooterEnabled: true,
-          updatedBy: 1,
-        },
+        data: createData,
       });
     }
 
@@ -46,28 +51,34 @@ export class ReceiptSettingService {
       is_logo_enabled?: boolean;
       is_footer_enabled?: boolean;
     },
-    currentUserId: number
+    currentUserId: number,
+    currentTenantId?: number
   ): Promise<any> {
+    const resolvedTenantId = currentTenantId ?? 1;
     const existing = await prisma.receiptSetting.findFirst({
+      where: { tenantId: resolvedTenantId } as any,
       orderBy: { updatedAt: 'desc' },
     });
     if (!existing) {
       throw new ValidationException('Receipt settings not initialized');
     }
 
+    const updateData = {
+      storeName: payload.store_name,
+      phone: payload.phone ?? null,
+      address: payload.address ?? null,
+      taxId: payload.tax_id ?? null,
+      footerNote: payload.footer_note ?? null,
+      isLogoEnabled: payload.is_logo_enabled ?? existing.isLogoEnabled,
+      isFooterEnabled: payload.is_footer_enabled ?? existing.isFooterEnabled,
+      tenantId: resolvedTenantId,
+      updatedBy: currentUserId,
+      updatedAt: new Date(),
+    } as any;
+
     const updated = await prisma.receiptSetting.update({
       where: { settingId: existing.settingId },
-      data: {
-        storeName: payload.store_name,
-        phone: payload.phone ?? null,
-        address: payload.address ?? null,
-        taxId: payload.tax_id ?? null,
-        footerNote: payload.footer_note ?? null,
-        isLogoEnabled: payload.is_logo_enabled ?? existing.isLogoEnabled,
-        isFooterEnabled: payload.is_footer_enabled ?? existing.isFooterEnabled,
-        updatedBy: currentUserId,
-        updatedAt: new Date(),
-      },
+      data: updateData,
     });
 
     await auditLogService.createAuditLog({
@@ -114,9 +125,12 @@ export class ReceiptSettingService {
   }
   static async uploadLogo(
     file: Express.Multer.File,
-    currentUserId: number
+    currentUserId: number,
+    currentTenantId?: number
   ): Promise<any> {
+    const resolvedTenantId = currentTenantId ?? 1;
     const existing = await prisma.receiptSetting.findFirst({
+      where: { tenantId: resolvedTenantId } as any,
       orderBy: { updatedAt: 'desc' },
     });
     if (!existing) {
@@ -136,13 +150,16 @@ export class ReceiptSettingService {
       }
     );
 
+    const updateData = {
+      logoPath: uploadResult.url,
+      tenantId: resolvedTenantId,
+      updatedBy: currentUserId,
+      updatedAt: new Date(),
+    } as any;
+
     const updated = await prisma.receiptSetting.update({
       where: { settingId: existing.settingId },
-      data: {
-        logoPath: uploadResult.url,
-        updatedBy: currentUserId,
-        updatedAt: new Date(),
-      },
+      data: updateData,
     });
 
     await auditLogService.createAuditLog({
