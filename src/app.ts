@@ -61,6 +61,7 @@ try {
   console.error('Failed to start telegram admin stock history export worker:', error);
 }
 
+
 // Register telegram event listeners
 registerTelegramEventListeners();
 
