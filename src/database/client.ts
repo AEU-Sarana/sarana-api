@@ -1,8 +1,8 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-// Relative import so compiled output is require('./generated') and works in Docker (generated is copied to dist/database/)
-import { PrismaClient } from './generated';
+// Explicit file import avoids directory resolution issues in Node16/tsx.
+import { PrismaClient } from './generated/index.js';
 import { logger } from '@src/shared/utils/logger';
 
 // Create a single pool instance (reused across requests)

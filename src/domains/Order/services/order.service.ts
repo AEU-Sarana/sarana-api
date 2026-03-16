@@ -221,6 +221,11 @@ export class OrderService {
           orderBy: { createdAt: 'desc' },
           take: 1,
         },
+        order_payments: {
+          select: {
+            receivedAmount: true,
+          },
+        },
       },
     });
 
@@ -270,6 +275,10 @@ export class OrderService {
     });
 
     const latestReceiptLink = order.receipt_links[0] || null;
+    const receivedAmount = order.order_payments.reduce(
+      (sum, payment) => sum + Number(payment.receivedAmount),
+      0
+    );
 
     return {
       order_id: order.orderId,
@@ -285,6 +294,7 @@ export class OrderService {
       service_fee: Number(order.serviceFee),
       exchange_rate: Number(order.shift?.exchangeRate ?? 4000),
       payment_method: order.paymentMethod,
+      received_amount: receivedAmount,
       has_receipt_link: !!latestReceiptLink,
       receipt_link_status: latestReceiptLink?.linkStatus || null,
       items: order.order_items.map((item) => ({

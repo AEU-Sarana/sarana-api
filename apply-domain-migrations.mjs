@@ -23,7 +23,7 @@ const domainConfig = {
     tables: ['shifts'],
   },
   order: {
-    tables: ['order_items', 'orders', 'receipt_links'],
+    tables: ['order_items', 'order_payments', 'orders', 'receipt_links'],
   },
   stock: {
     tables: ['stock_movements', 'stock_lots', 'stocks'],
@@ -65,6 +65,8 @@ const migrationOrder = [
   'order/20260118000005_create_orders_table',
   'order/20260212000002_add_tenant_id_to_orders',
   'order/20260118000006_create_order_items_table',
+  'order/20260316000001_create_order_payments_table',
+  'order/20260316000002_update_orders_payment_method_check',
   'setting/20260118000007_create_receipt_settings_table',
   'order/20260118000008_create_receipt_links_table',
   'stock/20260118000009_create_stocks_table',

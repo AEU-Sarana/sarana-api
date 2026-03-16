@@ -13,7 +13,10 @@ export const syncOrdersValidator = [
   body('orders.*.discount_amount').optional().isFloat({ min: 0 }),
   body('orders.*.tax_amount').optional().isFloat({ min: 0 }),
   body('orders.*.service_fee').optional().isFloat({ min: 0 }),
-  body('orders.*.payment_method').isIn(['CASH']).withMessage('Payment method must be CASH'),
+  body('orders.*.payment_method')
+    .isIn(['CASH', 'BANK'])
+    .withMessage('Payment method must be CASH or BANK'),
+  body('orders.*.received_amount').optional().isFloat({ min: 0 }),
   body('orders.*.items').isArray().withMessage('Items must be an array'),
   body('orders.*.items.*.product_id').isInt().withMessage('Product ID must be an integer'),
   body('orders.*.items.*.quantity').isInt({ min: 1 }).withMessage('Quantity must be a positive integer'),

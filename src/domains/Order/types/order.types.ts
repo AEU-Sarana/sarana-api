@@ -4,13 +4,14 @@ export interface SyncOrdersRequest {
     receipt_number: string;
     shift_id: number;
     seller_id?: number;
-    order_date: string; // ISO8601
+    order_date: string; 
     total_amount: number;
     discount_amount?: number;
     tax_amount?: number;
     service_fee?: number;
     exchange_rate?: number;
     payment_method: 'CASH';
+    received_amount?: number;
     items: Array<{
       product_id: number;
       product_name?: string;
@@ -73,6 +74,7 @@ export interface ListOrdersResponse {
 }
 
 export interface GetOrderResponse extends OrderResponse {
+  received_amount: number;
   items: Array<{
     order_item_id: number;
     product_id: number;

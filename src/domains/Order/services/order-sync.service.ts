@@ -130,6 +130,18 @@ export class OrderSyncService {
               });
             }
 
+            if (typeof orderData.received_amount === 'number') {
+              await tx.orderPayment.deleteMany({
+                where: { orderId: existingOrder.orderId },
+              });
+              await tx.orderPayment.create({
+                data: {
+                  orderId: existingOrder.orderId,
+                  receivedAmount: orderData.received_amount,
+                },
+              });
+            }
+
             // SECURE UPGRADE: If existing order has no receipt link, generate one
             const hasLink = await tx.receiptLink.findFirst({
               where: { orderId: existingOrder.orderId }
@@ -171,6 +183,15 @@ export class OrderSyncService {
                 paymentMethod: orderData.payment_method,
               },
             });
+
+            if (typeof orderData.received_amount === 'number') {
+              await tx.orderPayment.create({
+                data: {
+                  orderId: newOrder.orderId,
+                  receivedAmount: orderData.received_amount,
+                },
+              });
+            }
 
             // Create order items + Auto stock deduction (FIFO)
             for (const item of orderData.items) {
