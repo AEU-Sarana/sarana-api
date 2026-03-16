@@ -264,7 +264,7 @@ export class OrderSyncService {
           details: { order_uuid: orderData.order_uuid, status: result.status },
         });
 
-        if (result.status === 'synced' || result.status === 'updated') {
+        if (result.status === 'synced') {
           setImmediate(() => {
             TelegramAdminOrderNotifyService.notifyOrderSyncSuccess({
               order: orderData,
