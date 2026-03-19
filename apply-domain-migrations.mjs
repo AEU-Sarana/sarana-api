@@ -77,6 +77,7 @@ const migrationOrder = [
   'telegram/202601180000014_create_telegram_admin_messages_table',
   'setting/202601180000016_create_settings_table',
   'setting/20260213000001_add_backup_schedule_time_to_settings_table',
+  'setting/20260318000001_add_tenant_id_to_app_settings',
   'shared/202601180000017_create_audit_logs_table',
   'customer/20260210000001_create_customers_table',
   'customer/20260210000002_create_customer_telegram_links_table',

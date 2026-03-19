@@ -34,7 +34,7 @@ export const userSeedData: UserSeedData[] = [
     role: 'SUPER_ADMIN',
     phone: '0123456710',
     status: 'active',
-    tenantId: 0, // Platform level
+    tenantId: 1, // Use tenant 1 so Telegram config applies in dev
   },
   {
     username: 'test-admin',

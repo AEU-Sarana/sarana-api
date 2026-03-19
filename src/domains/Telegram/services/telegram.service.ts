@@ -598,7 +598,8 @@ export class TelegramService {
     const report = await ReportService.getDailyReport(
       { date, bypass_cache: bypassCache },
       currentUserId,
-      Role.ADMIN
+      Role.ADMIN,
+      tenantId
     );
 
     const fileName = `daily_report_${date.replace(/-/g, '')}_${Date.now()}`;

@@ -7,9 +7,16 @@ export class AppSettingsSeeder extends BaseSeeder {
 
   async seed(): Promise<void> {
     const adminUserId = await SeederHelper.getAdminUserId();
+    const adminUser = await prisma.user.findUnique({
+      where: { userId: adminUserId },
+      select: { tenantId: true },
+    });
+    const tenantId = adminUser?.tenantId ?? 1;
 
     // Check if settings already exist
-    const existingSettings = await prisma.appSetting.findFirst();
+    const existingSettings = await prisma.appSetting.findFirst({
+      where: { tenantId },
+    });
 
     if (existingSettings) {
       await prisma.appSetting.update({
@@ -19,6 +26,7 @@ export class AppSettingsSeeder extends BaseSeeder {
           backupFrequency: 'daily',
           deviceBindingEnabled: true,
           stockSyncPolicy: 'allow_with_cached',
+          tenantId,
           updatedBy: adminUserId,
         },
       });
@@ -30,6 +38,7 @@ export class AppSettingsSeeder extends BaseSeeder {
           backupFrequency: 'daily',
           deviceBindingEnabled: true,
           stockSyncPolicy: 'allow_with_cached',
+          tenantId,
           updatedBy: adminUserId,
         },
       });
@@ -37,4 +46,3 @@ export class AppSettingsSeeder extends BaseSeeder {
     }
   }
 }
-

@@ -11,7 +11,7 @@ const DEFAULT_SEND_TIME = '23:30';
 const TICK_INTERVAL_MS = 60_000;
 const STATE_FILE = path.join(process.cwd(), 'logs', 'telegram-daily-report-state.json');
 
-let lastSentDate: string | null = null;
+let lastSentDates: Record<string, string> = {};
 let isRunning = false;
 let timer: NodeJS.Timeout | null = null;
 
@@ -20,17 +20,22 @@ function loadState() {
     if (fs.existsSync(STATE_FILE)) {
       const data = fs.readFileSync(STATE_FILE, 'utf8');
       const state = JSON.parse(data);
-      lastSentDate = state.lastSentDate || null;
-      logger.info('Loaded Telegram daily report scheduler state', { lastSentDate });
+      if (state?.lastSentDates && typeof state.lastSentDates === 'object') {
+        lastSentDates = state.lastSentDates;
+      } else if (state?.lastSentDate) {
+        // Backward compatibility for old state format
+        lastSentDates = { '1': state.lastSentDate };
+      }
+      logger.info('Loaded Telegram daily report scheduler state', { lastSentDates });
     }
   } catch (error) {
     logger.error('Failed to load Telegram daily report scheduler state', { error });
   }
 }
 
-function saveState(date: string) {
+function saveState() {
   try {
-    const state = { lastSentDate: date };
+    const state = { lastSentDates };
     if (!fs.existsSync(path.dirname(STATE_FILE))) {
       fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
     }
@@ -67,20 +72,38 @@ function getNowInTimezone(timeZone: string): { date: string; time: string } {
   return { date, time };
 }
 
-async function resolveSenderUserId(fallbackUserId?: number): Promise<number> {
-  if (fallbackUserId) return fallbackUserId;
+async function resolveSenderUserIdForTenant(
+  tenantId: number,
+  fallbackUserId?: number
+): Promise<number | null> {
+  if (fallbackUserId) {
+    const user = await prisma.user.findFirst({
+      where: { userId: fallbackUserId, tenantId },
+      select: { userId: true },
+    });
+    if (user) return user.userId;
+  }
+
   const admin = await prisma.user.findFirst({
-    where: { role: Role.ADMIN },
+    where: { role: Role.ADMIN, tenantId },
     orderBy: { userId: 'asc' },
     select: { userId: true },
   });
-  return admin?.userId ?? 0;
+  return admin?.userId ?? null;
 }
 
-async function loadReportSettings() {
-  const settings = await prisma.appSetting.findFirst({
-    orderBy: { updatedAt: 'desc' },
+type ReportSetting = {
+  tenantId: number;
+  enabled: boolean;
+  time: string;
+  timeZone: string;
+  updatedBy?: number | null;
+};
+
+async function loadReportSettings(): Promise<ReportSetting[]> {
+  const settings = await prisma.appSetting.findMany({
     select: {
+      tenantId: true,
       reportSendEnabled: true,
       reportSendTime: true,
       reportSendTimezone: true,
@@ -88,12 +111,13 @@ async function loadReportSettings() {
     },
   });
 
-  return {
-    enabled: settings?.reportSendEnabled ?? true,
-    time: settings?.reportSendTime ? formatTimeHHmm(settings.reportSendTime) : DEFAULT_SEND_TIME,
-    timeZone: settings?.reportSendTimezone || DEFAULT_TIMEZONE,
-    updatedBy: settings?.updatedBy,
-  };
+  return settings.map((s) => ({
+    tenantId: s.tenantId,
+    enabled: s.reportSendEnabled ?? true,
+    time: s.reportSendTime ? formatTimeHHmm(s.reportSendTime) : DEFAULT_SEND_TIME,
+    timeZone: s.reportSendTimezone || DEFAULT_TIMEZONE,
+    updatedBy: s.updatedBy,
+  }));
 }
 
 async function runOnce(): Promise<void> {
@@ -101,44 +125,66 @@ async function runOnce(): Promise<void> {
   isRunning = true;
 
   try {
-    const settings = await loadReportSettings();
-    if (!settings.enabled) return;
+    const settingsList = await loadReportSettings();
+    if (settingsList.length === 0) return;
 
-    let now: { date: string; time: string };
-    try {
-      now = getNowInTimezone(settings.timeZone);
-    } catch (error) {
-      logger.warn('Invalid report timezone, using default', {
-        timeZone: settings.timeZone,
-      });
-      now = getNowInTimezone(DEFAULT_TIMEZONE);
+    for (const settings of settingsList) {
+      if (!settings.enabled) continue;
+
+      try {
+        let now: { date: string; time: string };
+        try {
+          now = getNowInTimezone(settings.timeZone);
+        } catch (error) {
+          logger.warn('Invalid report timezone, using default', {
+            timeZone: settings.timeZone,
+            tenantId: settings.tenantId,
+          });
+          now = getNowInTimezone(DEFAULT_TIMEZONE);
+        }
+
+        const lastSentDate = lastSentDates[String(settings.tenantId)] ?? null;
+        if (lastSentDate === now.date) continue;
+        if (now.time < settings.time) continue;
+
+        const senderUserId = await resolveSenderUserIdForTenant(
+          settings.tenantId,
+          settings.updatedBy ?? undefined
+        );
+        if (!senderUserId) {
+          logger.warn('No admin user found for tenant, skipping report', {
+            tenantId: settings.tenantId,
+          });
+          continue;
+        }
+
+        await TelegramService.sendDailyAggregateReport(
+          now.date,
+          senderUserId,
+          settings.tenantId,
+          true
+        );
+
+        // Save state AFTER successful send to avoid blocking retries on failure.
+        lastSentDates[String(settings.tenantId)] = now.date;
+        saveState();
+
+        // Check for near-expiry stock alerts (Moved to independent scheduler)
+        // await runTelegramAdminAlertsJob();
+
+        logger.info('Telegram daily report sent', {
+          tenantId: settings.tenantId,
+          date: now.date,
+          time: now.time,
+          timeZone: settings.timeZone,
+        });
+      } catch (error: any) {
+        logger.error('Failed to send scheduled Telegram report', {
+          tenantId: settings.tenantId,
+          error: error.message,
+        });
+      }
     }
-
-    if (lastSentDate === now.date) return;
-    if (now.time < settings.time) return;
-
-    // Save state BEFORE sending — prevents duplicate reports if the server
-    // restarts mid-execution or if the send process fails and triggers a retry.
-    lastSentDate = now.date;
-    saveState(now.date);
-
-    const senderUserId = await resolveSenderUserId(settings.updatedBy);
-    const sender = await prisma.user.findUnique({
-      where: { userId: senderUserId },
-      select: { tenantId: true },
-    });
-    const tenantId = sender?.tenantId || 1;
-
-    await TelegramService.sendDailyAggregateReport(now.date, senderUserId, tenantId, true);
-
-    // Check for near-expiry stock alerts (Moved to independent scheduler)
-    // await runTelegramAdminAlertsJob();
-
-    logger.info('Telegram daily report sent', {
-      date: now.date,
-      time: now.time,
-      timeZone: settings.timeZone,
-    });
   } catch (error: any) {
     logger.error('Failed to send scheduled Telegram report', {
       error: error.message,

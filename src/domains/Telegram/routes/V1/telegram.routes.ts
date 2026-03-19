@@ -1,6 +1,7 @@
 import { Router, type IRouter } from 'express';
 import { authenticateToken } from '@src/shared/middleware/auth.middleware';
-import { requireSuperAdmin } from '@src/shared/middleware/authorization.middleware';
+import { requireRole } from '@src/shared/middleware/authorization.middleware';
+import { Role } from '@src/shared/config/permissions';
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
 import { TelegramController } from '../../controller/V1/telegram.controller';
 
@@ -17,7 +18,7 @@ const router: IRouter = Router();
 
 // All routes require authentication and admin role
 router.use(authenticateToken);
-router.use(requireSuperAdmin);
+router.use(requireRole(Role.SUPER_ADMIN, Role.ADMIN));
 
 // POST /api/v1/telegram/config
 router.post(

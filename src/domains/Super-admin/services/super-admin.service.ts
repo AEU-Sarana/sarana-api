@@ -4,6 +4,7 @@ import {
     DashboardSummaryResponse,
     UserGrowthResponse,
     CreateTenantRequest,
+    CreateTenantResponse,
     ListPackagesResponse,
     CreatePackageRequest,
     CreatePackageResponse,
@@ -627,62 +628,80 @@ export class SuperAdminService {
             }
         }
 
-        // Update Telegram Config if provided
-        if (data.telegram_bot_token && data.telegram_group_id) {
-            const encryptedToken = encrypt(data.telegram_bot_token, process.env.ENCRYPTION_KEY!);
+        let telegramResult: { attempted: boolean; sent: boolean; error?: string } = {
+            attempted: false,
+            sent: false,
+        };
 
-            // Try to find existing config
+        // Update Telegram Config if provided
+        if (data.telegram_bot_token || data.telegram_group_id) {
+            telegramResult.attempted = true;
             const existingConfig = await prisma.telegramConfig.findFirst({
                 where: { createdBy: tenantId }
             });
+
+            const encryptedToken = data.telegram_bot_token
+                ? encrypt(data.telegram_bot_token, process.env.ENCRYPTION_KEY!)
+                : undefined;
 
             if (existingConfig) {
                 await prisma.telegramConfig.update({
                     where: { configId: existingConfig.configId },
                     data: {
-                        botToken: encryptedToken,
-                        groupChatId: data.telegram_group_id,
+                        ...(encryptedToken && { botToken: encryptedToken }),
+                        ...(data.telegram_group_id && { groupChatId: data.telegram_group_id }),
                         isActive: true,
-                        updatedBy: tenantId // Assuming tenantId is appropriate here
+                        updatedBy: tenantId
                     }
                 });
-            } else {
+            } else if (data.telegram_bot_token && data.telegram_group_id) {
                 await prisma.telegramConfig.create({
                     data: {
-                        botToken: encryptedToken,
+                        botToken: encryptedToken!,
                         groupChatId: data.telegram_group_id,
                         isActive: true,
                         createdBy: tenantId,
                         updatedBy: tenantId
                     }
                 });
+            }
 
-                // Send a test/confirmation message if telegram was updated
-                try {
-                    const confirmationMessage = `*ការតំឡើង Telegram បានជោគជ័យ*
+            // Send a test/confirmation message when telegram settings are provided
+            try {
+                const stored = await TelegramService.getTelegramConfig(tenantId).catch(() => null);
+                const tokenToUse = data.telegram_bot_token || stored?.bot_token;
+                const chatIdToUse = data.telegram_group_id || stored?.group_chat_id;
+
+                if (!tokenToUse || !chatIdToUse) {
+                    throw new Error('Missing bot token or group chat id for confirmation');
+                }
+
+                const confirmationMessage = `*ការតំឡើង Telegram បានជោគជ័យ*
     
 អាជីវកម្ម *${data.business_name || tenant.businessName}* បានតំឡើង Telegram ដោយជោគជ័យ។ 
 តទៅនេះលោកអ្នកនឹងទទួលបានការជូនដំណឹង និងរបាយការណ៍ដោយផ្ទាល់នៅទីនេះ!`;
 
-                    await TelegramBotService.sendMessage(
-                        data.telegram_bot_token!,
-                        data.telegram_group_id!,
-                        confirmationMessage,
-                        'Markdown'
-                    );
+                await TelegramBotService.sendMessage(
+                    tokenToUse,
+                    chatIdToUse,
+                    confirmationMessage,
+                    'Markdown'
+                );
 
-                    // Register webhook for this bot
-                    await TelegramService.registerAdminWebhook(
-                        data.telegram_bot_token!,
-                        true,
-                        tenantId
-                    );
-                } catch (telegramErr: any) {
-                    logger.error('Failed to send Telegram update confirmation', {
-                        tenantId,
-                        error: telegramErr.message
-                    });
-                }
+                // Register webhook for this bot
+                await TelegramService.registerAdminWebhook(
+                    tokenToUse,
+                    true,
+                    tenantId
+                );
+                telegramResult.sent = true;
+            } catch (telegramErr: any) {
+                telegramResult.sent = false;
+                telegramResult.error = telegramErr?.message || String(telegramErr);
+                logger.error('Failed to send Telegram update confirmation', {
+                    tenantId,
+                    error: telegramErr.message
+                });
             }
         }
 
@@ -695,7 +714,8 @@ export class SuperAdminService {
             phone: updated.phone || '',
             address: updated.address || '',
             status: updated.status,
-            updated_at: updated.updatedAt
+            updated_at: updated.updatedAt,
+            telegram: telegramResult.attempted ? telegramResult : undefined,
         };
     }
 
@@ -767,7 +787,7 @@ export class SuperAdminService {
     /**
      * Create a new tenant with initial subscription
      */
-    static async createTenant(data: CreateTenantRequest) {
+    static async createTenant(data: CreateTenantRequest): Promise<CreateTenantResponse> {
         // Generate a random password for the new tenant
         const randomPassword = generateRandomString(10);
         const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS) || 10;
@@ -850,7 +870,13 @@ export class SuperAdminService {
         });
 
         // Operations after transaction: Telegram registration & Welcome message
+        let telegramResult: { attempted: boolean; sent: boolean; error?: string } = {
+            attempted: false,
+            sent: false,
+        };
+
         if (data.telegram_bot_token && data.telegram_group_id) {
+            telegramResult.attempted = true;
             try {
                 const welcomeMessage = `*សូមស្វាគមន៍មកកាន់ Chlart-POS!*
     
@@ -871,7 +897,10 @@ export class SuperAdminService {
                     true,
                     user.userId
                 );
+                telegramResult.sent = true;
             } catch (telegramErr: any) {
+                telegramResult.sent = false;
+                telegramResult.error = telegramErr?.message || String(telegramErr);
                 logger.error('Failed to setup Telegram for new tenant', {
                     tenantId: user.userId,
                     error: telegramErr.message
@@ -904,7 +933,15 @@ export class SuperAdminService {
             });
         }
 
-        return user;
+        return {
+            ...user,
+            id: user.userId,
+            business_name: user.businessName ?? '',
+            full_name: user.fullName ?? '',
+            created_at: user.createdAt,
+            updated_at: user.updatedAt,
+            telegram: telegramResult.attempted ? telegramResult : undefined,
+        };
     }
 
     /**
@@ -1418,5 +1455,3 @@ export class SuperAdminService {
         };
     }
 }
-
-

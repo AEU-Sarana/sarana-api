@@ -1,5 +1,4 @@
 import prisma from '@src/database/client';
-import { ValidationException } from '@src/shared/exceptions';
 import { auditLogService } from '@src/shared/services/audit-log.service';
 import { eventBus } from '@src/shared/events/event-bus';
 import { GetSettingsResponse, UpdateSettingsRequest, UpdateSettingsResponse } from '@src/domains/Setting/types';
@@ -21,13 +20,23 @@ export class SettingService {
   /**
    * Get current app settings
    */
-  static async getSettings(currentUserId: number): Promise<GetSettingsResponse> {
-    const settings = await prisma.appSetting.findFirst({
+  static async getSettings(
+    currentUserId: number,
+    tenantId?: number
+  ): Promise<GetSettingsResponse> {
+    const effectiveTenantId = tenantId ?? 1;
+    let settings = await prisma.appSetting.findFirst({
+      where: { tenantId: effectiveTenantId },
       orderBy: { updatedAt: 'desc' },
     });
 
     if (!settings) {
-      throw new ValidationException('Settings not found', [], 'SETTINGS_NOT_FOUND', 404);
+      settings = await prisma.appSetting.create({
+        data: {
+          tenantId: effectiveTenantId,
+          updatedBy: currentUserId,
+        },
+      });
     }
 
     await auditLogService.createAuditLog({
@@ -38,9 +47,9 @@ export class SettingService {
     });
 
     return {
-  auto_backup: settings.autoBackup,
-  backup_frequency: settings.backupFrequency,
-  // backup_schedule_time removed
+      auto_backup: settings.autoBackup,
+      backup_frequency: settings.backupFrequency,
+      // backup_schedule_time removed
       device_binding_enabled: settings.deviceBindingEnabled,
       stock_sync_policy: settings.stockSyncPolicy,
       report_send_enabled: settings.reportSendEnabled ?? true,
@@ -56,9 +65,12 @@ export class SettingService {
    */
   static async updateSettings(
     request: UpdateSettingsRequest,
-    currentUserId: number
+    currentUserId: number,
+    tenantId?: number
   ): Promise<UpdateSettingsResponse> {
+    const effectiveTenantId = tenantId ?? 1;
     const existing = await prisma.appSetting.findFirst({
+      where: { tenantId: effectiveTenantId },
       orderBy: { updatedAt: 'desc' },
     });
 
@@ -74,8 +86,8 @@ export class SettingService {
       ? this.parseTime(request.report_send_time)
       : existing?.reportSendTime ?? this.parseTime('23:30');
     const backupScheduleTime = request.backup_schedule_time
-  ? this.parseTime(request.backup_schedule_time)
-  : this.parseTime('23:30');
+      ? this.parseTime(request.backup_schedule_time)
+      : this.parseTime('23:30');
 
     const updated = existing
       ? await prisma.appSetting.update({
@@ -88,6 +100,7 @@ export class SettingService {
             reportSendEnabled,
             reportSendTime,
             reportSendTimezone,
+            tenantId: effectiveTenantId,
             updatedBy: currentUserId,
           },
         })
@@ -100,6 +113,7 @@ export class SettingService {
             reportSendEnabled,
             reportSendTime,
             reportSendTimezone,
+            tenantId: effectiveTenantId,
             updatedBy: currentUserId,
           },
         });
@@ -122,23 +136,23 @@ export class SettingService {
     });
 
     eventBus.emit('settings.updated', {
-  setting_id: updated.settingId,
-  auto_backup: updated.autoBackup,
-  backup_frequency: updated.backupFrequency,
-  backup_schedule_time: '',
-  device_binding_enabled: updated.deviceBindingEnabled,
-  stock_sync_policy: updated.stockSyncPolicy,
-  report_send_enabled: updated.reportSendEnabled ?? true,
-  report_send_time: this.formatTime(updated.reportSendTime, '23:30'),
-  report_send_timezone: updated.reportSendTimezone || 'Asia/Phnom_Penh',
-  updated_at: updated.updatedAt,
-  updated_by: updated.updatedBy,
+      setting_id: updated.settingId,
+      auto_backup: updated.autoBackup,
+      backup_frequency: updated.backupFrequency,
+      backup_schedule_time: '',
+      device_binding_enabled: updated.deviceBindingEnabled,
+      stock_sync_policy: updated.stockSyncPolicy,
+      report_send_enabled: updated.reportSendEnabled ?? true,
+      report_send_time: this.formatTime(updated.reportSendTime, '23:30'),
+      report_send_timezone: updated.reportSendTimezone || 'Asia/Phnom_Penh',
+      updated_at: updated.updatedAt,
+      updated_by: updated.updatedBy,
     } satisfies SettingsUpdatedEvent);
 
     return {
       auto_backup: updated.autoBackup,
       backup_frequency: updated.backupFrequency,
-  // backup_schedule_time removed
+      // backup_schedule_time removed
       device_binding_enabled: updated.deviceBindingEnabled,
       stock_sync_policy: updated.stockSyncPolicy,
       report_send_enabled: updated.reportSendEnabled ?? true,
