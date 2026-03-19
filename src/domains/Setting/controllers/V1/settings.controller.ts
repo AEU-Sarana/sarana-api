@@ -12,7 +12,7 @@ export class SettingsController {
   static async getSettings(req: Request, res: Response): Promise<void> {
     try {
       const user = req.user as UserPayload;
-      const response = await SettingService.getSettings(user.userId);
+      const response = await SettingService.getSettings(user.userId, user.tenantId);
 
       res.status(200).json({
         success: true,
@@ -33,7 +33,11 @@ export class SettingsController {
     try {
       const user = req.user as UserPayload;
       const request: UpdateSettingsRequest = req.body;
-      const response = await SettingService.updateSettings(request, user.userId);
+      const response = await SettingService.updateSettings(
+        request,
+        user.userId,
+        user.tenantId
+      );
 
       res.status(200).json({
         success: true,

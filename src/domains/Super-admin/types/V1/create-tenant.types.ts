@@ -17,3 +17,21 @@ export interface CreateTenantRequest {
     telegram_bot_token?: string;
     telegram_group_id?: string;
 }
+
+export interface CreateTenantResponse {
+    id: number;
+    username: string;
+    email?: string | null;
+    full_name?: string | null;
+    business_name?: string | null;
+    phone?: string | null;
+    status?: string;
+    created_at?: Date;
+    updated_at?: Date;
+    telegram?: {
+        attempted: boolean;
+        sent: boolean;
+        error?: string;
+    };
+    [key: string]: unknown;
+}

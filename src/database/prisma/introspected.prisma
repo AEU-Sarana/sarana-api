@@ -13,6 +13,7 @@ model app_settings {
   auto_backup            Boolean  @default(true)
   backup_frequency       String   @default("daily") @db.VarChar(20)
   device_binding_enabled Boolean  @default(false)
+  tenant_id              Int      @default(1)
   report_send_time       DateTime @default(dbgenerated("'23:30:00'::time without time zone")) @db.Time(6)
   report_send_timezone   String   @default("Asia/Phnom_Penh") @db.VarChar(50)
   report_send_enabled    Boolean  @default(true)
@@ -22,6 +23,8 @@ model app_settings {
   created_at             DateTime @default(now()) @db.Timestamp(6)
   backup_schedule_time   DateTime @default(dbgenerated("'23:30:00'::time without time zone")) @db.Time(6)
   users                  users    @relation(fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([tenant_id], map: "idx_app_settings_tenant_id")
 }
 
 model audit_logs {

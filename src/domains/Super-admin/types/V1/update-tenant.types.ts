@@ -26,4 +26,9 @@ export interface UpdateTenantResponse {
     address: string;
     status: string;
     updated_at: Date;
+    telegram?: {
+        attempted: boolean;
+        sent: boolean;
+        error?: string;
+    };
 }
