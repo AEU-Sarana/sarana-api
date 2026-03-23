@@ -1,14 +1,10 @@
 import fs from 'fs';
 import path from 'path';
-import XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { logger } from '@src/shared/utils/logger';
 
 export class ReportExportService {
-  private static buildAutoWidthColumns(rows: any[]): Array<{ wch: number }> {
-    if (!rows || rows.length === 0) {
-      return [];
-    }
-
+  private static extractHeaders(rows: any[]): string[] {
     const keys: string[] = [];
     const keySet = new Set<string>();
 
@@ -22,11 +18,15 @@ export class ReportExportService {
       }
     }
 
-    return keys.map((key) => {
-      let maxLength = [...key].length;
+    return keys;
+  }
+
+  private static computeColumnWidths(headers: string[], rows: any[]): number[] {
+    return headers.map((header) => {
+      let maxLength = [...header].length;
 
       for (const row of rows) {
-        const value = row?.[key];
+        const value = row?.[header];
         const text =
           value === null || value === undefined
             ? ''
@@ -39,8 +39,20 @@ export class ReportExportService {
         }
       }
 
-      return { wch: Math.max(10, maxLength + 2) };
+      return Math.max(25, maxLength + 8);
     });
+  }
+
+  private static columnNumberToName(value: number): string {
+    if (value <= 0) return 'A';
+    let num = value;
+    let name = '';
+    while (num > 0) {
+      const rem = (num - 1) % 26;
+      name = String.fromCharCode(65 + rem) + name;
+      num = Math.floor((num - 1) / 26);
+    }
+    return name;
   }
 
   /**
@@ -122,14 +134,51 @@ export class ReportExportService {
     }
 
     try {
-      const workbook = XLSX.utils.book_new();
+      const workbook = new ExcelJS.Workbook();
 
       for (const [sheetName, data] of sheetEntries) {
         const safeName = sheetName.slice(0, 31);
-        const rows = Array.isArray(data) && data.length > 0 ? data : [{}];
-        const worksheet = XLSX.utils.json_to_sheet(rows);
-        worksheet['!cols'] = this.buildAutoWidthColumns(rows);
-        XLSX.utils.book_append_sheet(workbook, worksheet, safeName);
+        const rows = Array.isArray(data) ? data : [];
+        const headers = this.extractHeaders(rows);
+        const normalizedHeaders = headers.length > 0 ? headers : [''];
+
+        const worksheet = workbook.addWorksheet(safeName);
+
+        // Title row (larger font)
+        const titleRow = worksheet.addRow([sheetName]);
+        titleRow.font = { size: 22, bold: true };
+        titleRow.alignment = { vertical: 'middle', horizontal: 'center' };
+        titleRow.height = 28;
+
+        const lastColumnName = this.columnNumberToName(normalizedHeaders.length);
+        if (normalizedHeaders.length > 1) {
+          worksheet.mergeCells(`A1:${lastColumnName}1`);
+        }
+
+        // Header row
+        const headerRow = worksheet.addRow(normalizedHeaders);
+        headerRow.font = { bold: true, size: 14 };
+        headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        headerRow.height = 24;
+
+        // Data rows
+        for (const row of rows) {
+          const values = normalizedHeaders.map((header) => {
+            if (!header) return '';
+            const value = row?.[header];
+            return value === undefined ? '' : value;
+          });
+          worksheet.addRow(values);
+        }
+
+        // Freeze title + header rows
+        worksheet.views = [{ state: 'frozen', ySplit: 2 }];
+
+        // Auto width columns
+        const widths = this.computeColumnWidths(normalizedHeaders, rows);
+        widths.forEach((width, index) => {
+          worksheet.getColumn(index + 1).width = width;
+        });
       }
 
       const tmpDir = '/tmp';
@@ -140,7 +189,7 @@ export class ReportExportService {
       const finalFileName = fileName ? `${fileName}.xlsx` : `report_${Date.now()}.xlsx`;
       const filePath = path.join(tmpDir, finalFileName);
 
-      XLSX.writeFile(workbook, filePath);
+      await workbook.xlsx.writeFile(filePath);
 
       logger.info('XLSX file exported successfully', {
         fileName: finalFileName,

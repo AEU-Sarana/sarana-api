@@ -17,6 +17,7 @@ import { auditLogService } from '@src/shared/services/audit-log.service';
 import { fileStorageService } from '@src/shared/services/file-storage.service';
 import { env } from '@src/shared/config/env';
 import { getLocalNetworkIP } from '@src/shared/utils/helpers';
+import { StockLotService } from '@src/domains/Stock/services/stock-lot.service';
 
 export class ProductService {
   /**
@@ -323,6 +324,8 @@ export class ProductService {
       image_path,
       low_stock_threshold,
       has_expiry,
+      stock_qty,
+      expired_at,
     } = request;
 
     const resolvedTenantId = currentTenantId ?? 1;
@@ -336,6 +339,14 @@ export class ProductService {
       has_expiry !== undefined && has_expiry !== null
         ? (typeof has_expiry === 'string' ? has_expiry === 'true' : Boolean(has_expiry))
         : false;
+    const stockQtyNumber = stock_qty !== undefined && stock_qty !== null
+      ? (typeof stock_qty === 'string' ? parseInt(stock_qty, 10) : stock_qty)
+      : null;
+    const expiredAtDate = expired_at ? new Date(expired_at) : null;
+
+    if (expiredAtDate && Number.isNaN(expiredAtDate.getTime())) {
+      throw new ValidationException('Expiry date must be a valid date');
+    }
 
     // Always generate product_code on the backend (ignore any client-provided value).
     // This prevents accepting client-sent date strings or other invalid values.
@@ -443,6 +454,9 @@ export class ProductService {
     }
 
     // Create product and stock in a transaction
+    let initialStockQuantity = 0;
+    let initialExpiredAt: Date | null = null;
+
     const product = await prisma.$transaction(async (tx) => {
       console.log('[DEBUG] Product Create - final code being used in DB:', finalProductCode);
       const newProduct = await tx.product.create({
@@ -478,6 +492,39 @@ export class ProductService {
         productId: newProduct.productId,
         quantity: 0,
       });
+
+      if (stockQtyNumber !== null && stockQtyNumber > 0) {
+        if (hasExpiryBoolean && !expiredAtDate) {
+          throw new ValidationException('Expiry date is required for this product');
+        }
+
+        const receivedAt = new Date();
+        await StockLotService.createLotStockIn(
+          {
+            productId: newProduct.productId,
+            quantity: stockQtyNumber,
+            receivedAt,
+            expiredAt: expiredAtDate ?? null,
+            createdBy: currentUserId,
+          },
+          tx
+        );
+
+        const updatedStock = await tx.stock.update({
+          where: { productId: newProduct.productId },
+          data: {
+            quantity: stockQtyNumber,
+            stockVersion: newStock.stockVersion + 1,
+            updatedAt: new Date(),
+          },
+        });
+
+        initialStockQuantity = updatedStock.quantity;
+        initialExpiredAt = expiredAtDate ?? null;
+      } else {
+        initialStockQuantity = newStock.quantity;
+        initialExpiredAt = null;
+      }
 
 
       //Return product with stock relation
@@ -530,8 +577,8 @@ export class ProductService {
       image_path: this.normalizeImageUrl(product.imagePath),
       low_stock_threshold: product.lowStockThreshold,
       has_expiry: product.hasExpiry,
-      stock_quantity: product.stock?.quantity || 0,
-      expired_at: null,
+      stock_quantity: initialStockQuantity,
+      expired_at: product.hasExpiry ? initialExpiredAt : null,
       status: (product.status as any) as ProductStatus,
       created_at: product.createdAt,
       updated_at: product.updatedAt,
