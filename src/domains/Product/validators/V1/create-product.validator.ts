@@ -21,4 +21,5 @@ export const createProductValidator = [
   body('has_expiry').optional().isBoolean().withMessage('has_expiry must be boolean'),
   body('stock_qty').optional().isInt({ min: 0 }).withMessage('Stock quantity must be >= 0'),
   body('expired_at').optional().isISO8601().withMessage('Expiry date must be a valid ISO 8601 date'),
+  //NOTE 
 ];
