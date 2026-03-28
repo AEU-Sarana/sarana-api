@@ -12,6 +12,7 @@ import { RefreshTokenRepository } from '../../repository/V2/refresh-token.reposi
 import { addDaysToDate, toPhnomPenhISOString } from '@src/shared/utils/date-utils';
 import { logger } from '@src/shared/utils/logger';
 import { sendPasswordResetEmailJob } from '@src/domains/Auth/jobs/send-password-reset-email.job';
+import { ValidationException } from '@src/shared/exceptions';
 
 const repo = new RefreshTokenRepository();
 
@@ -313,11 +314,17 @@ export class AuthService {
       },
     });
 
-    if (!user) throw new Error(AuthErrorCode.INVALID_CREDENTIALS);
-    if (user.status !== 'active') throw new Error(AuthErrorCode.INVALID_CREDENTIALS);
+    if (!user) {
+      throw new ValidationException('Invalid username or password', [], AuthErrorCode.INVALID_CREDENTIALS, 401);
+    }
+    if (user.status !== 'active') {
+      throw new ValidationException('Invalid username or password', [], AuthErrorCode.INVALID_CREDENTIALS, 401);
+    }
 
     const ok = await bcrypt.compare(input.password, user.passwordHash);
-    if (!ok) throw new Error(AuthErrorCode.INVALID_CREDENTIALS);
+    if (!ok) {
+      throw new ValidationException('Invalid username or password', [], AuthErrorCode.INVALID_CREDENTIALS, 401);
+    }
 
     const now = new Date();
     const absoluteDays = Math.min(Math.max(env.JWT_V2_REFRESH_ABSOLUTE_DAYS || 30, 7), 30);
