@@ -165,9 +165,9 @@ export class AuthService {
       throw new Error('User account is not active');
     }
 
-    // Restriction: Only Admin can reset password via OTP
-    if (otp.role === 'SELLER') {
-      throw new Error('This account is for a seller. Please contact admin.');
+    // Restriction: Only Admin accounts can reset password via OTP
+    if (otp.role !== 'ADMIN') {
+      throw new Error('This account is not eligible for OTP password reset. Please contact admin.');
     }
 
     // Check if OTP is expired
@@ -185,7 +185,7 @@ export class AuthService {
     // Generate tokens so user can proceed to reset password
     // const accessToken = TokenService.generateAccessToken({
     //   userId: user.userId,
-    //   role: user.role as 'ADMIN' | 'SELLER',
+    //   role: user.role as 'ADMIN' | 'CASHIER' | 'RECEIVER',
     //   tenantId: user.tenantId ?? 1,
     // });
 
@@ -206,9 +206,9 @@ export class AuthService {
       return;
     }
 
-    // Restriction: Only Admin can reset password via OTP
-    if (user.role === 'SELLER') {
-      throw new Error('This account is for a seller. Please contact admin.');
+    // Restriction: Only Admin accounts can reset password via OTP
+    if (user.role !== 'ADMIN') {
+      throw new Error('This account is not eligible for OTP password reset. Please contact admin.');
     }
 
     // Send password reset email (async job)
@@ -276,8 +276,8 @@ export class AuthService {
     }
 
     // Restriction: Only Admin can be reset password 
-    if (user.role === 'SELLER') {
-      throw new Error('This account is for a seller. Please contact admin.');
+    if (user.role === 'CASHIER') {
+      throw new Error('This account is for a cashier. Please contact admin.');
     }
 
     // Hash new password
@@ -350,7 +350,7 @@ export class AuthService {
 
     const accessToken = TokenService.generateAccessToken({
       userId: user.userId,
-      role: user.role as 'ADMIN' | 'SELLER',
+      role: user.role as 'ADMIN' | 'CASHIER' | 'RECEIVER',
       tenantId: user.tenantId ?? 1,
       deviceId: input.device_id,
     });
@@ -430,7 +430,7 @@ export class AuthService {
 
     const accessToken = TokenService.generateAccessToken({
       userId: session.userId,
-      role: session.user.role as 'ADMIN' | 'SELLER',
+      role: session.user.role as 'ADMIN' | 'CASHIER' | 'RECEIVER',
       tenantId: session.user.tenantId ?? 1,
       deviceId: session.deviceId ?? undefined,
     });
@@ -474,7 +474,7 @@ export class AuthService {
 
   async switchRole(input: {
     userId: number;
-    targetRole: 'ADMIN' | 'SELLER';
+    targetRole: 'ADMIN' | 'CASHIER';
     device_id?: string;
     ip?: string;
     user_agent?: string;

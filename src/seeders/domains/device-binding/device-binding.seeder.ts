@@ -8,7 +8,7 @@ export class DeviceBindingSeeder extends BaseSeeder {
 
   async seed(): Promise<void> {
     const sellers = await prisma.user.findMany({
-      where: { role: 'SELLER' },
+      where: { role: 'CASHIER' },
       select: { userId: true },
     });
 

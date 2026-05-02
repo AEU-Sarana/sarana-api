@@ -64,6 +64,8 @@ export function requirePermission(...permissions: Permission[]) {
   };
 }
 
+
+
 /**
  * Middleware to require admin role
  */
@@ -76,23 +78,14 @@ export function requireAdmin(
 }
 
 /**
- * Middleware to require admin or seller role
+ * Middleware to require admin or cashier role
  */
-export function requireAdminOrSeller(
+export function requireAdminOrCashier(
   req: Request,
   res: Response,
   next: NextFunction
 ): void {
-  requireRole(Role.ADMIN, Role.SELLER)(req, res, next);
+  requireRole(Role.ADMIN, Role.CASHIER)(req, res, next);
 }
 
-/**
- * Middleware to require super admin role
- */
-export function requireSuperAdmin(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void {
-  requireRole(Role.SUPER_ADMIN)(req, res, next);
-}
+export const requireAdminOrSeller = requireAdminOrCashier;

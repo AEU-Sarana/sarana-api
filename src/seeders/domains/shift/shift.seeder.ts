@@ -7,7 +7,7 @@ export class ShiftSeeder extends BaseSeeder {
 
   async seed(): Promise<void> {
     const sellerIds = await prisma.user.findMany({
-      where: { role: 'SELLER' },
+      where: { role: 'CASHIER' },
       select: { userId: true },
     });
 

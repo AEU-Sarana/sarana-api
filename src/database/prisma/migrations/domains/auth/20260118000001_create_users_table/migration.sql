@@ -7,7 +7,7 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     pin_hash VARCHAR(255),
     full_name VARCHAR(200) NOT NULL,
-    role VARCHAR(20) NOT NULL CHECK(role IN ('ADMIN', 'SELLER', 'SUPER_ADMIN')),
+    role VARCHAR(20) NOT NULL CHECK(role IN ('ADMIN', 'CASHIER', 'RECEIVER')),
     phone VARCHAR(20),
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'inactive')),
     device_id VARCHAR(255),

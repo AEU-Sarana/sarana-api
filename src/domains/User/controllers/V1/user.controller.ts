@@ -43,10 +43,10 @@ export class UserController {
   }
 
   /**
-   * GET /api/v1/users/sellers
-   * List sellers only
+   * GET /api/v1/users/cashiers
+   * List cashiers only
    */
-  static async listSellers(req: Request, res: Response): Promise<void> {
+  static async listCashiers(req: Request, res: Response): Promise<void> {
     try {
       const user = req.user as UserPayload;
       const request = {
@@ -56,7 +56,7 @@ export class UserController {
         search: req.query.search as string | undefined,
       };
 
-      const response = await UserService.listSellers(request, {
+      const response = await UserService.listCashiers(request, {
         userId: user.userId,
         role: user.role,
         tenantId: user.tenantId,
@@ -65,10 +65,10 @@ export class UserController {
       res.status(200).json({
         success: true,
         data: {
-          sellers: response.users,
+          cashiers: response.users,
           pagination: response.pagination,
         },
-        message: 'Sellers retrieved',
+        message: 'Cashiers retrieved',
       });
     } catch (error: any) {
       logger.error('List sellers error', { error: error.message });
@@ -110,7 +110,7 @@ export class UserController {
 
   /**
    * POST /api/v1/users
-   * Create user/seller
+   * Create user/cashier
    */
   static async createUser(req: Request, res: Response): Promise<void> {
     try {
@@ -135,7 +135,7 @@ export class UserController {
 
   /**
    * PUT /api/v1/users/:id
-   * Update user/seller
+   * Update user/cashier
    */
   static async updateUser(req: Request, res: Response): Promise<void> {
     try {

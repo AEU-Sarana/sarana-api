@@ -145,7 +145,7 @@ async function generateReportData(
   if (!user) {
     throw new Error('User not found');
   }
-  const userRole = user.role || Role.SELLER;
+  const userRole = user.role || Role.CASHIER;
 
   switch (reportType) {
     case 'daily': {

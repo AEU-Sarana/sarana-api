@@ -17,7 +17,6 @@ type CurrentUserContext = {
 
 const ADMIN_ROLES = new Set<string>([
   Role.ADMIN,
-  'SUPER_ADMIN',
   'COMPANY_ADMIN',
   'OWNER',
   'MANAGER',
@@ -74,7 +73,7 @@ export class OrderService {
 
         where.sellerId = seller_id;
       }
-    } else if (currentUserRole === Role.SELLER) {
+    } else if (currentUserRole === Role.CASHIER) {
       if (seller_id && seller_id !== currentUserId) {
         logger.warn('Order list access denied: seller cannot view other sellers', {
           userId: currentUserId,
@@ -234,7 +233,7 @@ export class OrderService {
     }
 
     // Role-based access control
-    if (currentUserRole === Role.SELLER) {
+    if (currentUserRole === Role.CASHIER) {
       if (order.sellerId !== currentUserId) {
         logger.warn('Order access denied: seller cannot view other orders', {
           userId: currentUserId,

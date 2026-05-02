@@ -18,7 +18,7 @@ const router: IRouter = Router();
 
 // All routes require authentication and admin role
 router.use(authenticateToken);
-router.use(requireRole(Role.SUPER_ADMIN, Role.ADMIN));
+router.use(requireRole(Role.ADMIN));
 
 // POST /api/v1/telegram/config
 router.post(

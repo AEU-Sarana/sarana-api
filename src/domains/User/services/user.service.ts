@@ -36,14 +36,12 @@ export class UserService {
       where.role = role;
     }
 
-    // Tenant isolation - non-super-admins only see users in their own tenant
-    if (currentUserRole !== 'SUPER_ADMIN') {
-      if (currentUserTenantId == null) {
-        // no tenant scope, deny
-        throw new Error('Tenant context required');
-      }
-      where.tenantId = currentUserTenantId;
+    // Tenant isolation - users can only see other users in their own tenant
+    if (currentUserTenantId == null) {
+      // no tenant scope, deny
+      throw new Error('Tenant context required');
     }
+    where.tenantId = currentUserTenantId;
 
     if (status) {
       where.status = status;
@@ -117,14 +115,14 @@ export class UserService {
   /**
    * List sellers only
    */
-  static async listSellers(
+  static async listCashiers(
     request: { page?: number; limit?: number; status?: UserStatus; search?: string },
     currentUser: { userId: number; role: string; tenantId?: number }
   ): Promise<ListUsersResponse> {
     return this.listUsers(
       {
         ...request,
-        role: UserRole.SELLER,
+        role: UserRole.CASHIER,
       },
       currentUser
     );
@@ -185,7 +183,7 @@ export class UserService {
   }
 
   /**
-   * Create user/seller
+   * Create user/cashier
    */
   static async createUser(
     request: CreateUserRequest,
@@ -283,7 +281,7 @@ export class UserService {
   }
 
   /**
-   * Update user/seller
+   * Update user/cashier
    */
   static async updateUser(
     userId: number,

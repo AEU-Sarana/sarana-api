@@ -7,7 +7,7 @@ import { Permission } from '@src/shared/config/permissions';
 import { UserController } from '@src/domains/User/controllers/V1/user.controller';
 import {
   listUsersValidator,
-  listSellersValidator,
+  listCashiersValidator,
   getUserValidator,
   createUserValidator,
   updateUserValidator,
@@ -31,12 +31,12 @@ router.get(
   UserController.listUsers
 );
 
-// List sellers only
+// List cashiers only
 router.get(
-  '/sellers',
+  '/cashiers',
   requirePermission(Permission.USER_VIEW),
-  ...validateRequest(listSellersValidator),
-  UserController.listSellers
+  ...validateRequest(listCashiersValidator),
+  UserController.listCashiers
 );
 
 // Get user details
@@ -47,7 +47,7 @@ router.get(
   UserController.getUser
 );
 
-// Create user/seller
+// Create user/cashier
 router.post(
   '/',
   requirePermission(Permission.USER_CREATE),
@@ -55,7 +55,7 @@ router.post(
   UserController.createUser
 );
 
-// Update user/seller
+// Update user/cashier
 router.put(
   '/:id',
   requirePermission(Permission.USER_UPDATE),

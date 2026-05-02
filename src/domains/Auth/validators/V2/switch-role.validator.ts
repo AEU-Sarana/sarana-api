@@ -5,6 +5,6 @@ export const switchRoleValidator = [
     body('role')
         .notEmpty()
         .withMessage('Role is required')
-        .isIn([Role.ADMIN, Role.SELLER])
+        .isIn([Role.ADMIN, Role.CASHIER])
         .withMessage('Invalid role'),
 ];

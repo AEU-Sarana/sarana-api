@@ -1,4 +1,5 @@
 import prisma from '@src/database/client';
+import { Role } from '@src/shared/config/permissions';
 import { StockService } from '@src/domains/Stock/services/stock.service';
 import { OrderService } from '@src/domains/Order/services/order.service';
 import {
@@ -24,6 +25,9 @@ export class ShiftService {
     currentUserId: number,
     currentUserRole: string
   ): Promise<{ shift_id: number } | null> {
+    if (currentUserRole !== Role.CASHIER && currentUserRole !== Role.ADMIN) {
+      throw new ValidationException('Unauthorized to access shift data');
+    }
     const where = { sellerId: currentUserId, status: 'CLOSED' };
 
     const latestShift = await prisma.shift.findFirst({
@@ -49,6 +53,9 @@ export class ShiftService {
     currentUserRole: string,
     currentTenantId?: number
   ): Promise<StartShiftResponse> {
+    if (currentUserRole !== Role.CASHIER && currentUserRole !== Role.ADMIN) {
+      throw new ValidationException('Unauthorized to start a shift');
+    }
     const { opening_cash, exchange_rate } = request;
 
     // Seller starts their own shift; Admin can start for self (or implement start-for-seller if needed)
@@ -164,7 +171,7 @@ export class ShiftService {
     const forceCloseReason = request.force_close_reason?.toString().trim() || '';
 
     // Seller can only close own shift
-    if (currentUserRole === 'SELLER' && shift.sellerId !== currentUserId) {
+    if (currentUserRole === Role.CASHIER && shift.sellerId !== currentUserId) {
       throw new ValidationException('You can only close your own shift');
     }
 
@@ -278,7 +285,7 @@ export class ShiftService {
     const { page = 1, limit = 20, seller_id, status, start_date, end_date } = request;
 
     const where: any = {};
-    if (currentUserRole === 'ADMIN') {
+    if (currentUserRole === Role.ADMIN) {
       // Restrict to sellers who belong to the same tenant as this admin
       if (currentTenantId) {
         where.user = { tenantId: currentTenantId };
@@ -289,9 +296,10 @@ export class ShiftService {
         // Remove nested user filter if we set sellerId directly (avoids conflict)
         delete where.user;
       }
-    } else {
-      // Sellers can only see their own shifts
+    } else if (currentUserRole === Role.CASHIER) {
       where.sellerId = currentUserId;
+    } else {
+      throw new ValidationException('Unauthorized to view shifts');
     }
     if (status) where.status = status;
     if (start_date || end_date) {
@@ -396,14 +404,15 @@ export class ShiftService {
   ): Promise<GetShiftResponse> {
     const where: any = { shiftId };
 
-    if (currentUserRole === 'ADMIN') {
+    if (currentUserRole === Role.ADMIN) {
       // Admins can only view shifts belonging to their own tenant
       if (currentTenantId) {
         where.user = { tenantId: currentTenantId };
       }
-    } else {
-      // Sellers can only view their own shifts
+    } else if (currentUserRole === Role.CASHIER) {
       where.sellerId = currentUserId;
+    } else {
+      throw new ValidationException('Unauthorized to view shift details');
     }
 
     const shift = await prisma.shift.findFirst({

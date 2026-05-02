@@ -16,7 +16,6 @@ import userRoutes from './user.routes';
 import deviceBindingRoutes from './device-binding.routes';
 import settingRoutes from './setting.routes';
 import dashboardRoutes from './dashboard.routes';
-import superAdminRoutes from './super-admin.routes';
 
 const router: IRouter = Router();
 
@@ -36,6 +35,5 @@ router.use('/users', userRoutes);
 router.use('/device-bindings', deviceBindingRoutes);
 router.use('/settings', settingRoutes);
 router.use('/dashboard', dashboardRoutes);
-router.use('/super-admin', superAdminRoutes);
 
 export default router;

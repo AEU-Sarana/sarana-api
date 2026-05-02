@@ -30,15 +30,15 @@ export class SeederHelper {
   }
 
   /**
-   * Get a random seller user ID
+   * Get a random cashier user ID
    */
   static async getSellerUserId(): Promise<number> {
     const seller = await prisma.user.findFirst({
-      where: { role: 'SELLER' },
+      where: { role: 'CASHIER' },
       select: { userId: true },
     });
     if (!seller) {
-      throw new Error('No seller user found. Please seed users first.');
+      throw new Error('No cashier user found. Please seed users first.');
     }
     return seller.userId;
   }

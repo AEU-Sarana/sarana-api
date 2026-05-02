@@ -72,13 +72,12 @@ export enum Permission {
 
 export enum Role {
   ADMIN = 'ADMIN',
-  SELLER = 'SELLER',
-  SUPER_ADMIN = 'SUPER_ADMIN',
+  CASHIER = 'CASHIER',
+  RECEIVER = 'RECEIVER',
 }
 
 // Role to Permissions Mapping
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
-  [Role.SUPER_ADMIN]: Object.values(Permission),
   [Role.ADMIN]: [
     // Auth - All
     Permission.AUTH_LOGIN,
@@ -151,7 +150,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.DASHBOARD_VIEW,
   ],
 
-  [Role.SELLER]: [
+  [Role.CASHIER]: [
     // Auth - Limited
     Permission.AUTH_LOGIN,
     Permission.AUTH_LOGOUT,
@@ -176,6 +175,16 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
 
     // Dashboard - View
     Permission.DASHBOARD_VIEW,
+  ],
+
+  [Role.RECEIVER]: [
+    Permission.AUTH_LOGIN,
+    Permission.AUTH_LOGOUT,
+    Permission.AUTH_REFRESH,
+    Permission.PRODUCT_VIEW,
+    Permission.STOCK_VIEW,
+    Permission.STOCK_IN,
+    Permission.STOCK_HISTORY_VIEW,
   ],
 };
 
