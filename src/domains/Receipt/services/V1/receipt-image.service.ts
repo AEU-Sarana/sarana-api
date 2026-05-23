@@ -86,7 +86,7 @@ export class ReceiptImageService {
   }> {
     const order = await prisma.order.findUnique({
       where: { orderId },
-      include: { order_items: true, shift: true },
+      include: { order_items: true },
     });
 
     if (!order) {
@@ -94,7 +94,6 @@ export class ReceiptImageService {
     }
 
     const settings = await prisma.receiptSetting.findFirst({
-      where: { tenantId: order.tenantId } as any,
       orderBy: { updatedAt: 'desc' },
     });
 
@@ -120,7 +119,7 @@ export class ReceiptImageService {
       serviceFee: Number(order.serviceFee || 0),
       footerNote: settings?.footerNote || undefined,
       footerEnabled: settings?.isFooterEnabled ?? true,
-      exchangeRate: (order as any).shift?.exchangeRate ? Number((order as any).shift.exchangeRate) : 4000
+      exchangeRate: 4000
     };
 
 

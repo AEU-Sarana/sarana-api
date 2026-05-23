@@ -26,13 +26,6 @@ export enum Permission {
   ORDER_VIEW_ALL = 'ORDER_VIEW_ALL',
   ORDER_SYNC = 'ORDER_SYNC',
 
-  // Shift
-  SHIFT_START = 'SHIFT_START',
-  SHIFT_CLOSE = 'SHIFT_CLOSE',
-  SHIFT_VIEW_OWN = 'SHIFT_VIEW_OWN',
-  SHIFT_VIEW_ALL = 'SHIFT_VIEW_ALL',
-  SHIFT_RECONCILE = 'SHIFT_RECONCILE',
-
   // Report
   REPORT_VIEW_DAILY = 'REPORT_VIEW_DAILY',
   REPORT_VIEW_SALES = 'REPORT_VIEW_SALES',
@@ -57,11 +50,6 @@ export enum Permission {
   USER_DELETE = 'USER_DELETE',
   USER_VIEW = 'USER_VIEW',
 
-  // DeviceBinding
-  DEVICE_VIEW = 'DEVICE_VIEW',
-  DEVICE_APPROVE = 'DEVICE_APPROVE',
-  DEVICE_REVOKE = 'DEVICE_REVOKE',
-
   // Settings
   SETTINGS_VIEW = 'SETTINGS_VIEW',
   SETTINGS_UPDATE = 'SETTINGS_UPDATE',
@@ -73,7 +61,6 @@ export enum Permission {
 export enum Role {
   ADMIN = 'ADMIN',
   CASHIER = 'CASHIER',
-  RECEIVER = 'RECEIVER',
 }
 
 // Role to Permissions Mapping
@@ -106,13 +93,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.ORDER_VIEW_ALL,
     Permission.ORDER_SYNC,
 
-    // Shift - All
-    Permission.SHIFT_START,
-    Permission.SHIFT_CLOSE,
-    Permission.SHIFT_VIEW_OWN,
-    Permission.SHIFT_VIEW_ALL,
-    Permission.SHIFT_RECONCILE,
-
     // Report - All
     Permission.REPORT_VIEW_DAILY,
     Permission.REPORT_VIEW_SALES,
@@ -136,11 +116,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.USER_UPDATE,
     Permission.USER_DELETE,
     Permission.USER_VIEW,
-
-    // DeviceBinding - All
-    Permission.DEVICE_VIEW,
-    Permission.DEVICE_APPROVE,
-    Permission.DEVICE_REVOKE,
 
     // Settings - All
     Permission.SETTINGS_VIEW,
@@ -168,23 +143,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.ORDER_VIEW_OWN,
     Permission.ORDER_SYNC,
 
-    // Shift - Own shifts only
-    Permission.SHIFT_START,
-    Permission.SHIFT_CLOSE,
-    Permission.SHIFT_VIEW_OWN,
-
     // Dashboard - View
     Permission.DASHBOARD_VIEW,
-  ],
-
-  [Role.RECEIVER]: [
-    Permission.AUTH_LOGIN,
-    Permission.AUTH_LOGOUT,
-    Permission.AUTH_REFRESH,
-    Permission.PRODUCT_VIEW,
-    Permission.STOCK_VIEW,
-    Permission.STOCK_IN,
-    Permission.STOCK_HISTORY_VIEW,
   ],
 };
 

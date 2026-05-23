@@ -65,11 +65,11 @@ export class ReceiptDeliveryService {
 
     const order = await prisma.order.findUnique({
       where: { orderId },
-      select: { receiptNumber: true, tenantId: true },
+      select: { receiptNumber: true },
     });
     if (!order) throw new Error('Order not found');
 
-    const telegramConfig = await TelegramService.getTelegramConfig(order.tenantId);
+    const telegramConfig = await TelegramService.getTelegramConfig(1);
     if (!telegramConfig) throw new Error('Telegram not configured');
 
     logger.info('Sending receipt to Telegram', {

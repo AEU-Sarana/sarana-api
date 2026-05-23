@@ -26,8 +26,6 @@ export class UserSeeder extends BaseSeeder {
           phone: userData.phone,
           status: userData.status,
           deviceId: userData.deviceId,
-          isDeviceBound: userData.isDeviceBound ?? false,
-          tenantId: userData.tenantId,
         },
         create: {
           username: userData.username,
@@ -39,17 +37,18 @@ export class UserSeeder extends BaseSeeder {
           phone: userData.phone,
           status: userData.status,
           deviceId: userData.deviceId,
-          isDeviceBound: userData.isDeviceBound ?? false,
-          tenantId: userData.tenantId,
         },
         select: {
           userId: true,
           role: true,
-          tenantId: true,
         },
       });
 
-      usersByUsername.set(userData.username, user);
+      usersByUsername.set(userData.username, {
+        userId: user.userId,
+        role: user.role,
+        tenantId: userData.tenantId,
+      });
     }
 
     const adminIdByTenant = new Map<number, number>();

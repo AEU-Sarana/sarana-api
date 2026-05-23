@@ -12,11 +12,12 @@ export class ProductController {
         limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 50,
         status: req.query.status as string,
         category: req.query.category as string,
+        category_id: req.query.category_id ? parseInt(req.query.category_id as string, 10) : undefined,
         search: req.query.search as string,
         barcode: req.query.barcode as string,
       };
 
-      const response = await ProductService.listProducts(request, user.userId, user.tenantId);
+      const response = await ProductService.listProducts(request, user.userId);
 
       res.status(200).json({
         success: true,
@@ -32,7 +33,7 @@ export class ProductController {
   static async getCategories(req: Request, res: Response): Promise<void> {
     try {
       const user = req.user as UserPayload;
-      const response = await ProductService.getCategories(user.userId, user.tenantId);
+      const response = await ProductService.getCategories(user.userId);
 
       res.status(200).json({
         success: true,
@@ -51,7 +52,7 @@ export class ProductController {
       const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const productId = parseInt(idParam, 10);
 
-      const response = await ProductService.getProduct(productId, user.userId, user.tenantId);
+      const response = await ProductService.getProduct(productId, user.userId);
 
       res.status(200).json({
         success: true,
@@ -68,7 +69,7 @@ export class ProductController {
     try {
       const user = req.user as UserPayload;
       const imageFile = req.file;
-      const response = await ProductService.createProduct(req.body, user.userId, imageFile, user.tenantId);
+      const response = await ProductService.createProduct(req.body, user.userId, imageFile);
 
       res.status(201).json({
         success: true,
@@ -87,7 +88,7 @@ export class ProductController {
       const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const productId = parseInt(idParam, 10);
       const imageFile = req.file;
-      const response = await ProductService.updateProduct(productId, req.body, user.userId, imageFile, user.tenantId);
+      const response = await ProductService.updateProduct(productId, req.body, user.userId, imageFile);
 
       res.status(200).json({
         success: true,
@@ -105,7 +106,7 @@ export class ProductController {
       const user = req.user as UserPayload;
       const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const productId = parseInt(idParam, 10);
-      await ProductService.deleteProduct(productId, user.userId, user.tenantId);
+      await ProductService.deleteProduct(productId, user.userId);
 
       res.status(200).json({
         success: true,
@@ -124,7 +125,7 @@ export class ProductController {
       const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const productId = parseInt(idParam, 10);
 
-      const response = await ProductService.toggleProductStatus(productId, user.userId, user.tenantId);
+      const response = await ProductService.toggleProductStatus(productId, user.userId);
 
       res.status(200).json({
         success: true,

@@ -24,8 +24,6 @@ seeders/
     │   └── order-item.seeder.ts
     ├── shift/
     │   └── shift.seeder.ts
-    ├── device-binding/
-    │   └── device-binding.seeder.ts
     ├── settings/
     │   └── app-settings.seeder.ts
     ├── telegram/

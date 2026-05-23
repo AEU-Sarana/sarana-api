@@ -1,3 +1,10 @@
-// Logout doesn't require body validation
-// Token is extracted from Authorization header
-export const logoutValidator: any[] = [];
+import { body } from 'express-validator';
+
+export const logoutValidator = [
+  body('refresh_token')
+    .trim()
+    .notEmpty()
+    .withMessage('refresh_token is required')
+    .isString()
+    .isLength({ min: 32, max: 1024 }),
+];

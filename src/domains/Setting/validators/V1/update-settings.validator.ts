@@ -16,11 +16,6 @@ export const updateSettingsValidator = [
     .isString()
     .matches(/^([01]\d|2[0-3]):[0-5]\d$/)
     .withMessage('backup_schedule_time must be in HH:mm format'),
-  body('device_binding_enabled')
-    .notEmpty()
-    .isBoolean()
-    .withMessage('device_binding_enabled must be a boolean')
-    .toBoolean(),
   body('stock_sync_policy')
     .notEmpty()
     .isIn(Object.values(StockSyncPolicy))

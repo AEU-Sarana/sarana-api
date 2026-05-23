@@ -9,10 +9,8 @@ import {
   configTelegramValidator,
   testTelegramValidator,
   sendReportValidator,
-  resendReportValidator,
 } from '@src/domains/Telegram/validators/V1/index';
 import { sendTestMessageValidator } from '@src/domains/Telegram/validators/V1/send-test-message.validator';
-
 
 const router: IRouter = Router();
 
@@ -39,13 +37,6 @@ router.post(
   '/send-report',
   ...validateRequest(sendReportValidator),
   TelegramController.sendReport
-);
-
-// POST /api/v1/telegram/resend-report
-router.post(
-  '/resend-report',
-  ...validateRequest(resendReportValidator),
-  TelegramController.resendReport
 );
 
 router.post(

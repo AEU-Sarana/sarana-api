@@ -3,11 +3,9 @@ import { UserSeeder } from './domains/auth/user.seeder';
 import { ProductSeeder } from './domains/product/product.seeder';
 import { StockSeeder } from './domains/stock/stock.seeder';
 import { StockLotSeeder } from './domains/stock/stock-lot.seeder';
-import { ShiftSeeder } from './domains/shift/shift.seeder';
 import { OrderSeeder } from './domains/order/order.seeder';
 import { OrderItemSeeder } from './domains/order/order-item.seeder';
 import { StockMovementSeeder } from './domains/stock/stock-movement.seeder';
-import { DeviceBindingSeeder } from './domains/device-binding/device-binding.seeder';
 import { AppSettingsSeeder } from './domains/settings/app-settings.seeder';
 import { TelegramConfigSeeder } from './domains/telegram/telegram-config.seeder';
 import { AuditLogSeeder } from './domains/shared/audit-log.seeder';
@@ -33,29 +31,23 @@ async function main() {
       // 3. Stock lots (depends on products)
       new StockLotSeeder(),
 
-      // 4. Shifts (depends on users)
-      new ShiftSeeder(),
-
-      // 5. Orders (depends on users, shifts, products)
+      // 4. Orders (depends on users, products)
       new OrderSeeder(),
       new OrderItemSeeder(), // Order items are created with orders, but keeping for consistency
 
-      // 6. Stock Movements (depends on products, orders, shifts, users, stock lots)
+      // 5. Stock Movements (depends on products, orders, users, stock lots)
       new StockMovementSeeder(),
 
-      // 7. Stock totals (sync from stock lots)
+      // 6. Stock totals (sync from stock lots)
       new StockSeeder(),
 
-      // 8. Device Bindings (depends on users)
-      new DeviceBindingSeeder(),
-
-      // 9. Settings (depends on users)
+      // 7. Settings (depends on users)
       new AppSettingsSeeder(),
 
-      // 10. Telegram Config (depends on users)
+      // 8. Telegram Config (depends on users)
       new TelegramConfigSeeder(),
 
-      // 11. Audit Logs (depends on users, but can be independent)
+      // 9. Audit Logs (depends on users, but can be independent)
       new AuditLogSeeder(),
     );
   }
@@ -73,11 +65,9 @@ async function main() {
       prisma.product.count(),
       prisma.stock.count(),
       prisma.stockLot.count(),
-      prisma.shift.count(),
       prisma.order.count(),
       prisma.orderItem.count(),
       prisma.stockMovement.count(),
-      prisma.deviceBinding.count(),
       prisma.appSetting.count(),
       prisma.telegramConfig.count(),
       prisma.auditLog.count(),
@@ -89,14 +79,12 @@ async function main() {
     console.log(`Products: ${counts[1]}`);
     console.log(`Stock Records: ${counts[2]}`);
     console.log(`Stock Lots: ${counts[3]}`);
-    console.log(`Shifts: ${counts[4]}`);
-    console.log(`Orders: ${counts[5]}`);
-    console.log(`Order Items: ${counts[6]}`);
-    console.log(`Stock Movements: ${counts[7]}`);
-    console.log(`Device Bindings: ${counts[8]}`);
-    console.log(`App Settings: ${counts[9]}`);
-    console.log(`Telegram Configs: ${counts[10]}`);
-    console.log(`Audit Logs: ${counts[11]}`);
+    console.log(`Orders: ${counts[4]}`);
+    console.log(`Order Items: ${counts[5]}`);
+    console.log(`Stock Movements: ${counts[6]}`);
+    console.log(`App Settings: ${counts[7]}`);
+    console.log(`Telegram Configs: ${counts[8]}`);
+    console.log(`Audit Logs: ${counts[9]}`);
   } catch (error) {
     console.error('❌ Seeding failed:', error);
     throw error;

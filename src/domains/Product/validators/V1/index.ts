@@ -4,3 +4,8 @@ export { createProductValidator } from './create-product.validator';
 export { updateProductValidator } from './update-product.validator';
 export { deleteProductValidator } from './delete-product.validator';
 export { toggleStatusValidator } from './toggle-status.validator';
+export {
+  createCategoryValidator,
+  updateCategoryValidator,
+  getCategoryValidator,
+} from './category.validator';

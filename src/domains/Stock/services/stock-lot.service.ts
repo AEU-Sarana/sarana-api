@@ -22,7 +22,6 @@ export interface AllocateStockOutParams {
   quantity: number;
   price?: number | null;
   orderId?: number | null;
-  shiftId?: number | null;
   createdBy: number;
   allowExpired?: boolean;
   allowNegative?: boolean;
@@ -142,7 +141,6 @@ export class StockLotService {
             price: params.price ?? null,
             reason: params.reason ?? 'NEGATIVE_STOCK',
             orderId: params.orderId ?? null,
-            shiftId: params.shiftId ?? null,
             createdBy: params.createdBy,
             createdAt: new Date(),
           },
@@ -182,7 +180,6 @@ export class StockLotService {
             price: params.price ?? null,
             reason: params.reason ?? null,
             orderId: params.orderId ?? null,
-            shiftId: params.shiftId ?? null,
             createdBy: params.createdBy,
             createdAt: new Date(),
           },
@@ -204,7 +201,6 @@ export class StockLotService {
   }
 
   static async listNearExpiry(
-    tenantId: number,
     days = 30
   ): Promise<NearExpiryResponse> {
     const start = startOfDay(new Date());
@@ -216,9 +212,6 @@ export class StockLotService {
         expiredAt: {
           gte: start,
           lte: end,
-        },
-        product: {
-          createdByUser: { tenantId }
         }
       },
       include: {
@@ -236,16 +229,13 @@ export class StockLotService {
     };
   }
 
-  static async listExpired(tenantId: number): Promise<ExpiredLotsResponse> {
+  static async listExpired(): Promise<ExpiredLotsResponse> {
     const today = startOfDay(new Date());
 
     const lots = await prisma.stockLot.findMany({
       where: {
         qtyOnHand: { gt: 0 },
-        expiredAt: { lt: today },
-        product: {
-          createdByUser: { tenantId }
-        }
+        expiredAt: { lt: today }
       },
       include: {
         product: { select: { productName: true, productCode: true } },
@@ -261,7 +251,7 @@ export class StockLotService {
     };
   }
 
-  static async listLotsExpiringIn(tenantId: number, days: number): Promise<StockLotInfo[]> {
+  static async listLotsExpiringIn(days: number): Promise<StockLotInfo[]> {
     const targetDate = startOfDay(addDays(new Date(), days));
     const nextDate = addDays(targetDate, 1);
 
@@ -271,9 +261,6 @@ export class StockLotService {
         expiredAt: {
           gte: targetDate,
           lt: nextDate,
-        },
-        product: {
-          createdByUser: { tenantId }
         }
       },
       include: {

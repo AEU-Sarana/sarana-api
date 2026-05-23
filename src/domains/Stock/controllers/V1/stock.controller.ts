@@ -21,6 +21,7 @@ export class StockController {
       const stockVersionStr = getStringValue(req.query.stock_version as string | string[] | undefined);
       const statusStr = getStringValue(req.query.status as string | string[] | undefined);
       const categoryStr = getStringValue(req.query.category as string | string[] | undefined);
+      const categoryIdStr = getStringValue(req.query.category_id as string | string[] | undefined);
       const searchStr = getStringValue(req.query.search as string | string[] | undefined);
       const pageStr = getStringValue(req.query.page as string | string[] | undefined);
       const limitStr = getStringValue(req.query.limit as string | string[] | undefined);
@@ -32,7 +33,7 @@ export class StockController {
         userId: user.userId,
         path: req.path,
         url: req.url,
-        filters: { stock_version: stockVersionStr, status: statusStr, category: categoryStr, search: searchStr, barcode: barcodeStr, product_status: productStatusStr },
+        filters: { stock_version: stockVersionStr, status: statusStr, category: categoryStr, category_id: categoryIdStr, search: searchStr, barcode: barcodeStr, product_status: productStatusStr },
       });
 
       const normalize = (v?: string) => (v && v.trim() !== '' ? v.trim() : undefined);
@@ -42,6 +43,7 @@ export class StockController {
         version: normalize(stockVersionStr) ? parseInt(stockVersionStr!, 10) : undefined,
         status: statusStr as 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative' | undefined,
         category: categoryStr,
+        category_id: categoryIdStr ? parseInt(categoryIdStr, 10) : undefined,
         search: searchStr,
         barcode: barcodeStr,
         page: pageStr ? parseInt(pageStr, 10) : 1,
@@ -49,7 +51,7 @@ export class StockController {
         product_status: productStatusStr as any,
       };
 
-      const response = await StockService.getStock(request, user.userId, user.tenantId);
+      const response = await StockService.getStock(request, user.userId);
 
       logger.info('Get stock response', {
         productId: request.product_id,
@@ -161,7 +163,7 @@ export class StockController {
         limit: limitStr ? parseInt(limitStr, 10) : 50,
       };
 
-      const response = await StockMovementService.getStockMovements(request, user.userId, user.tenantId);
+      const response = await StockMovementService.getStockMovements(request, user.userId);
 
       res.status(200).json({
         success: true,
@@ -178,7 +180,7 @@ export class StockController {
     try {
       const user = req.user as UserPayload;
       const days = req.query.days ? parseInt(String(req.query.days), 10) : 30;
-      const response = await StockLotService.listNearExpiry(user.tenantId!, days);
+      const response = await StockLotService.listNearExpiry(days);
       res.status(200).json({
         success: true,
         data: response,
@@ -193,7 +195,7 @@ export class StockController {
   static async getExpired(req: Request, res: Response): Promise<void> {
     try {
       const user = req.user as UserPayload;
-      const response = await StockLotService.listExpired(user.tenantId!);
+      const response = await StockLotService.listExpired();
       res.status(200).json({
         success: true,
         data: response,

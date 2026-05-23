@@ -6,6 +6,7 @@ export interface GetStockRequest {
   version?: number;
   status?: 'in_stock' | 'low_stock' | 'out_of_stock' | 'negative';
   category?: string;
+  category_id?: number;
   search?: string;
   barcode?: string;
   page?: number;

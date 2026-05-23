@@ -5,7 +5,6 @@ CREATE TABLE refresh_tokens (
     token_family_id UUID NOT NULL,
     parent_token_id INTEGER REFERENCES refresh_tokens(id),
     device_id VARCHAR(255),
-    device_binding_id INTEGER REFERENCES device_bindings(binding_id),
     absolute_expires_at TIMESTAMP NOT NULL,
     idle_expires_at TIMESTAMP NOT NULL,
     last_used_at TIMESTAMP,

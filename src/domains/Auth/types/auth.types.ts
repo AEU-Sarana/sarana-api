@@ -26,11 +26,6 @@ export interface ResetPasswordRequest {
   new_password: string;
 }
 
-export interface ResetPINRequest {
-  user_id: number;
-  new_pin: string;
-}
-
 export interface UpdateProfileRequest {
   full_name?: string;
   username?: string;
@@ -66,7 +61,6 @@ export interface UserPayload {
   userId: number;
   username: string;
   role: UserRole;
-  tenantId?: number;
 }
 
 export interface TokenPayload extends UserPayload {

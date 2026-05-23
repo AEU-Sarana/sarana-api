@@ -1,4 +1,18 @@
-import { GetShiftResponse } from '@src/domains/Shift/types/shift.types';
+export interface GetShiftResponse {
+  shift_id: number;
+  seller_name?: string | null;
+  shift_date: string;
+  start_time: Date | string;
+  end_time?: Date | string | null;
+  opening_cash?: number | null;
+  actual_cash?: number | null;
+  expected_cash?: number | null;
+  total_sales_amount?: number | null;
+  total_sales_count: number;
+  short_amount?: number | null;
+  over_amount?: number | null;
+  exchange_rate?: number | null;
+}
 import { formatDateTimeInTimezone } from '@src/shared/utils/date-utils';
 import { APP_CONSTANTS } from '@src/shared/config/constants';
 
@@ -65,10 +79,10 @@ export function buildDailyReportMessage(
 
 ⏰ *ព័ត៌មានវេនការងារ*
 • ម៉ោងចាប់ផ្តើម៖ ${formatTime(shift.start_time)}
-• ម៉ោងបញ្ចប់៖ ${formatTime(shift.end_time)}
+• ម៉ោងបញ្ចប់៖ ${formatTime(shift.end_time ?? null)}
 • រយៈពេលសរុប៖ ${calculateDuration(
     shift.start_time,
-    shift.end_time
+    shift.end_time ?? null
   )} ម៉ោង
 • អត្រាប្តូរប្រាក់៖ 1$ = ${rate.toLocaleString()}៛
 `.trim();

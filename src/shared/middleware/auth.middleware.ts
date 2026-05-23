@@ -11,7 +11,6 @@ export interface UserPayload {
   username?: string;
   role: Role;
   deviceId?: string;
-  tenantId?: number;
 }
 
 declare global {
@@ -37,32 +36,6 @@ function parseAuthorizationHeader(header?: string): { scheme?: string; token?: s
 
 function parseNumericUserId(payload: Record<string, any>): number | null {
   const candidates = ['userId', 'user_id', 'sub'];
-  for (const key of candidates) {
-    const v = payload[key];
-    if (v === undefined || v === null) continue;
-    if (typeof v === 'number' && Number.isInteger(v)) return v;
-    if (typeof v === 'string' && /^[0-9]+$/.test(v)) return parseInt(v, 10);
-  }
-  return null;
-}
-
-function parseNumericTenantId(payload: Record<string, any>): number | null {
-  const candidates = [
-    'tenantId',
-    'tenant_id',
-    'companyId',
-    'company_id',
-    'clientId',
-    'client_id',
-    'merchantId',
-    'merchant_id',
-    'shopId',
-    'shop_id',
-    'orgId',
-    'org_id',
-    'businessId',
-    'business_id',
-  ];
   for (const key of candidates) {
     const v = payload[key];
     if (v === undefined || v === null) continue;
@@ -109,13 +82,10 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
     // If verification passed, manually check issuer and audience if defined in env
     if (expectedIssuer && decoded.iss && decoded.iss !== expectedIssuer) {
       logger.warn('JWT issuer mismatch', { expected: expectedIssuer, actual: decoded.iss });
-      // In development, maybe we want to allow it? For now, let's be strict but log exactly why.
-      // throw new jwt.JsonWebTokenError('jwt issuer invalid');
     }
 
     if (expectedAudience && decoded.aud && decoded.aud !== expectedAudience) {
       logger.warn('JWT audience mismatch', { expected: expectedAudience, actual: decoded.aud });
-      // throw new jwt.JsonWebTokenError('jwt audience invalid');
     }
 
   } catch (err: any) {
@@ -176,26 +146,12 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
 
   const username = (payload.username as string) ?? (payload.user_name as string) ?? undefined;
   const deviceId = (payload.deviceId as string) ?? (payload.device_id as string) ?? undefined;
-  let tenantId = parseNumericTenantId(payload);
-
-  if (tenantId === null) {
-    try {
-      const user = await prisma.user.findUnique({
-        where: { userId },
-        select: { tenantId: true },
-      });
-      tenantId = user?.tenantId ?? null;
-    } catch {
-      tenantId = null;
-    }
-  }
 
   req.user = {
     userId,
     username,
     role: roleValue as Role,
     deviceId,
-    ...(tenantId !== null ? { tenantId } : {}),
   };
 
   req.clientIp = req.ip;

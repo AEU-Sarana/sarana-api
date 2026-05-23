@@ -229,7 +229,6 @@ export class TelegramAdminStockService {
       const product = await tx.product.findFirst({
         where: {
           productId: draft.product.productId,
-          createdByUser: { tenantId },
         },
       });
 
@@ -579,7 +578,6 @@ export class TelegramAdminStockService {
         const product = await tx.product.findFirst({
           where: {
             productId: draft.productId,
-            createdByUser: { tenantId },
           },
         });
 
@@ -755,7 +753,6 @@ export class TelegramAdminStockService {
       where: {
         productCode: { equals: trimmed, mode: 'insensitive' },
         status: 'active',
-        createdByUser: { tenantId },
       },
       select: { productId: true, productCode: true, productName: true },
     });
@@ -765,7 +762,6 @@ export class TelegramAdminStockService {
       where: {
         barcode: { equals: trimmed, mode: 'insensitive' },
         status: 'active',
-        createdByUser: { tenantId },
       },
       select: { productId: true, productCode: true, productName: true },
     });
@@ -775,7 +771,6 @@ export class TelegramAdminStockService {
       where: {
         status: 'active',
         productName: { contains: trimmed, mode: 'insensitive' },
-        createdByUser: { tenantId },
       },
       select: { productId: true, productCode: true, productName: true },
       orderBy: { productName: 'asc' },
@@ -789,7 +784,7 @@ export class TelegramAdminStockService {
     limit = 20
   ): Promise<TelegramAdminCallbackResult> {
     const product = await prisma.product.findFirst({
-      where: { productId, createdByUser: { tenantId } },
+      where: { productId },
       select: { productId: true, productCode: true, productName: true },
     });
     if (!product) {
@@ -817,7 +812,6 @@ export class TelegramAdminStockService {
         supplier: m.supplier,
         reason: m.reason,
         orderId: m.orderId,
-        shiftId: m.shiftId,
         lotId: m.lotId,
         createdByLabel: m.user?.fullName || m.user?.username || String(m.createdBy),
       })),
@@ -839,7 +833,7 @@ export class TelegramAdminStockService {
       throw new Error('PRODUCT_CODE_REQUIRED');
     }
 
-    const product = await ProductService.getProductByCode(productCode, adminUserId, tenantId);
+    const product = await ProductService.getProductByCode(productCode, adminUserId);
     const msg = JSON.stringify(product, null, 2);
     const config = await TelegramService.getTelegramConfig(tenantId);
     if (!config) throw new Error('Telegram not configured');
@@ -861,7 +855,7 @@ export class TelegramAdminStockService {
     if (!command.productCode) throw new Error('PRODUCT_CODE_REQUIRED');
     if (!command.qty || Number.isNaN(command.qty)) throw new Error('INVALID_QUANTITY');
 
-    const product = await ProductService.getProductByCode(command.productCode, adminUserId, tenantId);
+    const product = await ProductService.getProductByCode(command.productCode, adminUserId);
 
     const movementType = command.movementType;
     if (!movementType) throw new Error('MOVEMENT_TYPE_REQUIRED');

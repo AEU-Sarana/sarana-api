@@ -33,7 +33,7 @@ export class TelegramAdminStockInValidator {
     const errors: string[] = [];
 
     const user = await prisma.user.findFirst({
-      where: { userId: adminUserId, tenantId },
+      where: { userId: adminUserId },
       select: { role: true },
     });
     if (!user || user.role !== UserRole.ADMIN) {
@@ -117,7 +117,6 @@ export class TelegramAdminStockInValidator {
         productCode: { equals: productCode, mode: 'insensitive' },
         status: 'active',
         deactivatedDate: null,
-        createdByUser: { tenantId },
       },
       select: {
         productId: true,

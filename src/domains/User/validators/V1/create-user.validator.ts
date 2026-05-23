@@ -35,6 +35,6 @@ export const createUserValidator = [
     .trim(),
   
   body('role')
-    .isIn(['ADMIN', 'CASHIER', 'RECEIVER'])
-    .withMessage('Role must be ADMIN, CASHIER, or RECEIVER'),
+    .isIn(['ADMIN', 'CASHIER'])
+    .withMessage('Role must be ADMIN or CASHIER'),
 ];

@@ -27,10 +27,6 @@ const domainConfig = {
     tables: ['products'],
   },
 
-  shift: {
-    tables: ['shifts'],
-  },
-
   order: {
     // child tables FIRST
     tables: ['order_items', 'orders'],
@@ -42,10 +38,6 @@ const domainConfig = {
 
   telegram: {
     tables: ['telegram_config', 'telegram_admin_links', 'telegram_admin_messages'],
-  },
-
-  'device-binding': {
-    tables: ['device_bindings'],
   },
 
   setting: {
@@ -63,16 +55,13 @@ const domainConfig = {
 
 /* ================================
    MIGRATION ROLLBACK ORDER (REVERSE)
-================================ */
+   ================================ */
 const migrationRollbackOrder = [
-  'order/20260212000002_add_tenant_id_to_orders',
-  'auth/20260212000001_add_tenant_id_to_users',
   'backup/20260211000006_create_backup_runs_table',
   'backup/20260211000005_create_backups_table',
   'shared/202601180000014_create_audit_logs_table',
   'setting/20260213000001_add_backup_schedule_time_to_settings_table',
   'setting/202601180000013_create_settings_table',
-  'device-binding/202601180000012_create_device_bindings_table',
   'telegram/202601180000011_create_telegram_admin_messages_table',
   'telegram/202601180000010_create_telegram_admin_links_table',
   'telegram/20260118000009_create_telegram_config_table',
@@ -82,7 +71,6 @@ const migrationRollbackOrder = [
   'stock/20260118000006_create_stocks_table',
   'order/20260118000005_create_order_items_table',
   'order/20260118000004_create_orders_table',
-  'shift/20260118000003_create_shifts_table',
   'product/20260118000002_create_products_table',
   'auth/20260118000001_create_users_table',
 ];
@@ -246,8 +234,7 @@ async function rollbackDomain(client, domain) {
     );
   }
 
-  // Find migrations for this domain and rollback in reverse order
-  // Handle both "device-binding" and "device-binding" domain names
+  // Find migrations for this domain and rollback in reverse order.
   const domainPath = domain.replace('-', '/');
   const domainMigrations = migrationRollbackOrder.filter(migrationPath => {
     const migrationDomain = migrationPath.split('/')[0];

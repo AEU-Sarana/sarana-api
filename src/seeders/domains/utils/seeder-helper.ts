@@ -67,10 +67,7 @@ export class SeederHelper {
    * Get all shift IDs
    */
   static async getShiftIds(): Promise<number[]> {
-    const shifts = await prisma.shift.findMany({
-      select: { shiftId: true },
-    });
-    return shifts.map((s: { shiftId: number }) => s.shiftId);
+    return [];
   }
 
   /**

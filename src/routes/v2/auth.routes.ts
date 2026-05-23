@@ -1,5 +1,5 @@
 import { Router, type IRouter } from 'express';
-import authRoutes from '@src/domains/Auth/routes/V2/auth.routes';
+import authRoutes from '@src/domains/Auth/routes/V1/auth.routes';
 
 const router: IRouter = Router();
 

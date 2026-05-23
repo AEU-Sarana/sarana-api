@@ -43,7 +43,6 @@ export interface UserResponse {
   phone?: string | null;
   status: UserStatus;
   device_id?: string | null;
-  is_device_bound: boolean;
   created_at: Date;
   updated_at: Date;
 }

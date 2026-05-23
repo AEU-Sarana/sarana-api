@@ -12,7 +12,6 @@ import { Role } from '@src/shared/config/permissions';
 type CurrentUserContext = {
   userId: number;
   role: string;
-  tenantId?: number;
 };
 
 const ADMIN_ROLES = new Set<string>([
@@ -28,49 +27,20 @@ export class OrderService {
   /**
    * List orders with role-based filtering
    * - Seller: Only own orders
-   * - Admin: Orders within the same tenant
+   * - Admin: All orders (global list, as multi-tenancy is removed)
    */
   static async listOrders(
     request: ListOrdersRequest,
     currentUser: CurrentUserContext
   ): Promise<ListOrdersResponse> {
-    const { page = 1, limit = 50, shift_id, seller_id, start_date, end_date } = request;
-    const { userId: currentUserId, role: currentUserRole, tenantId: currentUserTenantId } = currentUser;
+    const { page = 1, limit = 50, seller_id, start_date, end_date } = request;
+    const { userId: currentUserId, role: currentUserRole } = currentUser;
 
     const where: any = {};
 
     // Role-based filtering
     if (isAdminRole(currentUserRole)) {
-      if (currentUserTenantId == null) {
-        logger.warn('Order list access denied: missing tenant scope', {
-          userId: currentUserId,
-          role: currentUserRole,
-          userTenant: currentUserTenantId ?? null,
-          orderId: null,
-          orderTenant: null,
-        });
-        throw new ForbiddenException('You do not have permission to access these orders', 'ORDER_ACCESS_DENIED');
-      }
-
-      where.tenantId = currentUserTenantId;
-
       if (seller_id) {
-        const seller = await prisma.user.findUnique({
-          where: { userId: seller_id },
-          select: { tenantId: true },
-        });
-
-        if (!seller || seller.tenantId !== currentUserTenantId) {
-          logger.warn('Order list access denied: seller outside tenant', {
-            userId: currentUserId,
-            role: currentUserRole,
-            userTenant: currentUserTenantId,
-            orderId: null,
-            orderTenant: seller?.tenantId ?? null,
-          });
-          throw new ForbiddenException('You do not have permission to access these orders', 'ORDER_ACCESS_DENIED');
-        }
-
         where.sellerId = seller_id;
       }
     } else if (currentUserRole === Role.CASHIER) {
@@ -78,9 +48,7 @@ export class OrderService {
         logger.warn('Order list access denied: seller cannot view other sellers', {
           userId: currentUserId,
           role: currentUserRole,
-          userTenant: currentUserTenantId ?? null,
           orderId: null,
-          orderTenant: null,
         });
         throw new ForbiddenException('You do not have permission to access these orders', 'ORDER_ACCESS_DENIED');
       }
@@ -90,14 +58,11 @@ export class OrderService {
       logger.warn('Order list access denied: unsupported role', {
         userId: currentUserId,
         role: currentUserRole,
-        userTenant: currentUserTenantId ?? null,
         orderId: null,
-        orderTenant: null,
       });
       throw new ForbiddenException('You do not have permission to access these orders', 'ORDER_ACCESS_DENIED');
     }
 
-    if (shift_id) where.shiftId = shift_id;
     if (start_date || end_date) {
       where.orderDate = {};
       if (start_date) where.orderDate.gte = new Date(start_date);
@@ -119,11 +84,6 @@ export class OrderService {
             fullName: true,
           },
         },
-        shift: {
-          select: {
-            exchangeRate: true,
-          },
-        },
         receipt_links: {
           select: {
             receiptLinkId: true,
@@ -140,7 +100,7 @@ export class OrderService {
       userId: currentUserId,
       action: 'LIST_ORDERS',
       resource: 'Order',
-      details: { filters: { shift_id, seller_id, start_date, end_date } },
+      details: { filters: { seller_id, start_date, end_date } },
     });
 
     return {
@@ -151,7 +111,7 @@ export class OrderService {
           order_id: o.orderId,
           order_uuid: o.orderUuid,
           receipt_number: o.receiptNumber,
-          shift_id: o.shiftId,
+          shift_id: null,
           seller_id: o.sellerId,
           seller_name: o.user?.fullName || null,
           order_date: o.orderDate,
@@ -159,7 +119,7 @@ export class OrderService {
           discount_amount: Number(o.discountAmount),
           tax_amount: Number(o.taxAmount),
           service_fee: Number(o.serviceFee),
-          exchange_rate: Number(o.shift?.exchangeRate ?? 4000),
+          exchange_rate: 4000,
           payment_method: o.paymentMethod,
           has_receipt_link: !!latestReceiptLink,
           receipt_link_status: latestReceiptLink?.linkStatus || null,
@@ -178,13 +138,13 @@ export class OrderService {
   /**
    * Get order details by ID
    * - Seller: Own orders only
-   * - Admin: Orders within the same tenant
+   * - Admin: All orders
    */
   static async getOrder(
     orderId: number,
     currentUser: CurrentUserContext
   ): Promise<GetOrderResponse> {
-    const { userId: currentUserId, role: currentUserRole, tenantId: currentUserTenantId } = currentUser;
+    const { userId: currentUserId, role: currentUserRole } = currentUser;
     const order = await prisma.order.findUnique({
       where: { orderId },
       include: {
@@ -192,11 +152,6 @@ export class OrderService {
           select: {
             userId: true,
             fullName: true,
-          },
-        },
-        shift: {
-          select: {
-            exchangeRate: true,
           },
         },
         order_items: {
@@ -238,30 +193,17 @@ export class OrderService {
         logger.warn('Order access denied: seller cannot view other orders', {
           userId: currentUserId,
           role: currentUserRole,
-          userTenant: currentUserTenantId ?? null,
           orderId,
-          orderTenant: order.tenantId ?? null,
         });
         throw new ForbiddenException('You do not have permission to access this order', 'ORDER_ACCESS_DENIED');
       }
     } else if (isAdminRole(currentUserRole)) {
-      if (currentUserTenantId == null || order.tenantId !== currentUserTenantId) {
-        logger.warn('Order access denied: admin tenant mismatch', {
-          userId: currentUserId,
-          role: currentUserRole,
-          userTenant: currentUserTenantId ?? null,
-          orderId,
-          orderTenant: order.tenantId ?? null,
-        });
-        throw new ForbiddenException('You do not have permission to access this order', 'ORDER_ACCESS_DENIED');
-      }
+      // Admins have global access as multi-tenancy is removed
     } else {
       logger.warn('Order access denied: unsupported role', {
         userId: currentUserId,
         role: currentUserRole,
-        userTenant: currentUserTenantId ?? null,
         orderId,
-        orderTenant: order.tenantId ?? null,
       });
       throw new ForbiddenException('You do not have permission to access this order', 'ORDER_ACCESS_DENIED');
     }
@@ -283,7 +225,7 @@ export class OrderService {
       order_id: order.orderId,
       order_uuid: order.orderUuid,
       receipt_number: order.receiptNumber,
-      shift_id: order.shiftId,
+      shift_id: null,
       seller_id: order.sellerId,
       seller_name: order.user?.fullName || null,
       order_date: order.orderDate,
@@ -291,7 +233,7 @@ export class OrderService {
       discount_amount: Number(order.discountAmount),
       tax_amount: Number(order.taxAmount),
       service_fee: Number(order.serviceFee),
-      exchange_rate: Number(order.shift?.exchangeRate ?? 4000),
+      exchange_rate: 4000,
       payment_method: order.paymentMethod,
       received_amount: receivedAmount,
       has_receipt_link: !!latestReceiptLink,

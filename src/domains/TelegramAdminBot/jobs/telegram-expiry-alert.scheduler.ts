@@ -118,30 +118,21 @@ async function runTieredExpiryCheck() {
         lastCheckDate = currentDate;
         saveState(currentDate);
 
-        // Fetch all active telegram configs to get the list of tenants to alert
+        // Fetch all active telegram configs to check if bot integrations are active
         const configs = await prisma.telegramConfig.findMany({
-            where: { isActive: true },
-            include: { createdByUser: { select: { tenantId: true } } }
+            where: { isActive: true }
         });
 
-        const tenantIds = Array.from(
-            new Set(
-                configs
-                    .map(c => c.createdByUser?.tenantId)
-                    .filter(t => t !== null && t !== undefined)
-            )
-        ) as number[];
-
-        for (const tenantId of tenantIds) {
+        if (configs.length > 0) {
             try {
-                await TelegramAdminInventoryService.sendNearExpiryAlert(tenantId);
+                await TelegramAdminInventoryService.sendNearExpiryAlert();
             } catch (error: any) {
-                logger.error(`Failed to send expiry alerts for tenant ${tenantId}`, {
+                logger.error('Failed to send near expiry alerts', {
                     error: error.message
                 });
             }
         }
-        logger.info('Tiered and near stock expiry check completed', { date: currentDate, tenantCount: tenantIds.length });
+        logger.info('Tiered and near stock expiry check completed', { date: currentDate });
     } finally {
         isRunning = false;
     }

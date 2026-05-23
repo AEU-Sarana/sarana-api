@@ -12,7 +12,6 @@ async function checkSeededData() {
       prisma.order.count(),
       prisma.orderItem.count(),
       prisma.stockMovement.count(),
-      prisma.deviceBinding.count(),
       prisma.appSetting.count(),
       prisma.telegramConfig.count(),
       prisma.telegramAdminLinks.count(),
@@ -30,12 +29,11 @@ async function checkSeededData() {
     console.log(`Orders:              ${counts[5]}`);
     console.log(`Order Items:         ${counts[6]}`);
     console.log(`Stock Movements:     ${counts[7]}`);
-    console.log(`Device Bindings:     ${counts[8]}`);
-    console.log(`App Settings:       ${counts[9]}`);
-    console.log(`Telegram Configs:   ${counts[10]}`);
-    console.log(`Telegram Admin Links:   ${counts[11]}`);
-    console.log(`Telegram Admin Messages:   ${counts[12]}`);
-    console.log(`Audit Logs:          ${counts[13]}`);
+    console.log(`App Settings:       ${counts[8]}`);
+    console.log(`Telegram Configs:   ${counts[9]}`);
+    console.log(`Telegram Admin Links:   ${counts[10]}`);
+    console.log(`Telegram Admin Messages:   ${counts[11]}`);
+    console.log(`Audit Logs:          ${counts[12]}`);
     console.log('==========================\n');
 
     // Check if data exists

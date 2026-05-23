@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE "shifts" ADD COLUMN IF NOT EXISTS "exchange_rate" DECIMAL(10,2) NOT NULL DEFAULT 4000;

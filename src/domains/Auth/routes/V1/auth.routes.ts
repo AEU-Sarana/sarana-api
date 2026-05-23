@@ -1,8 +1,6 @@
 import { Router, type IRouter } from 'express';
 import { AuthController } from '@src/domains/Auth/controllers/V1/auth.controller';
 import { authenticateToken } from '@src/shared/middleware/auth.middleware';
-import { requirePermission } from '@src/shared/middleware/authorization.middleware';
-import { Permission } from '@src/shared/config/permissions';
 import { authRateLimiter } from '@src/shared/middleware/rate-limit.middleware';
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
 import { productImageUploadAny } from '@src/shared/utils/multer.config';
@@ -10,11 +8,10 @@ import {
   loginValidator,
   logoutValidator,
   refreshTokenValidator,
+  forgotPasswordValidator,
+  verifyOtpResetPasswordValidator,
   changePasswordValidator,
-  changePINValidator,
-  resetPasswordRequestValidator,
   resetPasswordValidator,
-  resetPINValidator,
   updateProfileValidator,
 } from '@src/domains/Auth/validators/V1/index';
 
@@ -32,25 +29,40 @@ router.post(
 router.post(
   '/forgot-password',
   authRateLimiter,
-  ...validateRequest(resetPasswordRequestValidator),
+  ...validateRequest(forgotPasswordValidator),
   AuthController.requestPasswordReset
+);
+
+// POST /api/v1/auth/verify-otp-reset-password
+router.post(
+  '/verify-otp-reset-password',
+  authRateLimiter,
+  ...validateRequest(verifyOtpResetPasswordValidator),
+  AuthController.verifyOtpResetPassword
 );
 
 // POST /api/v1/auth/logout
 router.post(
   '/logout',
   authenticateToken,
-  requirePermission(Permission.AUTH_LOGOUT),
   ...validateRequest(logoutValidator),
   AuthController.logout
 );
 
-// POST /api/v1/auth/refresh-token
+// POST /api/v1/auth/refresh
+router.post(
+  '/refresh',
+  ...validateRequest(refreshTokenValidator),
+  AuthController.refreshToken
+);
+
+// Backward-compatible alias for existing v1 clients.
 router.post(
   '/refresh-token',
   ...validateRequest(refreshTokenValidator),
   AuthController.refreshToken
 );
+
 
 // GET /api/v1/auth/me
 router.get(
@@ -76,30 +88,13 @@ router.post(
   AuthController.changePassword
 );
 
-// POST /api/v1/auth/change-pin
-router.post(
-  '/change-pin',
-  authenticateToken,
-  ...validateRequest(changePINValidator),
-  AuthController.changePIN
-);
 
 // POST /api/v1/auth/reset-password (Admin only)
 router.post(
   '/reset-password',
-  authenticateToken,
-  requirePermission(Permission.AUTH_RESET_PASSWORD),
+  authRateLimiter,
   ...validateRequest(resetPasswordValidator),
   AuthController.resetPassword
-);
-
-// POST /api/v1/auth/reset-pin (Admin only)
-router.post(
-  '/reset-pin',
-  authenticateToken,
-  requirePermission(Permission.AUTH_RESET_PASSWORD),
-  ...validateRequest(resetPINValidator),
-  AuthController.resetPIN
 );
 
 export default router;

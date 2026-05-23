@@ -7,13 +7,13 @@ export class OrderSeeder extends BaseSeeder {
   name = 'Orders';
 
   async seed(): Promise<void> {
-    const shifts = await prisma.shift.findMany({
-      where: { status: 'CLOSED' },
-      select: { shiftId: true, sellerId: true },
+    const sellers = await prisma.user.findMany({
+      where: { role: { in: ['ADMIN', 'CASHIER'] } },
+      select: { userId: true },
     });
 
-    if (shifts.length === 0) {
-      console.log('   ⚠️  No closed shifts found. Skipping order seeding.');
+    if (sellers.length === 0) {
+      console.log('   ⚠️  No sellers found. Skipping order seeding.');
       return;
     }
 
@@ -26,15 +26,8 @@ export class OrderSeeder extends BaseSeeder {
     const orders = [];
     let orderIndex = 0;
 
-    const sellerIds = Array.from(new Set(shifts.map((s) => s.sellerId)));
-    const sellers = await prisma.user.findMany({
-      where: { userId: { in: sellerIds } },
-      select: { userId: true, tenantId: true },
-    });
-    const sellerTenantMap = new Map(sellers.map((s) => [s.userId, s.tenantId]));
-
-    for (const shift of shifts) {
-      // Create 5-15 orders per shift
+    for (const seller of sellers) {
+      // Create 5-15 orders per seller
       const orderCount = SeederHelper.randomInt(5, 15);
 
       for (let i = 0; i < orderCount; i++) {
@@ -86,9 +79,7 @@ export class OrderSeeder extends BaseSeeder {
           data: {
             orderUuid: DataGenerator.generateOrderUUID(),
             receiptNumber: DataGenerator.generateReceiptNumber(orderIndex++),
-            shiftId: shift.shiftId,
-            sellerId: shift.sellerId,
-            tenantId: sellerTenantMap.get(shift.sellerId) ?? 1,
+            sellerId: seller.userId,
             orderDate,
             totalAmount: finalTotal,
             discountAmount,

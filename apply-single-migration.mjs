@@ -3,7 +3,7 @@
 /**
  * Script to apply a single migration file
  * Usage: node apply-single-migration.js <migration-file-path>
- * Example: node apply-single-migration.js src/database/prisma/migrations/domains/device-binding/20260118000010_add_pending_status/migration.sql
+ * Example: node apply-single-migration.js src/database/prisma/migrations/domains/auth/20260118000002_create_refresh_tokens_table/migration.sql
  */
 
 import 'dotenv/config';
@@ -20,7 +20,7 @@ const migrationFilePath = process.argv[2];
 if (!migrationFilePath) {
   console.error('❌ Error: Migration file path is required');
   console.log('Usage: node apply-single-migration.js <migration-file-path>');
-  console.log('Example: node apply-single-migration.js src/database/prisma/migrations/domains/device-binding/20260118000010_add_pending_status/migration.sql');
+  console.log('Example: node apply-single-migration.js src/database/prisma/migrations/domains/auth/20260118000002_create_refresh_tokens_table/migration.sql');
   process.exit(1);
 }
 
@@ -80,4 +80,3 @@ async function applyMigration() {
 }
 
 applyMigration();
-

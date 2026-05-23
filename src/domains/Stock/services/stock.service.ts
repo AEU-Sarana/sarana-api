@@ -25,8 +25,7 @@ export class StockService {
    */
   static async getStock(
     request: GetStockRequest,
-    currentUserId: number,
-    currentTenantId?: number
+    currentUserId: number
   ): Promise<GetStockResponse> {
     const { product_id, version } = request;
 
@@ -35,21 +34,15 @@ export class StockService {
       const stock = await prisma.stock.findFirst({
         where: {
           productId: product_id,
-          ...(currentTenantId
-            ? { product: { createdByUser: { tenantId: currentTenantId } } }
-            : {}),
         },
-        include: { product: true },
+        include: { product: { include: { category: true } } },
       });
 
-      // If stock doesn't exist, check if product exists within this tenant
+      // If stock doesn't exist, check if product exists
       if (!stock) {
         const product = await prisma.product.findFirst({
           where: {
             productId: product_id,
-            ...(currentTenantId
-              ? { createdByUser: { tenantId: currentTenantId } }
-              : {}),
           },
         });
 
@@ -64,7 +57,7 @@ export class StockService {
             quantity: 0,
             stockVersion: 1,
           },
-          include: { product: true },
+          include: { product: { include: { category: true } } },
         });
 
         await auditLogService.createAuditLog({
@@ -110,7 +103,7 @@ export class StockService {
           has_expiry: newStock.product.hasExpiry,
           image_path: ProductService.normalizeImageUrl(newStock.product.imagePath),
           barcode: newStock.product.barcode,
-          category: newStock.product.category,
+          category: newStock.product.category?.name || null,
           quantity: newStock.quantity,
           low_stock_threshold: newStock.product.lowStockThreshold,
           stock_version: newStock.stockVersion,
@@ -165,7 +158,7 @@ export class StockService {
         has_expiry: stock.product.hasExpiry,
         image_path: ProductService.normalizeImageUrl(stock.product.imagePath),
         barcode: stock.product.barcode,
-        category: stock.product.category,
+        category: stock.product.category?.name || null,
         quantity: stock.quantity,
         low_stock_threshold: stock.product.lowStockThreshold,
         stock_version: stock.stockVersion,
@@ -178,7 +171,7 @@ export class StockService {
     }
 
     // Get all stock levels (with pagination and filters)
-    const { page = 1, limit = 50, version: stockVersion, status, category, search, barcode, product_status } = request;
+    const { page = 1, limit = 50, version: stockVersion, status, category, category_id, search, barcode, product_status } = request;
 
     // Build where clause for stock — scoped to this tenant's products
     const stockWhere: any = {};
@@ -186,13 +179,7 @@ export class StockService {
       stockWhere.stockVersion = stockVersion;
     }
 
-    // Always scope to the tenant's products
-    if (currentTenantId) {
-      stockWhere.product = {
-        ...(stockWhere.product || {}),
-        createdByUser: { tenantId: currentTenantId },
-      };
-    }
+    // No tenant scoping needed as multi-tenancy is removed
 
     if (product_status) {
       stockWhere.product = {
@@ -205,7 +192,7 @@ export class StockService {
     const allStocks = await prisma.stock.findMany({
       where: stockWhere,
       include: {
-        product: true,
+        product: { include: { category: true } },
       },
     });
 
@@ -235,7 +222,11 @@ export class StockService {
         return false;
       }
 
-      if (category && s.product.category !== category) {
+      if (category_id && s.product.categoryId !== category_id) {
+        return false;
+      }
+
+      if (category && s.product.category?.name !== category) {
         return false;
       }
 
@@ -302,7 +293,7 @@ export class StockService {
       userId: currentUserId,
       action: 'LIST_STOCK',
       resource: 'Stock',
-      details: { filters: { version: stockVersion, status, category, search } },
+      details: { filters: { version: stockVersion, status, category, category_id, search } },
     });
 
     // Fetch earliest expiry dates for paginated stocks
@@ -331,7 +322,7 @@ export class StockService {
         product_name: s.product!.productName,
         image_path: ProductService.normalizeImageUrl(s.product!.imagePath),
         barcode: s.product!.barcode,
-        category: s.product!.category,
+        category: s.product!.category?.name || null,
         price: Number(s.product!.price),
         quantity: s.quantity,
         low_stock_threshold: s.product!.lowStockThreshold,
@@ -768,7 +759,6 @@ export class StockService {
     quantity: number,
     price: number,
     orderId: number,
-    shiftId: number,
     currentUserId: number,
     tx?: PrismaTransaction,
     options?: { allowExpired?: boolean; allowNegative?: boolean; reason?: string }
@@ -788,7 +778,6 @@ export class StockService {
           quantity,
           price,
           orderId,
-          shiftId,
           createdBy: currentUserId,
           allowExpired: options?.allowExpired,
           allowNegative: options?.allowNegative,

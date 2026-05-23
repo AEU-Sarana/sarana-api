@@ -33,7 +33,6 @@ export class TelegramAdminFormatService {
       supplier: string | null;
       reason: string | null;
       orderId: number | null;
-      shiftId: number | null;
       lotId: number | null;
       createdByLabel: string;
     }>;
@@ -63,7 +62,6 @@ export class TelegramAdminFormatService {
         `• Reason: ${reason}`,
         `• Supplier: ${supplier}`,
         `• Order ID: ${m.orderId ?? '-'}`,
-        `• Shift ID: ${m.shiftId ?? '-'}`,
         `• Lot ID: ${m.lotId ?? '-'}`,
         `• By: ${this.escapeMarkdown(m.createdByLabel)}`,
       ].join('\n');

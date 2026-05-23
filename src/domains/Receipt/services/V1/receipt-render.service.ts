@@ -17,7 +17,7 @@ export class ReceiptRenderService {
     }
 
     const settings = await prisma.receiptSetting.findFirst({
-      where: { tenantId: order.tenantId } as any,
+
       orderBy: { updatedAt: 'desc' },
     });
 

@@ -8,7 +8,7 @@ export class OrderController {
   static async syncOrders(req: Request, res: Response): Promise<void> {
     try {
       const user = req.user as UserPayload;
-      const response = await OrderSyncService.syncOrders(req.body, user.userId, user.tenantId);
+      const response = await OrderSyncService.syncOrders(req.body, user.userId);
 
       res.status(200).json({
         success: true,
@@ -27,7 +27,6 @@ export class OrderController {
       const request = {
         page: req.query.page ? parseInt(req.query.page as string, 10) : 1,
         limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 50,
-        shift_id: req.query.shift_id ? parseInt(req.query.shift_id as string, 10) : undefined,
         seller_id: req.query.seller_id ? parseInt(req.query.seller_id as string, 10) : undefined,
         start_date: req.query.start_date as string,
         end_date: req.query.end_date as string,

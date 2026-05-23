@@ -29,28 +29,18 @@ function getTodayRange(): { start: Date; end: Date } {
   const start = new Date(`${dateStr}T00:00:00+07:00`);
   const end = new Date(`${dateStr}T23:59:59.999+07:00`);
 
-  // Log the range to verify it works as expected (especially across day transitions)
-  // console.debug('Calculated Dashboard Today Range:', {
-  //   now: now.toISOString(),
-  //   dateStr,
-  //   start: start.toISOString(),
-  //   end: end.toISOString(),
-  // });
-
   return { start, end };
 }
 
 export class DashboardService {
   static async getOverview(
     currentUserId: number,
-    currentUserRole: Role,
-    tenantId?: number
+    currentUserRole: Role
   ): Promise<SellerDashboardOverview | AdminDashboardOverview> {
     const { start, end } = getTodayRange();
-    const effectiveTenantId = tenantId ?? 1;
 
     if (currentUserRole === Role.ADMIN) {
-      return this.getAdminOverview(currentUserId, effectiveTenantId, start, end);
+      return this.getAdminOverview(currentUserId, start, end);
     }
 
     return this.getSellerOverview(currentUserId, start, end);
@@ -58,36 +48,22 @@ export class DashboardService {
 
   private static async getSellerOverview(
     currentUserId: number,
-    _start: Date,
-    _end: Date
+    start: Date,
+    end: Date
   ): Promise<SellerDashboardOverview> {
-    // Find the most recent shift (active first, then latest closed)
-    const activeShift = await prisma.shift.findFirst({
-      where: { sellerId: currentUserId, status: 'ACTIVE' },
-      orderBy: { startTime: 'desc' },
+    // Query today's orders directly since shifts are removed
+    const ordersAgg = await prisma.order.aggregate({
+      where: {
+        sellerId: currentUserId,
+        createdAt: { gte: start, lte: end },
+      },
+      _count: { orderId: true },
+      _sum: { totalAmount: true },
     });
-
-    const latestShift = activeShift ?? await prisma.shift.findFirst({
-      where: { sellerId: currentUserId },
-      orderBy: { startTime: 'desc' },
-    });
-
-    // Query orders by shiftId (direct FK) — more accurate than date range
-    // since order_date is the offline sale time and may not align with shift timestamps
-    const ordersAgg = latestShift
-      ? await prisma.order.aggregate({
-        where: {
-          sellerId: currentUserId,
-          shiftId: latestShift.shiftId,
-        },
-        _count: { orderId: true },
-        _sum: { totalAmount: true },
-      })
-      : { _count: { orderId: 0 }, _sum: { totalAmount: null } };
 
     const totalSalesCount = ordersAgg._count.orderId ?? 0;
     const totalSalesAmount = Number(ordersAgg._sum.totalAmount ?? 0);
-    const openingCash = latestShift ? Number(latestShift.openingCash) : 0;
+    const openingCash = 0;
 
     const recentOrders = await prisma.order.findMany({
       where: { sellerId: currentUserId },
@@ -101,16 +77,6 @@ export class DashboardService {
       },
     });
 
-    const pendingOrders =
-      activeShift && activeShift.lastSyncTime
-        ? await prisma.order.count({
-          where: {
-            shiftId: activeShift.shiftId,
-            createdAt: { gt: activeShift.lastSyncTime },
-          },
-        })
-        : 0;
-
     await auditLogService.createAuditLog({
       userId: currentUserId,
       action: 'VIEW_DASHBOARD_OVERVIEW',
@@ -118,15 +84,7 @@ export class DashboardService {
     });
 
     return {
-      shift: latestShift
-        ? {
-          shift_id: latestShift.shiftId,
-          status: latestShift.status,
-          start_time: latestShift.startTime,
-          end_time: latestShift.endTime ?? null,
-          opening_cash: Number(latestShift.openingCash),
-        }
-        : null,
+      shift: null,
       today_summary: {
         total_sales_count: totalSalesCount,
         total_sales_amount: totalSalesAmount,
@@ -142,41 +100,29 @@ export class DashboardService {
         })
       ),
       sync_status: {
-        pending_orders: pendingOrders,
-        last_sync_time: activeShift?.lastSyncTime ?? null,
+        pending_orders: 0,
+        last_sync_time: null,
       },
     };
   }
 
   private static async getAdminOverview(
     currentUserId: number,
-    tenantId: number,
     start: Date,
     end: Date
   ): Promise<AdminDashboardOverview> {
-    const [ordersAgg, totalShifts, activeShifts] = await Promise.all([
-      prisma.order.aggregate({
-        where: {
-          tenantId: tenantId,
-          createdAt: { gte: start, lte: end },
-        },
-        _count: { orderId: true },
-        _sum: { totalAmount: true },
-      }),
-      prisma.shift.count({
-        where: {
-          user: { tenantId: tenantId },
-          startTime: { gte: start, lte: end },
-        },
-      }),
-      prisma.shift.count({ where: { user: { tenantId: tenantId }, status: 'ACTIVE' } }),
-    ]);
+    const ordersAgg = await prisma.order.aggregate({
+      where: {
+        createdAt: { gte: start, lte: end },
+      },
+      _count: { orderId: true },
+      _sum: { totalAmount: true },
+    });
 
     const totalSalesCount = ordersAgg._count.orderId ?? 0;
     const totalSalesAmount = Number(ordersAgg._sum.totalAmount ?? 0);
 
     const recentOrders = await prisma.order.findMany({
-      where: { tenantId: tenantId },
       orderBy: { createdAt: 'desc' },
       take: ACTIVITY_LIMIT,
       select: {
@@ -189,7 +135,6 @@ export class DashboardService {
     });
 
     const recentMovements = await prisma.stockMovement.findMany({
-      where: { user: { tenantId: tenantId } },
       orderBy: { createdAt: 'desc' },
       take: ACTIVITY_LIMIT,
       select: {
@@ -236,8 +181,6 @@ export class DashboardService {
             productId: true,
             productName: true,
             lowStockThreshold: true,
-            createdBy: true,
-            createdByUser: { select: { tenantId: true } },
           },
         },
       },
@@ -246,7 +189,6 @@ export class DashboardService {
     const lowStockWarnings = stocks
       .filter(
         (stock) =>
-          stock.product.createdByUser.tenantId === tenantId &&
           stock.product.lowStockThreshold != null &&
           stock.quantity <= (stock.product.lowStockThreshold ?? 0)
       )
@@ -259,30 +201,6 @@ export class DashboardService {
         low_stock_threshold: stock.product.lowStockThreshold ?? 0,
       }));
 
-    const activeShiftList = await prisma.shift.findMany({
-      where: { user: { tenantId: tenantId }, status: 'ACTIVE' },
-      select: { shiftId: true, lastSyncTime: true },
-    });
-
-    const pendingCounts = await Promise.all(
-      activeShiftList.map((shift) =>
-        shift.lastSyncTime
-          ? prisma.order.count({
-            where: {
-              shiftId: shift.shiftId,
-              createdAt: { gt: shift.lastSyncTime },
-            },
-          })
-          : Promise.resolve(0)
-      )
-    );
-
-    const pendingOrders = pendingCounts.reduce((sum, value) => sum + value, 0);
-    const lastSyncTime = activeShiftList
-      .map((shift) => shift.lastSyncTime)
-      .filter((value): value is Date => value != null)
-      .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
-
     await auditLogService.createAuditLog({
       userId: currentUserId,
       action: 'VIEW_DASHBOARD_OVERVIEW',
@@ -293,14 +211,14 @@ export class DashboardService {
       today_summary: {
         total_sales_count: totalSalesCount,
         total_sales_amount: totalSalesAmount,
-        total_shifts: totalShifts,
-        active_shifts: activeShifts,
+        total_shifts: 0,
+        active_shifts: 0,
       },
       low_stock_warnings: lowStockWarnings,
       recent_activity: recentActivity,
       sync_status: {
-        pending_orders: pendingOrders,
-        last_sync_time: lastSyncTime,
+        pending_orders: 0,
+        last_sync_time: null,
       },
     };
   }

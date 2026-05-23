@@ -25,7 +25,7 @@ export class ReceiptLinkService {
         paymentMethod: true,
         totalAmount: true,
         receiptNumber: true,
-        tenantId: true,
+
       },
     });
 
@@ -78,7 +78,7 @@ export class ReceiptLinkService {
     // Get bot username from Telegram config
     let botUsername = '';
     try {
-      const telegramConfig = await TelegramService.getTelegramConfig(order.tenantId);
+      const telegramConfig = await TelegramService.getTelegramConfig(1);
       if (telegramConfig) {
         const botInfo = await TelegramBotService.getMe(telegramConfig.bot_token);
         botUsername = botInfo.username;

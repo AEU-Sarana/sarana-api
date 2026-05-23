@@ -3,7 +3,6 @@ CREATE TABLE app_settings (
     auto_backup BOOLEAN NOT NULL DEFAULT TRUE,
     backup_frequency VARCHAR(20) NOT NULL DEFAULT 'daily' 
         CHECK(backup_frequency IN ('daily', 'weekly', 'monthly')),
-    device_binding_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     report_send_time TIME NOT NULL DEFAULT '23:30',
     report_send_timezone VARCHAR(50) NOT NULL DEFAULT 'Asia/Phnom_Penh',
     report_send_enabled BOOLEAN NOT NULL DEFAULT TRUE,

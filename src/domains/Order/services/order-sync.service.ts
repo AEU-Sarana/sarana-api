@@ -73,9 +73,7 @@ export class OrderSyncService {
               where: { orderId: existingOrder.orderId },
               data: {
                 receiptNumber: orderData.receipt_number,
-                shiftId: orderData.shift_id,
                 sellerId: orderData.seller_id || currentUserId,
-                ...(currentUserTenantId != null ? { tenantId: currentUserTenantId } : {}),
                 orderDate,
                 totalAmount: orderData.total_amount,
                 discountAmount: orderData.discount_amount || 0,
@@ -106,7 +104,6 @@ export class OrderSyncService {
                 item.quantity,
                 item.unit_price,
                 updated.orderId,
-                orderData.shift_id,
                 currentUserId,
                 tx,
                 { allowNegative: true, reason: 'ORDER_SYNC_UPDATE' }
@@ -172,9 +169,7 @@ export class OrderSyncService {
               data: {
                 orderUuid: orderData.order_uuid,
                 receiptNumber: orderData.receipt_number,
-                shiftId: orderData.shift_id,
                 sellerId: orderData.seller_id || currentUserId,
-                ...(currentUserTenantId != null ? { tenantId: currentUserTenantId } : {}),
                 orderDate,
                 totalAmount: orderData.total_amount,
                 discountAmount: orderData.discount_amount || 0,
@@ -209,7 +204,6 @@ export class OrderSyncService {
                 item.quantity,
                 item.unit_price,
                 newOrder.orderId,
-                orderData.shift_id,
                 currentUserId,
                 tx,
                 { allowNegative: true, reason: 'ORDER_SYNC' }

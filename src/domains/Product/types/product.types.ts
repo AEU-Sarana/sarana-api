@@ -5,6 +5,7 @@ export interface ListProductsRequest {
     limit?: number;
     status?: ProductStatus | string;
     category?: string;
+    category_id?: number;
     search?: string;
     barcode?: string;
 }
@@ -16,6 +17,7 @@ export interface ProductResponse {
     barcode: string;
     price: number;
     category: string | null;
+    category_id?: number | null;
     description: string | null;
     image_path: string | null;
     low_stock_threshold: number | null;
@@ -45,6 +47,7 @@ export interface CreateProductRequest {
     barcode: string;
     price: number;
     category?: string | null;
+    category_id?: number | null;
     description?: string | null;
     image_path?: string | null;
     low_stock_threshold?: number | null;
@@ -62,6 +65,7 @@ export interface UpdateProductRequest {
     barcode?: string;
     price?: number;
     category?: string;
+    category_id?: number;
     description?: string;
     image_path?: string;
     low_stock_threshold?: number;
@@ -86,3 +90,4 @@ export interface CategoryCount {
 export interface GetCategoriesResponse {
     categories: CategoryCount[];
 }
+

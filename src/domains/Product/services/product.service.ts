@@ -114,22 +114,24 @@ export class ProductService {
   */
   static async listProducts(
     request: ListProductsRequest,
-    currentUserId: number,
-    currentTenantId?: number
+    currentUserId: number
   ): Promise<ListProductsResponse> {
-    const { page = 1, limit = 50, status, category, search, barcode } = request;
+    const { page = 1, limit = 50, status, category, category_id, search, barcode } = request;
 
     const where: any = {
       deactivatedDate: null,
     };
 
     // Scope products to the current admin's tenant
-    if (currentTenantId) {
-      where.tenantId = currentTenantId;
-    }
 
     if (status) where.status = status;
-    if (category) where.category = category;
+    
+    if (category_id) {
+      where.categoryId = category_id;
+    } else if (category) {
+      where.category = { name: { equals: category, mode: 'insensitive' } };
+    }
+    
     if (barcode) where.barcode = barcode;
 
     if (search) {
@@ -152,6 +154,7 @@ export class ProductService {
         { createdAt: 'desc' }
       ],
       include: {
+        category: true,
         stock: true,
         stock_lots: {
           where: { qtyOnHand: { gt: 0 }, expiredAt: { not: null } },
@@ -165,7 +168,7 @@ export class ProductService {
       userId: currentUserId,
       action: 'LIST_PRODUCTS',
       resource: 'Product',
-      details: { filters: { status, category, search, barcode } },
+      details: { filters: { status, category, category_id, search, barcode } },
     });
 
     return {
@@ -175,7 +178,8 @@ export class ProductService {
         product_name: p.productName,
         barcode: p.barcode,
         price: Number(p.price),
-        category: p.category,
+        category: p.category?.name || null,
+        category_id: p.categoryId,
         description: p.description,
         image_path: this.normalizeImageUrl(p.imagePath),
         low_stock_threshold: p.lowStockThreshold,
@@ -200,15 +204,14 @@ export class ProductService {
    */
   static async getProduct(
     productId: number,
-    currentUserId: number,
-    currentTenantId?: number
+    currentUserId: number
   ): Promise<GetProductResponse> {
     const product = await prisma.product.findFirst({
       where: {
         productId,
-        ...(currentTenantId ? { tenantId: currentTenantId } : {}),
       },
       include: {
+        category: true,
         stock: true,
         stock_lots: {
           where: { qtyOnHand: { gt: 0 }, expiredAt: { not: null } },
@@ -235,7 +238,8 @@ export class ProductService {
       product_name: product.productName,
       barcode: product.barcode,
       price: Number(product.price),
-      category: product.category,
+      category: product.category?.name || null,
+      category_id: product.categoryId,
       description: product.description,
       image_path: this.normalizeImageUrl(product.imagePath),
       low_stock_threshold: product.lowStockThreshold,
@@ -253,16 +257,15 @@ export class ProductService {
   */
   static async getProductByCode(
     productCode: string,
-    currentUserId: number,
-    currentTenantId?: number
+    currentUserId: number
   ): Promise<GetProductResponse> {
     const product = await prisma.product.findFirst({
       where: {
         productCode,
         deactivatedDate: null,
-        ...(currentTenantId ? { tenantId: currentTenantId } : {}),
       },
       include: {
+        category: true,
         stock: true,
         stock_lots: {
           where: { qtyOnHand: { gt: 0 }, expiredAt: { not: null } },
@@ -289,7 +292,8 @@ export class ProductService {
       product_name: product.productName,
       barcode: product.barcode,
       price: Number(product.price),
-      category: product.category,
+      category: product.category?.name || null,
+      category_id: product.categoryId,
       description: product.description,
       image_path: this.normalizeImageUrl(product.imagePath),
       low_stock_threshold: product.lowStockThreshold,
@@ -312,14 +316,14 @@ export class ProductService {
   static async createProduct(
     request: CreateProductRequest,
     currentUserId: number,
-    imageFile?: Express.Multer.File,
-    currentTenantId?: number
+    imageFile?: Express.Multer.File
   ): Promise<CreateProductResponse> {
     const {
       product_name,
       barcode,
       price,
       category,
+      category_id,
       description,
       image_path,
       low_stock_threshold,
@@ -327,8 +331,6 @@ export class ProductService {
       stock_qty,
       expired_at,
     } = request;
-
-    const resolvedTenantId = currentTenantId ?? 1;
 
     // Convert string values to numbers if needed
     const priceNumber = typeof price === 'string' ? parseFloat(price) : price;
@@ -346,6 +348,26 @@ export class ProductService {
 
     if (expiredAtDate && Number.isNaN(expiredAtDate.getTime())) {
       throw new ValidationException('Expiry date must be a valid date');
+    }
+
+    // Resolve and validate category
+    let finalCategoryId: number | null = null;
+    if (category_id !== undefined && category_id !== null) {
+      const catId = typeof category_id === 'string' ? parseInt(category_id, 10) : category_id;
+      const catExists = await prisma.category.findFirst({
+        where: { categoryId: catId, isActive: true },
+      });
+      if (!catExists) {
+        throw new ValidationException('Category not found or inactive');
+      }
+      finalCategoryId = catId;
+    } else if (category) {
+      const catExists = await prisma.category.findFirst({
+        where: { name: { equals: category, mode: 'insensitive' }, isActive: true },
+      });
+      if (catExists) {
+        finalCategoryId = catExists.categoryId;
+      }
     }
 
     // Always generate product_code on the backend (ignore any client-provided value).
@@ -376,7 +398,7 @@ export class ProductService {
     const similarProducts = await prisma.product.findMany({
       where: {
         productCode: { startsWith: `${slug}-` },
-        tenantId: resolvedTenantId,
+        
       },
       select: { productCode: true },
     });
@@ -402,7 +424,7 @@ export class ProductService {
       const suffix = String(counter).padStart(3, '0');
       const candidate = `${slug}-${suffix}`;
       const existing = await prisma.product.findFirst({
-        where: { productCode: candidate, tenantId: resolvedTenantId, deactivatedDate: null },
+        where: { productCode: candidate,  deactivatedDate: null },
       });
       if (!existing) {
         finalProductCode = candidate;
@@ -421,7 +443,7 @@ export class ProductService {
     logger.debug('Final product code determined for create', { finalProductCode, userId: currentUserId });
 
     const existingBarcode = await prisma.product.findFirst({
-      where: { barcode: barcode, tenantId: resolvedTenantId, deactivatedDate: null },
+      where: { barcode: barcode,  deactivatedDate: null },
     });
     if (existingBarcode) throw new BusinessLogicException('Barcode already exists');
 
@@ -466,13 +488,13 @@ export class ProductService {
 
           barcode: barcode,
           price: priceNumber,
-          category,
+          categoryId: finalCategoryId,
           description,
           imagePath: finalImagePath,
           lowStockThreshold: lowStockThresholdNumber,
           hasExpiry: hasExpiryBoolean,
           status: 'active',
-          tenantId: resolvedTenantId,
+          
           createdBy: currentUserId,
           updatedBy: currentUserId,
         },
@@ -531,6 +553,7 @@ export class ProductService {
       return await tx.product.findUnique({
         where: { productId: newProduct.productId },
         include: {
+          category: true,
           stock: true,
         },
       });
@@ -572,7 +595,8 @@ export class ProductService {
       product_name: product.productName,
       barcode: product.barcode,
       price: Number(product.price),
-      category: product.category,
+      category: product.category?.name || null,
+      category_id: product.categoryId,
       description: product.description,
       image_path: this.normalizeImageUrl(product.imagePath),
       low_stock_threshold: product.lowStockThreshold,
@@ -597,13 +621,11 @@ export class ProductService {
     productId: number,
     request: UpdateProductRequest,
     currentUserId: number,
-    imageFile?: Express.Multer.File,
-    currentTenantId?: number
+    imageFile?: Express.Multer.File
   ): Promise<UpdateProductResponse> {
     const existing = await prisma.product.findFirst({
       where: {
         productId,
-        ...(currentTenantId ? { tenantId: currentTenantId } : {}),
       },
     });
     if (!existing || existing.deactivatedDate) throw new ValidationException('Product not found');
@@ -622,12 +644,35 @@ export class ProductService {
       const barcodeUsed = await prisma.product.findFirst({
         where: {
           barcode: request.barcode,
-          ...(currentTenantId ? { tenantId: currentTenantId } : {}),
           productId: { not: productId },
           deactivatedDate: null,
         },
       });
       if (barcodeUsed) throw new BusinessLogicException('Barcode already exists');
+    }
+
+    // Resolve and validate category
+    let finalCategoryId: number | undefined | null = undefined;
+    if (request.category_id !== undefined) {
+      if (request.category_id === null) {
+        finalCategoryId = null;
+      } else {
+        const catId = typeof request.category_id === 'string' ? parseInt(request.category_id, 10) : request.category_id;
+        const catExists = await prisma.category.findFirst({
+          where: { categoryId: catId, isActive: true },
+        });
+        if (!catExists) {
+          throw new ValidationException('Category not found or inactive');
+        }
+        finalCategoryId = catId;
+      }
+    } else if (request.category) {
+      const catExists = await prisma.category.findFirst({
+        where: { name: { equals: request.category, mode: 'insensitive' }, isActive: true },
+      });
+      if (catExists) {
+        finalCategoryId = catExists.categoryId;
+      }
     }
 
     // Handle image upload/replacement
@@ -702,7 +747,7 @@ export class ProductService {
           productName: request.product_name ?? undefined,
           barcode: request.barcode ?? undefined,
           price: priceNumber,
-          category: request.category ?? undefined,
+          categoryId: finalCategoryId !== undefined ? finalCategoryId : undefined,
           description: request.description ?? undefined,
           imagePath: finalImagePath ?? undefined,
           lowStockThreshold: lowStockThresholdNumber,
@@ -725,6 +770,7 @@ export class ProductService {
       return await tx.product.findUnique({
         where: { productId },
         include: {
+          category: true,
           stock: true,
           stock_lots: {
             where: { qtyOnHand: { gt: 0 }, expiredAt: { not: null } },
@@ -753,7 +799,8 @@ export class ProductService {
       product_name: updated.productName,
       barcode: updated.barcode,
       price: Number(updated.price),
-      category: updated.category,
+      category: updated.category?.name || null,
+      category_id: updated.categoryId,
       description: updated.description,
       image_path: this.normalizeImageUrl(updated.imagePath),
       low_stock_threshold: updated.lowStockThreshold,
@@ -770,11 +817,10 @@ export class ProductService {
    * Soft delete product (Admin only)
    * Also deletes associated image from storage
   */
-  static async deleteProduct(productId: number, currentUserId: number, currentTenantId?: number): Promise<void> {
+  static async deleteProduct(productId: number, currentUserId: number): Promise<void> {
     const existing = await prisma.product.findFirst({
       where: {
         productId,
-        ...(currentTenantId ? { tenantId: currentTenantId } : {}),
       },
     });
     if (!existing || existing.deactivatedDate) throw new ValidationException('Product not found');
@@ -832,13 +878,11 @@ export class ProductService {
    */
   static async toggleProductStatus(
     productId: number,
-    currentUserId: number,
-    currentTenantId?: number
+    currentUserId: number
   ): Promise<ToggleProductStatusResponse> {
     const existing = await prisma.product.findFirst({
       where: {
         productId,
-        ...(currentTenantId ? { tenantId: currentTenantId } : {}),
       },
       include: { stock: true },
     });
@@ -889,41 +933,29 @@ export class ProductService {
    * Get product categories with counts
    */
   static async getCategories(
-    currentUserId: number,
-    currentTenantId?: number
+    currentUserId: number
   ): Promise<GetCategoriesResponse> {
-    // Get all products grouped by category — scoped to this admin's tenant
-    const products = await prisma.product.findMany({
-      where: {
-        deactivatedDate: null,
-        category: { not: null },
-        ...(currentTenantId ? { tenantId: currentTenantId } : {}),
+    const activeCategories = await prisma.category.findMany({
+      where: { isActive: true },
+      include: {
+        _count: {
+          select: {
+            products: {
+              where: {
+                status: 'active',
+                deactivatedDate: null,
+              },
+            },
+          },
+        },
       },
-      select: {
-        category: true,
-      },
+      orderBy: { name: 'asc' },
     });
 
-    // Count products by category
-    const categoryMap = new Map<string, number>();
-
-    products.forEach((product) => {
-      if (product.category) {
-        const count = categoryMap.get(product.category) || 0;
-        categoryMap.set(product.category, count + 1);
-      }
-    });
-
-    // Convert to array format
-    const categories: Array<{ category: string; count: number }> = Array.from(
-      categoryMap.entries()
-    ).map(([category, count]) => ({
-      category,
-      count,
+    const categories = activeCategories.map((c) => ({
+      category: c.name,
+      count: c._count.products,
     }));
-
-    // Sort by category name
-    categories.sort((a, b) => a.category.localeCompare(b.category));
 
     await auditLogService.createAuditLog({
       userId: currentUserId,

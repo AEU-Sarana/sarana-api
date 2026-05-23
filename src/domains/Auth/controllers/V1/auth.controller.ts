@@ -1,16 +1,15 @@
 import { Request, Response } from 'express';
-import { AuthService } from '@src/domains/Auth/services/auth.service';
+import { AuthService as LegacyAuthService } from '@src/domains/Auth/services/auth.service';
+import { AuthService as AuthSessionService } from '@src/domains/Auth/services/V1/auth.service';
 import {
-  LoginRequest,
-  RefreshTokenRequest,
   ChangePasswordRequest,
-  ChangePINRequest,
   ResetPasswordRequest,
-  ResetPINRequest,
   UpdateProfileRequest,
 } from '@src/domains/Auth/types/auth.types';
 import { UserPayload } from '@src/shared/middleware/auth.middleware';
 import { logger } from '@src/shared/utils/logger';
+
+const sessionService = new AuthSessionService();
 
 export class AuthController {
   /**
@@ -18,8 +17,11 @@ export class AuthController {
    */
   static async login(req: Request, res: Response): Promise<void> {
     try {
-      const request: LoginRequest = req.body;
-      const response = await AuthService.login(request);
+      const response = await sessionService.login({
+        ...req.body,
+        ip: req.ip,
+        user_agent: req.headers['user-agent'] as string | undefined,
+      });
 
       res.status(200).json({
         success: true,
@@ -37,16 +39,11 @@ export class AuthController {
    */
   static async logout(req: Request, res: Response): Promise<void> {
     try {
-      const authHeader = req.headers.authorization;
-      const token = authHeader?.split(' ')[1];
-
-      if (token) {
-        await AuthService.logout(token);
-      }
+      const response = await sessionService.logout(req.body);
 
       res.status(200).json({
         success: true,
-        data: {},
+        data: response,
         message: 'Logout successful',
       });
     } catch (error: any) {
@@ -56,17 +53,21 @@ export class AuthController {
   }
 
   /**
-   * POST /api/v1/auth/refresh-token
+   * POST /api/v1/auth/refresh
    */
   static async refreshToken(req: Request, res: Response): Promise<void> {
     try {
-      const request: RefreshTokenRequest = req.body;
-      const response = await AuthService.refreshToken(request);
+      const response = await sessionService.refresh({
+        ...req.body,
+        refresh_token: req.body.refresh_token || req.body.refreshToken,
+        ip: req.ip,
+        user_agent: req.headers['user-agent'] as string | undefined,
+      });
 
       res.status(200).json({
         success: true,
         data: response,
-        message: 'Token refreshed',
+        message: 'Token refreshed successfully',
       });
     } catch (error: any) {
       logger.error('Refresh token error', { error: error.message });
@@ -98,12 +99,12 @@ export class AuthController {
         return;
       }
 
-      const userData = await AuthService.getCurrentUser(user.userId);
+      const userData = await sessionService.me(user.userId);
 
       res.status(200).json({
         success: true,
         data: userData,
-        message: 'User retrieved',
+        message: 'Current user retrieved',
       });
     } catch (error: any) {
       logger.error('Get current user error', { error: error.message });
@@ -122,7 +123,7 @@ export class AuthController {
       const request: UpdateProfileRequest = req.body ?? {};
       const imageFile = req.file;
 
-      await AuthService.updateProfile(user.userId, request, imageFile);
+      await LegacyAuthService.updateProfile(user.userId, request, imageFile);
 
       res.status(200).json({
         success: true,
@@ -143,7 +144,7 @@ export class AuthController {
       const user = req.user as UserPayload;
       const request: ChangePasswordRequest = req.body;
 
-      await AuthService.changePassword(user.userId, request);
+      await LegacyAuthService.changePassword(user.userId, request);
 
       res.status(200).json({
         success: true,
@@ -166,7 +167,7 @@ export class AuthController {
       const identifier = username || email;
 
       // Don't reveal if user exists (security)
-      await AuthService.requestPasswordReset(identifier);
+      await sessionService.requestPasswordReset(identifier);
 
       res.status(200).json({
         success: true,
@@ -183,10 +184,11 @@ export class AuthController {
    */
   static async resetPassword(req: Request, res: Response): Promise<void> {
     try {
-      const request: ResetPasswordRequest = req.body;
+      const request = req.body as ResetPasswordRequest & { username?: string; email?: string };
       const adminUser = req.user as UserPayload;
+      const identifier = request.username || request.email || request.user_id;
 
-      await AuthService.resetPassword(request.user_id, request.new_password, adminUser.userId);
+      await sessionService.resetPassword(identifier, request.new_password, adminUser?.userId || 0);
 
       res.status(200).json({
         success: true,
@@ -199,50 +201,28 @@ export class AuthController {
     }
   }
 
-  /**
-   * POST /api/v1/auth/reset-pin (Admin only)
-   */
-  static async resetPIN(req: Request, res: Response): Promise<void> {
-    try {
-      const request: ResetPINRequest = req.body;
-      const adminUser = req.user as UserPayload;
 
-      await AuthService.resetPIN(request.user_id, request.new_pin, adminUser.userId);
+  /**
+   * POST /api/v1/auth/verify-otp-reset-password
+   */
+  static async verifyOtpResetPassword(req: Request, res: Response): Promise<void> {
+    try {
+      const { email, username, otp_code } = req.body;
+      const identifier = username || email;
+
+      await sessionService.verifyOtp({
+        identifier,
+        otpCode: otp_code,
+      });
 
       res.status(200).json({
         success: true,
-        data: {
-          user_id: request.user_id,
-          pin_reset: true,
-        },
-        message: 'PIN reset successful',
+        message: 'OTP verified successfully. You can now reset your password.',
       });
     } catch (error: any) {
-      logger.error('Reset PIN error', { error: error.message });
+      logger.error('Verify OTP reset password error', { error: error.message });
       throw error;
     }
   }
 
-  /**
-   * POST /api/v1/auth/change-pin
-   */
-  static async changePIN(req: Request, res: Response): Promise<void> {
-    try {
-      const user = req.user as UserPayload;
-      const request: ChangePINRequest = req.body;
-
-      await AuthService.changePIN(user.userId, request.current_pin, request.new_pin);
-
-      res.status(200).json({
-        success: true,
-        data: {
-          pin_changed: true,
-        },
-        message: 'PIN changed successfully',
-      });
-    } catch (error: any) {
-      logger.error('Change PIN error', { error: error.message });
-      throw error;
-    }
-  }
 }

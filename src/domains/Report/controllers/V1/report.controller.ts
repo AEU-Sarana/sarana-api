@@ -63,7 +63,7 @@ export class ReportController {
         seller_id: sellerId,
       };
 
-      const response = await ReportService.getDailyReport(request, user.userId, user.role, user.tenantId);
+      const response = await ReportService.getDailyReport(request, user.userId, user.role);
       const processingTime = Date.now() - startTime;
 
       const meta: DailyReportMeta = {
@@ -151,7 +151,7 @@ export class ReportController {
         path: req.path,
       });
 
-      const response = await ReportService.getSalesHistoryReport(request, user.userId, user.role, user.tenantId);
+      const response = await ReportService.getSalesHistoryReport(request, user.userId, user.role);
 
       res.status(200).json({
         success: true,
@@ -203,7 +203,7 @@ export class ReportController {
         path: req.path,
       });
 
-      const response = await ReportService.getStockReport(request, user.userId, user.tenantId);
+      const response = await ReportService.getStockReport(request, user.userId);
 
       res.status(200).json({
         success: true,
@@ -234,7 +234,7 @@ export class ReportController {
         path: req.path,
       });
 
-      const response = await ReportService.getIncomeReport(period as any, user.tenantId);
+      const response = await ReportService.getIncomeReport(period as any);
 
       res.status(200).json({
         success: true,
@@ -319,7 +319,7 @@ export class ReportController {
       const result = await ReportController.processExportReport({
         userId: user.userId,
         userRole: user.role,
-        tenantId: user.tenantId ?? 1,
+        tenantId: 1,
         reportType: report_type,
         filters,
         format: format || 'XLSX',

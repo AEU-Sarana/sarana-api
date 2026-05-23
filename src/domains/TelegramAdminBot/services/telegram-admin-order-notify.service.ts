@@ -26,19 +26,19 @@ export class TelegramAdminOrderNotifyService {
     const sellerId = order.seller_id ?? fallbackSellerId;
     const seller = await prisma.user.findUnique({
       where: { userId: sellerId },
-      select: { fullName: true, tenantId: true },
+      select: { fullName: true },
     });
 
-    const tenantId = seller?.tenantId ?? 1;
+    const tenantId = 1;
 
-    const chatIds = await this.resolveTargetChatIds(tenantId);
+    const chatIds = await this.resolveTargetChatIds();
     if (!chatIds.length) return;
 
     const message = buildOrderSyncMessage({
       order_uuid: order.order_uuid,
       receipt_number: order.receipt_number,
       order_date: orderDate,
-      shift_id: order.shift_id,
+      shift_id: 0,
       seller_id: sellerId,
       seller_name: seller?.fullName ?? null,
       payment_method: order.payment_method,
@@ -65,13 +65,10 @@ export class TelegramAdminOrderNotifyService {
     }
   }
 
-  private static async resolveTargetChatIds(tenantId: number): Promise<Array<number | string>> {
+  private static async resolveTargetChatIds(): Promise<Array<number | string>> {
     const chatLinks = await prisma.telegramAdminLink.findMany({
       where: {
         status: 'ACTIVE',
-        user: {
-          tenantId: tenantId
-        }
       },
       select: { chatId: true },
     });
@@ -85,7 +82,7 @@ export class TelegramAdminOrderNotifyService {
     // Fallback: if no admin links exist yet, send to configured Telegram group chat (if any).
     if (ids.size === 0) {
       try {
-        const config = await TelegramService.getTelegramConfig(tenantId);
+        const config = await TelegramService.getTelegramConfig();
         if (config?.group_chat_id) {
           ids.add(String(config.group_chat_id));
         }

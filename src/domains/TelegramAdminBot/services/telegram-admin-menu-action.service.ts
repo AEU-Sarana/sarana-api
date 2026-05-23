@@ -1,7 +1,6 @@
 import { TelegramService } from '@src/domains/Telegram/services/telegram.service';
 import { TelegramAdminReportService } from './telegram-admin-report.service';
 import { TelegramAdminInventoryService } from './telegram-admin-inventory.service';
-import { TelegramAdminUiService } from './telegram-admin-ui.service';
 import { TelegramAdminFormatService } from './telegram-admin-format.service';
 
 export class TelegramAdminMenuActionService {
@@ -104,10 +103,6 @@ export class TelegramAdminMenuActionService {
         return TelegramAdminInventoryService.sendReorderAlerts(tenantId, chatId);
       case 'inventory_near_expiry':
         return TelegramAdminInventoryService.sendNearExpiryList(tenantId, chatId);
-      case 'shift_summary':
-        return TelegramAdminInventoryService.sendShiftSummary(tenantId, chatId, adminUserId);
-      case 'resend_last_report':
-        return TelegramAdminUiService.sendConfirm(tenantId, chatId, 'RESEND_LAST_REPORT');
       case 'export_excel':
         return TelegramService.sendMessageByChatId(tenantId, chatId, '⏳ Processing...', 'Markdown');
       default:

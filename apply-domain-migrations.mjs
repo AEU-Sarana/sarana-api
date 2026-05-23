@@ -19,6 +19,9 @@ const domainConfig = {
   product: {
     tables: ['products'],
   },
+  category: {
+    tables: ['categories'],
+  },
   shift: {
     tables: ['shifts'],
   },
@@ -30,9 +33,6 @@ const domainConfig = {
   },
   telegram: {
     tables: ['telegram_config', 'telegram_admin_links', 'telegram_admin_messages'],
-  },
-  'device-binding': {
-    tables: ['device_bindings'],
   },
   setting: {
     tables: ['app_settings', 'receipt_settings'],
@@ -56,14 +56,11 @@ const domainConfig = {
 ================================ */
 const migrationOrder = [
   'auth/20260118000001_create_users_table',
-  'auth/20260212000001_add_tenant_id_to_users',
-  'device-binding/202601180000015_create_device_bindings_table',
   'auth/20260118000002_create_refresh_tokens_table',
   'auth/20260217000001_create_password_reset_otps_table',
   'product/20260118000003_create_products_table',
-  'shift/20260118000004_create_shifts_table',
+  'category/20260524000001_create_categories_table',
   'order/20260118000005_create_orders_table',
-  'order/20260212000002_add_tenant_id_to_orders',
   'order/20260118000006_create_order_items_table',
   'order/20260316000001_create_order_payments_table',
   'order/20260316000002_update_orders_payment_method_check',
@@ -77,7 +74,6 @@ const migrationOrder = [
   'telegram/202601180000014_create_telegram_admin_messages_table',
   'setting/202601180000016_create_settings_table',
   'setting/20260213000001_add_backup_schedule_time_to_settings_table',
-  'setting/20260318000001_add_tenant_id_to_app_settings',
   'shared/202601180000017_create_audit_logs_table',
   'customer/20260210000001_create_customers_table',
   'customer/20260210000002_create_customer_telegram_links_table',
@@ -85,7 +81,6 @@ const migrationOrder = [
   'customer/20260210000004_create_customer_linking_tokens_table',
   'backup/20260211000005_create_backups_table',
   'backup/20260211000006_create_backup_runs_table',
-  'shift/20260220000001_add_exchange_rate_to_shifts',
   'super-admin/20260224000001_create_packages_table',
   'super-admin/20260224000002_create_plans_table',
   'super-admin/20260224000003_create_subscriptions_table',

@@ -21,10 +21,6 @@ export class TelegramAdminCallbackInventoryService {
       return TelegramAdminInventoryService.buildLowStockMessage(ctx.adminUserId, ctx.tenantId);
     }
 
-    if (callbackData === 'SHIFT_SUMMARY' || callbackData === 'action:shift_summary') {
-      return TelegramAdminInventoryService.buildShiftSummaryMessage(ctx.adminUserId, ctx.tenantId);
-    }
-
     if (callbackData === 'inv_on_hand' || callbackData === 'action:inventory_on_hand') {
       return TelegramAdminInventoryService.buildInventoryOnHandMessage(ctx.tenantId);
     }

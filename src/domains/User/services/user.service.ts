@@ -36,12 +36,7 @@ export class UserService {
       where.role = role;
     }
 
-    // Tenant isolation - users can only see other users in their own tenant
-    if (currentUserTenantId == null) {
-      // no tenant scope, deny
-      throw new Error('Tenant context required');
-    }
-    where.tenantId = currentUserTenantId;
+    // Single tenant environment - no tenant scope checks needed
 
     if (status) {
       where.status = status;
@@ -75,7 +70,6 @@ export class UserService {
         phone: true,
         status: true,
         deviceId: true,
-        isDeviceBound: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -99,7 +93,6 @@ export class UserService {
         phone: user.phone,
         status: user.status as UserStatus,
         device_id: user.deviceId,
-        is_device_bound: user.isDeviceBound,
         created_at: user.createdAt,
         updated_at: user.updatedAt,
       })),
@@ -143,7 +136,6 @@ export class UserService {
         phone: true,
         status: true,
         deviceId: true,
-        isDeviceBound: true,
         createdBy: true,
         createdAt: true,
         updatedBy: true,
@@ -173,7 +165,6 @@ export class UserService {
       phone: user.phone,
       status: user.status as UserStatus,
       device_id: user.deviceId,
-      is_device_bound: user.isDeviceBound,
       created_by: user.createdBy,
       created_at: user.createdAt,
       updated_by: user.updatedBy,
@@ -227,7 +218,6 @@ export class UserService {
         phone,
         role: role as string,
         status: UserStatus.ACTIVE,
-        tenantId: currentUserTenantId ?? undefined,
         createdBy: currentUserId,
         updatedBy: currentUserId,
       },
@@ -239,7 +229,6 @@ export class UserService {
         role: true,
         phone: true,
         status: true,
-        isDeviceBound: true,
         createdBy: true,
         createdAt: true,
         updatedAt: true,
@@ -273,7 +262,6 @@ export class UserService {
       role: user.role as UserRole,
       phone: user.phone,
       status: user.status as UserStatus,
-      is_device_bound: user.isDeviceBound,
       created_by: user.createdBy,
       created_at: user.createdAt,
       updated_at: user.updatedAt,

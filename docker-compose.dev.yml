@@ -28,7 +28,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-secret}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret}
 
-      # ✅ Optional: prefer only these and remove JWT_EXPIRES_IN to avoid confusion
+      # Optional: prefer only these and remove JWT_EXPIRES_IN to avoid confusion
       JWT_ACCESS_TOKEN_EXPIRY: ${JWT_ACCESS_TOKEN_EXPIRY:-24h}
       JWT_REFRESH_TOKEN_EXPIRY: ${JWT_REFRESH_TOKEN_EXPIRY:-7d}
 

@@ -54,7 +54,6 @@ async function loadBackupSettings(): Promise<{
   scheduleTime: string;
 }> {
   const settings = await prisma.appSetting.findFirst({
-    where: { tenantId: 1 },
     orderBy: { updatedAt: 'desc' },
     select: {
       autoBackup: true,

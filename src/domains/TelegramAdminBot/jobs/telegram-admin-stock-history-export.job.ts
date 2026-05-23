@@ -97,7 +97,6 @@ export async function processTelegramAdminStockHistoryExportJob(
       Supplier: m.supplier ?? '-',
       Reason: m.reason ?? '-',
       'Order ID': m.orderId ?? '-',
-      'Shift ID': m.shiftId ?? '-',
       'Lot ID': m.lotId ?? '-',
       'Created By': m.user?.fullName || m.user?.username || String(m.createdBy),
     }));

@@ -24,16 +24,13 @@ export class SettingService {
     currentUserId: number,
     tenantId?: number
   ): Promise<GetSettingsResponse> {
-    const effectiveTenantId = tenantId ?? 1;
     let settings = await prisma.appSetting.findFirst({
-      where: { tenantId: effectiveTenantId },
       orderBy: { updatedAt: 'desc' },
     });
 
     if (!settings) {
       settings = await prisma.appSetting.create({
         data: {
-          tenantId: effectiveTenantId,
           updatedBy: currentUserId,
         },
       });
@@ -50,7 +47,6 @@ export class SettingService {
       auto_backup: settings.autoBackup,
       backup_frequency: settings.backupFrequency,
       // backup_schedule_time removed
-      device_binding_enabled: settings.deviceBindingEnabled,
       stock_sync_policy: settings.stockSyncPolicy,
       report_send_enabled: settings.reportSendEnabled ?? true,
       report_send_time: this.formatTime(settings.reportSendTime, '23:30'),
@@ -68,9 +64,7 @@ export class SettingService {
     currentUserId: number,
     tenantId?: number
   ): Promise<UpdateSettingsResponse> {
-    const effectiveTenantId = tenantId ?? 1;
     const existing = await prisma.appSetting.findFirst({
-      where: { tenantId: effectiveTenantId },
       orderBy: { updatedAt: 'desc' },
     });
 
@@ -95,12 +89,10 @@ export class SettingService {
           data: {
             autoBackup: request.auto_backup,
             backupFrequency: request.backup_frequency,
-            deviceBindingEnabled: request.device_binding_enabled,
             stockSyncPolicy: request.stock_sync_policy,
             reportSendEnabled,
             reportSendTime,
             reportSendTimezone,
-            tenantId: effectiveTenantId,
             updatedBy: currentUserId,
           },
         })
@@ -108,12 +100,10 @@ export class SettingService {
           data: {
             autoBackup: request.auto_backup,
             backupFrequency: request.backup_frequency,
-            deviceBindingEnabled: request.device_binding_enabled,
             stockSyncPolicy: request.stock_sync_policy,
             reportSendEnabled,
             reportSendTime,
             reportSendTimezone,
-            tenantId: effectiveTenantId,
             updatedBy: currentUserId,
           },
         });
@@ -127,7 +117,6 @@ export class SettingService {
         auto_backup: request.auto_backup,
         backup_frequency: request.backup_frequency,
         // backup_schedule_time removed
-        device_binding_enabled: request.device_binding_enabled,
         stock_sync_policy: request.stock_sync_policy,
         report_send_enabled: reportSendEnabled,
         report_send_time: this.formatTime(reportSendTime, '23:30'),
@@ -140,7 +129,6 @@ export class SettingService {
       auto_backup: updated.autoBackup,
       backup_frequency: updated.backupFrequency,
       backup_schedule_time: '',
-      device_binding_enabled: updated.deviceBindingEnabled,
       stock_sync_policy: updated.stockSyncPolicy,
       report_send_enabled: updated.reportSendEnabled ?? true,
       report_send_time: this.formatTime(updated.reportSendTime, '23:30'),
@@ -153,7 +141,6 @@ export class SettingService {
       auto_backup: updated.autoBackup,
       backup_frequency: updated.backupFrequency,
       // backup_schedule_time removed
-      device_binding_enabled: updated.deviceBindingEnabled,
       stock_sync_policy: updated.stockSyncPolicy,
       report_send_enabled: updated.reportSendEnabled ?? true,
       report_send_time: this.formatTime(updated.reportSendTime, '23:30'),

@@ -28,7 +28,6 @@ export class UserController {
       const response = await UserService.listUsers(request, {
         userId: user.userId,
         role: user.role,
-        tenantId: user.tenantId,
       });
 
       res.status(200).json({
@@ -59,7 +58,6 @@ export class UserController {
       const response = await UserService.listCashiers(request, {
         userId: user.userId,
         role: user.role,
-        tenantId: user.tenantId,
       });
 
       res.status(200).json({
@@ -119,7 +117,6 @@ export class UserController {
 
       const response = await UserService.createUser(request, {
         userId: user.userId,
-        tenantId: user.tenantId,
       });
 
       res.status(201).json({

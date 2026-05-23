@@ -73,19 +73,18 @@ function getNowInTimezone(timeZone: string): { date: string; time: string } {
 }
 
 async function resolveSenderUserIdForTenant(
-  tenantId: number,
   fallbackUserId?: number
 ): Promise<number | null> {
   if (fallbackUserId) {
     const user = await prisma.user.findFirst({
-      where: { userId: fallbackUserId, tenantId },
+      where: { userId: fallbackUserId },
       select: { userId: true },
     });
     if (user) return user.userId;
   }
 
   const admin = await prisma.user.findFirst({
-    where: { role: Role.ADMIN, tenantId },
+    where: { role: Role.ADMIN },
     orderBy: { userId: 'asc' },
     select: { userId: true },
   });
@@ -103,7 +102,6 @@ type ReportSetting = {
 async function loadReportSettings(): Promise<ReportSetting[]> {
   const settings = await prisma.appSetting.findMany({
     select: {
-      tenantId: true,
       reportSendEnabled: true,
       reportSendTime: true,
       reportSendTimezone: true,
@@ -112,7 +110,7 @@ async function loadReportSettings(): Promise<ReportSetting[]> {
   });
 
   return settings.map((s) => ({
-    tenantId: s.tenantId,
+    tenantId: 1,
     enabled: s.reportSendEnabled ?? true,
     time: s.reportSendTime ? formatTimeHHmm(s.reportSendTime) : DEFAULT_SEND_TIME,
     timeZone: s.reportSendTimezone || DEFAULT_TIMEZONE,
@@ -148,7 +146,6 @@ async function runOnce(): Promise<void> {
         if (now.time < settings.time) continue;
 
         const senderUserId = await resolveSenderUserIdForTenant(
-          settings.tenantId,
           settings.updatedBy ?? undefined
         );
         if (!senderUserId) {

@@ -560,7 +560,6 @@ export class TelegramAdminReportService {
             gte: start,
             lte: end,
           },
-          tenantId,
         },
       },
       _sum: { quantity: true, subtotal: true },
@@ -575,7 +574,7 @@ export class TelegramAdminReportService {
 
     const productIds = topProductsRaw.map((p) => p.productId);
     const products = await prisma.product.findMany({
-      where: { productId: { in: productIds }, createdByUser: { tenantId } },
+      where: { productId: { in: productIds } },
       select: { productId: true, productName: true, productCode: true, price: true },
     });
     const productMap = new Map(products.map((p) => [p.productId, p]));
@@ -832,7 +831,6 @@ export class TelegramAdminReportService {
             gte: start,
             lte: end,
           },
-          tenantId,
         },
       },
       _sum: { quantity: true, subtotal: true },
@@ -847,7 +845,7 @@ export class TelegramAdminReportService {
     });
 
     const products = await prisma.product.findMany({
-      where: { status: 'active', deactivatedDate: null, createdByUser: { tenantId } },
+      where: { status: 'active', deactivatedDate: null },
       select: {
         productId: true,
         productName: true,
@@ -1132,13 +1130,13 @@ export class TelegramAdminReportService {
     }
 
     const salesAgg = await prisma.order.aggregate({
-      where: { orderDate: { gte: start, lte: end }, tenantId },
+      where: { orderDate: { gte: start, lte: end } },
       _sum: { totalAmount: true },
       _count: { orderId: true },
     });
 
     const cogsAgg = await prisma.orderItem.aggregate({
-      where: { order: { orderDate: { gte: start, lte: end }, tenantId } },
+      where: { order: { orderDate: { gte: start, lte: end } } },
       _sum: { cogsLineTotal: true, quantity: true },
     });
 
@@ -1150,7 +1148,6 @@ export class TelegramAdminReportService {
       JOIN orders o ON o.order_id = oi.order_id
       WHERE o.order_date >= ${start}
         AND o.order_date <= ${end}
-        AND o.tenant_id = ${tenantId}
         AND oi.cogs_line_total IS NULL
     `);
     const missingCogsCount = Number(missingCogsRows[0]?.missing_count || 0);
@@ -1169,7 +1166,6 @@ export class TelegramAdminReportService {
       WHERE sm.movement_type = 'STOCK_IN'
         AND sm.created_at >= ${start}
         AND sm.created_at <= ${end}
-        AND u.tenant_id = ${tenantId}
     `);
 
     const totalSales = Number(salesAgg._sum.totalAmount || 0);

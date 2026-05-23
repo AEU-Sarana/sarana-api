@@ -2,7 +2,7 @@ export interface SyncOrdersRequest {
   orders: Array<{
     order_uuid: string;
     receipt_number: string;
-    shift_id: number;
+    shift_id?: number | null;
     seller_id?: number;
     order_date: string; 
     total_amount: number;
@@ -48,7 +48,7 @@ export interface OrderResponse {
   order_id: number;
   order_uuid: string;
   receipt_number: string;
-  shift_id: number;
+  shift_id: number | null;
   seller_id: number;
   seller_name: string | null;
   order_date: Date;

@@ -9,7 +9,6 @@ CREATE TABLE stock_movements (
     supplier VARCHAR(200),
     reason TEXT,
     order_id INTEGER REFERENCES orders(order_id),
-    shift_id INTEGER REFERENCES shifts(shift_id),
     created_by INTEGER NOT NULL REFERENCES users(user_id),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -18,6 +17,5 @@ CREATE INDEX idx_stock_movements_product_id ON stock_movements(product_id);
 CREATE INDEX idx_stock_movements_type ON stock_movements(movement_type);
 CREATE INDEX idx_stock_movements_created_at ON stock_movements(created_at);
 CREATE INDEX idx_stock_movements_order_id ON stock_movements(order_id);
-CREATE INDEX idx_stock_movements_shift_id ON stock_movements(shift_id);
 CREATE INDEX idx_stock_movements_lot_id ON stock_movements(lot_id);
 CREATE INDEX idx_stock_movements_product_created_at ON stock_movements(product_id, created_at DESC);

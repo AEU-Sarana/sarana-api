@@ -1,9 +1,7 @@
 import { InventoryReportService } from '@src/domains/Stock/services/inventory-report.service';
-import { ShiftService } from '@src/domains/Shift/services/shift.service';
 import { StockLotService } from '@src/domains/Stock/services/stock-lot.service';
 import { TelegramService } from '@src/domains/Telegram/services/telegram.service';
 import { logger } from '@src/shared/utils/logger';
-import { Role } from '@src/shared/config/permissions';
 import { formatDate, getStartOfDay } from '@src/shared/utils/date-utils';
 import { TelegramAdminFormatService } from './telegram-admin-format.service';
 import { TelegramAdminUiService } from './telegram-admin-ui.service';
@@ -15,44 +13,36 @@ const DEFAULT_NEAR_EXPIRY_DAYS = 30;
 
 export class TelegramAdminInventoryService {
   static async sendLowStockList(
-    tenantId: number,
+    tenantId: number | undefined,
     chatId: number,
     adminUserId: number,
     options?: { withNav?: boolean }
   ) {
     const result = await this.buildLowStockMessage(adminUserId, tenantId);
-    if (options?.withNav === false) {
-      return TelegramAdminUiService.sendMessageWithNav(tenantId, chatId, result.text);
-    }
-    return TelegramAdminUiService.sendMessageWithNav(tenantId, chatId, result.text);
+    return TelegramAdminUiService.sendMessageWithNav(tenantId ?? 1, chatId, result.text);
   }
 
-  static async sendInventoryOnHand(tenantId: number, chatId: number) {
+  static async sendInventoryOnHand(tenantId: number | undefined, chatId: number) {
     const result = await this.buildInventoryOnHandMessage(tenantId);
-    return TelegramAdminUiService.sendMessageWithNav(tenantId, chatId, result.text);
+    return TelegramAdminUiService.sendMessageWithNav(tenantId ?? 1, chatId, result.text);
   }
 
-  static async sendInventoryValue(tenantId: number, chatId: number) {
+  static async sendInventoryValue(tenantId: number | undefined, chatId: number) {
     const result = await this.buildInventoryValueMessage(tenantId);
-    return TelegramAdminUiService.sendMessageWithNav(tenantId, chatId, result.text);
+    return TelegramAdminUiService.sendMessageWithNav(tenantId ?? 1, chatId, result.text);
   }
 
-  static async sendReorderAlerts(tenantId: number, chatId: number) {
+  static async sendReorderAlerts(tenantId: number | undefined, chatId: number) {
     const result = await this.buildReorderAlertsMessage(tenantId);
-    return TelegramAdminUiService.sendMessageWithNav(tenantId, chatId, result.text);
+    return TelegramAdminUiService.sendMessageWithNav(tenantId ?? 1, chatId, result.text);
   }
 
-  static async sendNearExpiryList(tenantId: number, chatId: number, days = DEFAULT_NEAR_EXPIRY_DAYS) {
+  static async sendNearExpiryList(tenantId: number | undefined, chatId: number, days = DEFAULT_NEAR_EXPIRY_DAYS) {
     const result = await this.buildNearExpiryMessage(days, tenantId);
-    return TelegramAdminUiService.sendMessageWithNav(tenantId, chatId, result.text);
+    return TelegramAdminUiService.sendMessageWithNav(tenantId ?? 1, chatId, result.text);
   }
 
-  static async sendShiftSummary(tenantId: number, chatId: number, adminUserId: number) {
-    const result = await this.buildShiftSummaryMessage(adminUserId, tenantId);
-    return TelegramAdminUiService.sendMessageWithNav(tenantId, chatId, result.text);
-  }
-
-  static async sendTieredExpiryAlerts(tenantId: number) {
+  static async sendTieredExpiryAlerts(tenantId?: number) {
     try {
       const config = await TelegramService.getTelegramConfig(tenantId);
       if (!config || !config.is_active) {
@@ -67,10 +57,10 @@ export class TelegramAdminInventoryService {
       ];
 
       for (const milestone of milestones) {
-        const lots = await StockLotService.listLotsExpiringIn(tenantId, milestone.days);
+        const lots = await StockLotService.listLotsExpiringIn(milestone.days);
         if (lots.length > 0) {
           const message = this.formatTieredExpiryMessage(milestone.title, milestone.days, milestone.type, lots);
-          await TelegramService.sendCustomMessage(tenantId, message, 'Markdown');
+          await TelegramService.sendCustomMessage(tenantId ?? 1, message, 'Markdown');
           logger.info(`Telegram tiered expiry alert sent: ${milestone.title}`);
         }
       }
@@ -99,14 +89,14 @@ export class TelegramAdminInventoryService {
     ].join('\n');
   }
 
-  static async sendNearExpiryAlert(tenantId: number) {
+  static async sendNearExpiryAlert(tenantId?: number) {
     try {
       const config = await TelegramService.getTelegramConfig(tenantId);
       if (!config || !config.is_active) {
         return;
       }
 
-      const report = await StockLotService.listNearExpiry(tenantId, DEFAULT_NEAR_EXPIRY_DAYS);
+      const report = await StockLotService.listNearExpiry(DEFAULT_NEAR_EXPIRY_DAYS);
       if (!report.lots.length) {
         return;
       }
@@ -116,7 +106,7 @@ export class TelegramAdminInventoryService {
       // Cleanup message: remove navigation buttons for automated alerts
       const message = result.text;
 
-      await TelegramService.sendCustomMessage(tenantId, message, 'Markdown');
+      await TelegramService.sendCustomMessage(tenantId ?? 1, message, 'Markdown');
       logger.info('Telegram near-expiry alert sent automatically');
     } catch (error: any) {
       logger.error('Failed to send automated near-expiry alert', {
@@ -125,8 +115,8 @@ export class TelegramAdminInventoryService {
     }
   }
 
-  static async buildLowStockMessage(adminUserId: number, tenantId: number): Promise<TelegramAdminCallbackResult> {
-    const report = await InventoryReportService.getLowStock(adminUserId, tenantId);
+  static async buildLowStockMessage(adminUserId: number, tenantId?: number): Promise<TelegramAdminCallbackResult> {
+    const report = await InventoryReportService.getLowStock(adminUserId);
     const lines = report.stock_report.map((item, index) => {
       const name = TelegramAdminFormatService.escapeMarkdown(item.product_name);
       const code = TelegramAdminFormatService.escapeMarkdown(item.product_code ?? '-');
@@ -150,8 +140,8 @@ export class TelegramAdminInventoryService {
     };
   }
 
-  static async buildInventoryOnHandMessage(tenantId: number): Promise<TelegramAdminCallbackResult> {
-    const report = await InventoryReportService.getStockOnHand(tenantId);
+  static async buildInventoryOnHandMessage(tenantId?: number): Promise<TelegramAdminCallbackResult> {
+    const report = await InventoryReportService.getStockOnHand();
     if (!report.summary.total_skus) {
       return {
         text: 'មិនមានទិន្នន័យ',
@@ -181,8 +171,8 @@ export class TelegramAdminInventoryService {
     };
   }
 
-  static async buildInventoryValueMessage(tenantId: number): Promise<TelegramAdminCallbackResult> {
-    const report = await InventoryReportService.getInventoryValue(tenantId);
+  static async buildInventoryValueMessage(tenantId?: number): Promise<TelegramAdminCallbackResult> {
+    const report = await InventoryReportService.getInventoryValue();
     if (!report.summary.total_skus) {
       return {
         text: 'មិនមានទិន្នន័យ',
@@ -216,8 +206,8 @@ export class TelegramAdminInventoryService {
     };
   }
 
-  static async buildReorderAlertsMessage(tenantId: number): Promise<TelegramAdminCallbackResult> {
-    const report = await InventoryReportService.getReorderAlerts(tenantId);
+  static async buildReorderAlertsMessage(tenantId?: number): Promise<TelegramAdminCallbackResult> {
+    const report = await InventoryReportService.getReorderAlerts();
     if (!report.items.length) {
       return {
         text: 'មិនមានទិន្នន័យ',
@@ -249,9 +239,9 @@ export class TelegramAdminInventoryService {
 
   static async buildNearExpiryMessage(
     days = DEFAULT_NEAR_EXPIRY_DAYS,
-    tenantId: number
+    tenantId?: number
   ): Promise<TelegramAdminCallbackResult> {
-    const report = await StockLotService.listNearExpiry(tenantId, days);
+    const report = await StockLotService.listNearExpiry(days);
 
     if (!report.lots.length) {
       return {
@@ -323,44 +313,10 @@ export class TelegramAdminInventoryService {
 
   static async buildShiftSummaryMessage(
     adminUserId: number,
-    tenantId: number
+    tenantId?: number
   ): Promise<TelegramAdminCallbackResult> {
-    const today = formatDate(new Date());
-    const response = await ShiftService.listShifts(
-      { page: 1, limit: 20, start_date: today, end_date: today },
-      adminUserId,
-      Role.ADMIN,
-      tenantId
-    );
-
-    const lines = response.shifts.map((shift, index) => {
-      const start = shift.start_time
-        ? new Date(shift.start_time).toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false,
-        })
-        : '-';
-      const end = shift.end_time
-        ? new Date(shift.end_time).toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false,
-        })
-        : '-';
-      return `${index + 1}) ${shift.seller_name ?? 'Unknown'} - ${shift.status}
-• Sales: $${Number(shift.total_sales_amount).toLocaleString()} (${shift.total_sales_count} orders)
-• Time: ${start} - ${end}`;
-    });
-
-    const message = [
-      `📋 *Shift Summary* (${today})`,
-      '',
-      lines.length ? lines.join('\n\n') : 'No shifts found for today.',
-    ].join('\n');
-
     return {
-      text: message,
+      text: '⚠️ មុខងារវេនការងារ (Shift) មិនត្រូវបានកំណត់រចនាសម្ព័ន្ធនៅលើម៉ាស៊ីនបម្រើនេះទេ។',
       replyMarkup: { inline_keyboard: [NAV_ROW] },
       parseMode: MARKDOWN,
     };

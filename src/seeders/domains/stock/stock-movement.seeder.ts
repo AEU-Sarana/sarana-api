@@ -15,7 +15,6 @@ export class StockMovementSeeder extends BaseSeeder {
       },
     });
     const orderIds = await SeederHelper.getOrderIds();
-    const shiftIds = await SeederHelper.getShiftIds();
     const userId = await SeederHelper.getAdminUserId();
 
     if (products.length === 0) {
@@ -151,11 +150,6 @@ export class StockMovementSeeder extends BaseSeeder {
       // Add order_id for STOCK_OUT movements
       if (movementType === 'STOCK_OUT' && orderIds.length > 0) {
         movementData.orderId = SeederHelper.randomElement(orderIds);
-      }
-
-      // Add shift_id for some movements
-      if (shiftIds.length > 0 && Math.random() > 0.5) {
-        movementData.shiftId = SeederHelper.randomElement(shiftIds);
       }
 
       // Add supplier for STOCK_IN

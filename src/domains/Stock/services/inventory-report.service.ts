@@ -54,7 +54,7 @@ export class InventoryReportService {
     return new Prisma.Decimal((value as any) ?? 0);
   }
 
-  static async getStockOnHand(tenantId: number, limit = 10): Promise<StockOnHandReport> {
+  static async getStockOnHand(tenantId?: number, limit = 10): Promise<StockOnHandReport> {
     const summaryRows = await prisma.$queryRaw<
       { total_skus: number; total_qty: number }[]
     >`
@@ -63,9 +63,7 @@ export class InventoryReportService {
         COALESCE(SUM(s.quantity), 0)::int AS total_qty
       FROM stocks s
       JOIN products p ON p.product_id = s.product_id
-      JOIN users u ON u.user_id = p.created_by
       WHERE p.status = 'active'
-        AND u.tenant_id = ${tenantId}
     `;
 
     const items = await prisma.$queryRaw<
@@ -74,9 +72,7 @@ export class InventoryReportService {
       SELECT s.product_id, s.quantity, p.product_name, p.product_code
       FROM stocks s
       JOIN products p ON p.product_id = s.product_id
-      JOIN users u ON u.user_id = p.created_by
       WHERE p.status = 'active'
-        AND u.tenant_id = ${tenantId}
       ORDER BY s.quantity DESC
       LIMIT ${limit}
     `;
@@ -97,7 +93,7 @@ export class InventoryReportService {
     };
   }
 
-  static async getInventoryValue(tenantId: number, limit = 10): Promise<InventoryValueReport> {
+  static async getInventoryValue(tenantId?: number, limit = 10): Promise<InventoryValueReport> {
     // FIFO inventory valuation: sum cost from actual stock lots (qty_on_hand × lot cost)
     // This reflects the true FIFO carrying value of remaining inventory.
     const summaryRows = await prisma.$queryRaw<
@@ -109,9 +105,7 @@ export class InventoryReportService {
         COALESCE(SUM(sl.qty_on_hand * COALESCE(sl.cost, 0)), 0) AS total_value
       FROM stock_lots sl
       JOIN products p ON p.product_id = sl.product_id
-      JOIN users u ON u.user_id = p.created_by
       WHERE p.status = 'active'
-        AND u.tenant_id = ${tenantId}
         AND sl.qty_on_hand > 0
     `;
 
@@ -138,9 +132,7 @@ export class InventoryReportService {
         COALESCE(SUM(sl.qty_on_hand * COALESCE(sl.cost, 0)), 0) AS total_value
       FROM stock_lots sl
       JOIN products p ON p.product_id = sl.product_id
-      JOIN users u ON u.user_id = p.created_by
       WHERE p.status = 'active'
-        AND u.tenant_id = ${tenantId}
         AND sl.qty_on_hand > 0
       GROUP BY p.product_id, p.product_name, p.product_code
       ORDER BY total_value DESC
@@ -153,9 +145,7 @@ export class InventoryReportService {
       SELECT COUNT(*)::int AS missing_count
       FROM stock_lots sl
       JOIN products p ON p.product_id = sl.product_id
-      JOIN users u ON u.user_id = p.created_by
       WHERE p.status = 'active'
-        AND u.tenant_id = ${tenantId}
         AND sl.qty_on_hand > 0
         AND sl.cost IS NULL
     `;
@@ -187,11 +177,11 @@ export class InventoryReportService {
     };
   }
 
-  static async getLowStock(currentUserId: number, tenantId: number): Promise<StockReportResponse> {
-    return ReportService.getStockReport({ low_stock_only: true }, currentUserId, tenantId);
+  static async getLowStock(currentUserId: number, tenantId?: number): Promise<StockReportResponse> {
+    return ReportService.getStockReport({ low_stock_only: true }, currentUserId);
   }
 
-  static async getReorderAlerts(tenantId: number, limit = 10): Promise<ReorderAlertReport> {
+  static async getReorderAlerts(tenantId?: number, limit = 10): Promise<ReorderAlertReport> {
     const items = await prisma.$queryRaw<
       {
         product_id: number;
@@ -209,9 +199,7 @@ export class InventoryReportService {
         COALESCE(p.reorder_point, p.low_stock_threshold, 0) AS reorder_point
       FROM stocks s
       JOIN products p ON p.product_id = s.product_id
-      JOIN users u ON u.user_id = p.created_by
       WHERE p.status = 'active'
-        AND u.tenant_id = ${tenantId}
         AND s.quantity <= COALESCE(p.reorder_point, p.low_stock_threshold, 0)
       ORDER BY s.quantity ASC, reorder_point ASC
       LIMIT ${limit}

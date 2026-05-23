@@ -38,7 +38,6 @@ export class AuthService {
         passwordHash: true,
         role: true,
         status: true,
-        tenantId: true,
         bio: true,
         profileImage: true,
         createdAt: true,
@@ -65,7 +64,6 @@ export class AuthService {
       userId: user.userId,
       username: user.username,
       role: user.role as UserRole,
-      tenantId: user.tenantId ?? 1,
     });
 
     const refreshToken = TokenService.generateRefreshToken(user.userId);
@@ -138,7 +136,6 @@ export class AuthService {
         username: true,
         role: true,
         status: true,
-        tenantId: true,
       },
     });
 
@@ -156,7 +153,6 @@ export class AuthService {
       userId: user.userId,
       username: user.username,
       role: user.role as UserRole,
-      tenantId: user.tenantId ?? 1,
     });
 
     // Optionally generate new refresh token (refresh token rotation)
@@ -188,7 +184,6 @@ export class AuthService {
         phone: true,
         status: true,
         deviceId: true,
-        isDeviceBound: true,
         bio: true,
         profileImage: true,
       },
@@ -212,7 +207,6 @@ export class AuthService {
       phone: user.phone,
       status: user.status as UserStatus,
       device_id: user.deviceId,
-      is_device_bound: user.isDeviceBound,
       bio: (user as any).bio,
       profile: AuthService.normalizeImageUrl((user as any).profileImage),
     };
@@ -392,7 +386,6 @@ export class AuthService {
         fullName: true,
         role: true,
         status: true,
-        tenantId: true,
       },
     });
 
@@ -413,7 +406,6 @@ export class AuthService {
       userId: user.userId,
       username: user.username,
       role: user.role as UserRole,
-      tenantId: user.tenantId ?? 1,
     });
 
     // Store reset token in database (optional - for tracking)
@@ -479,42 +471,6 @@ export class AuthService {
     });
 
     logger.info('Password reset completed', { userId: user.userId, adminUserId });
-  }
-
-  /**
-   * Reset user PIN
-  */
-  static async resetPIN(
-    userId: number,
-    newPin: string,
-    currentUserId: number
-  ): Promise<void> {
-    // Validate PIN format
-    if (!/^\d{4,6}$/.test(newPin)) {
-      throw new ValidationException('PIN must be 4-6 numeric digits');
-    }
-
-    // Hash PIN
-    const pinHash = await hashPIN(newPin);
-
-    // Update user PIN
-    await prisma.user.update({
-      where: { userId },
-      data: {
-        pinHash: pinHash,
-        updatedBy: currentUserId,
-        updatedAt: new Date(),
-      },
-    });
-
-    // Audit log
-    await auditLogService.createAuditLog({
-      userId: currentUserId,
-      action: 'RESET_PIN',
-      resource: 'User',
-      entityId: userId,
-      details: { targetUserId: userId },
-    });
   }
 
   /**
