@@ -4,11 +4,11 @@ import { logger } from '@src/shared/utils/logger';
 
 export class CategoryService {
   /**
-   * Get all active categories
+   * Get all active (or all if includeInactive is true) categories
    */
-  async getAllCategories() {
+  async getAllCategories(includeInactive = false) {
     return prisma.category.findMany({
-      where: { isActive: true },
+      where: includeInactive ? undefined : { isActive: true },
       orderBy: { name: 'asc' },
     });
   }
@@ -18,7 +18,7 @@ export class CategoryService {
    */
   async getCategoryById(categoryId: number, includeProducts = false) {
     const category = await prisma.category.findFirst({
-      where: { categoryId, isActive: true },
+      where: { categoryId },
       include: includeProducts
         ? {
             products: {
@@ -29,11 +29,51 @@ export class CategoryService {
         : undefined,
     });
 
+
     if (!category) {
       throw new ValidationException('Category not found', [], 'CATEGORY_NOT_FOUND', 404);
     }
 
     return category;
+  }
+
+  /**
+   * Toggle category status (active <-> inactive) (Admin only)
+   */
+  async toggleCategoryStatus(categoryId: number) {
+    const category = await prisma.category.findUnique({
+      where: { categoryId },
+    });
+
+    if (!category) {
+      throw new ValidationException('Category not found', [], 'CATEGORY_NOT_FOUND', 404);
+    }
+
+    const newStatus = !category.isActive;
+
+    // If deactivating, check if it contains active products
+    if (!newStatus) {
+      const productsCount = await prisma.product.count({
+        where: { categoryId, status: 'active' },
+      });
+
+      if (productsCount > 0) {
+        throw new ValidationException(
+          'Cannot deactivate category because it contains active products',
+          [],
+          'CATEGORY_CONTAINS_PRODUCTS',
+          400
+        );
+      }
+    }
+
+    return prisma.category.update({
+      where: { categoryId },
+      data: {
+        isActive: newStatus,
+        updatedAt: new Date(),
+      },
+    });
   }
 
   /**

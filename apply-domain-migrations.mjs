@@ -86,6 +86,7 @@ const migrationOrder = [
   'super-admin/20260224000003_create_subscriptions_table',
   'super-admin/20260224000004_create_package_features_table',
   'super-admin/20260224000005_create_subscription_payments_table',
+  'order/20260525000001_remove_order_uuid',
 ];
 
 /* ================================

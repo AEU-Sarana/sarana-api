@@ -1,40 +1,3 @@
-export interface SyncOrdersRequest {
-  orders: Array<{
-    order_uuid: string;
-    receipt_number: string;
-    shift_id?: number | null;
-    seller_id?: number;
-    order_date: string; 
-    total_amount: number;
-    discount_amount?: number;
-    tax_amount?: number;
-    service_fee?: number;
-    exchange_rate?: number;
-    payment_method: 'CASH';
-    received_amount?: number;
-    items: Array<{
-      product_id: number;
-      product_name?: string;
-      quantity: number;
-      unit_price: number;
-      discount_amount?: number;
-      subtotal: number;
-    }>;
-  }>;
-}
-
-export interface SyncOrdersResponse {
-  synced: number;
-  updated: number;
-  failed: number;
-  orders: Array<{
-    order_uuid: string;
-    order_id: number | null;
-    status: 'synced' | 'updated' | 'failed';
-    error?: string;
-  }>;
-}
-
 export interface ListOrdersRequest {
   page?: number;
   limit?: number;
@@ -46,7 +9,6 @@ export interface ListOrdersRequest {
 
 export interface OrderResponse {
   order_id: number;
-  order_uuid: string;
   receipt_number: string;
   shift_id: number | null;
   seller_id: number;
@@ -86,14 +48,19 @@ export interface GetOrderResponse extends OrderResponse {
   }>;
 }
 
-export interface GetSyncStatusRequest {
-  order_uuids: string[];
-}
-
-export interface GetSyncStatusResponse {
-  statuses: Array<{
-    order_uuid: string;
-    synced: boolean;
-    order_id: number | null;
+export interface CreateOrderRequest {
+  payment_method: 'CASH' | 'BANK';
+  received_amount?: number;
+  discount_amount?: number;
+  tax_amount?: number;
+  service_fee?: number;
+  items: Array<{
+    product_id: number;
+    quantity: number;
+    unit_price: number;
+    discount_amount?: number;
+    subtotal: number;
   }>;
 }
+
+export type CreateOrderResponse = GetOrderResponse;

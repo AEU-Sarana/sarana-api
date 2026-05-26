@@ -10,7 +10,7 @@ import { TelegramBotService } from '@src/domains/Telegram/services/telegram-bot.
 const DEFAULT_EXPIRE_MINUTES = 20;
 
 export class ReceiptLinkService {
-  static async createReceiptLink(orderUuid: string, currentUserId: number): Promise<{
+  static async createReceiptLink(orderId: number, currentUserId: number): Promise<{
     receipt_link_id: number;
     order_id: number;
     code: string;
@@ -19,7 +19,7 @@ export class ReceiptLinkService {
     telegram_deep_link: string;
   }> {
     const order = await prisma.order.findUnique({
-      where: { orderUuid },
+      where: { orderId },
       select: {
         orderId: true,
         paymentMethod: true,

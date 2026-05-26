@@ -62,7 +62,6 @@ model order_items {
 
 model orders {
   order_id           Int                  @id @default(autoincrement())
-  order_uuid         String               @unique(map: "idx_orders_order_uuid") @db.Uuid
   receipt_number     String               @unique(map: "idx_orders_receipt_number") @db.VarChar(50)
   seller_id          Int
   order_date         DateTime             @default(now()) @db.Timestamp(6)

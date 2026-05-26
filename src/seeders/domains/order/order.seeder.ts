@@ -77,7 +77,6 @@ export class OrderSeeder extends BaseSeeder {
 
         const order = await prisma.order.create({
           data: {
-            orderUuid: DataGenerator.generateOrderUUID(),
             receiptNumber: DataGenerator.generateReceiptNumber(orderIndex++),
             sellerId: seller.userId,
             orderDate,

@@ -7,7 +7,8 @@ const categoryService = new CategoryService();
 export class CategoryController {
   static async listCategories(req: Request, res: Response): Promise<void> {
     try {
-      const response = await categoryService.getAllCategories();
+      const includeInactive = req.query.include_inactive === 'true';
+      const response = await categoryService.getAllCategories(includeInactive);
 
       res.status(200).json({
         success: true,
@@ -81,6 +82,22 @@ export class CategoryController {
       });
     } catch (error: any) {
       logger.error('Delete category error', { error: error.message });
+      throw error;
+    }
+  }
+
+  static async toggleStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const categoryId = parseInt(req.params.id as string, 10);
+      const response = await categoryService.toggleCategoryStatus(categoryId);
+
+      res.status(200).json({
+        success: true,
+        data: response,
+        message: 'Category status toggled successfully',
+      });
+    } catch (error: any) {
+      logger.error('Toggle category status error', { error: error.message });
       throw error;
     }
   }

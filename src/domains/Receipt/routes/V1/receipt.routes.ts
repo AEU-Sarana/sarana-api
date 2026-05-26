@@ -17,7 +17,7 @@ router.use(authenticateToken);
 
 // Cashier/Admin - generate QR receipt link
 router.post(
-  '/orders/:order_uuid/receipt-link',
+  '/orders/:order_id/receipt-link',
   ...validateRequest(createReceiptLinkValidator),
   ReceiptLinkController.createReceiptLink
 );

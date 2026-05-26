@@ -10,7 +10,6 @@ type OrderSyncItem = {
 };
 
 type OrderSyncMessageInput = {
-  order_uuid: string;
   receipt_number: string;
   order_date: Date;
   shift_id: number;

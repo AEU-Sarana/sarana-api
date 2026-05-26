@@ -29,17 +29,6 @@ export class DataGenerator {
     return `RCP-${dateStr}-${timeStr}-${String(index + 1).padStart(4, '0')}-${rand}`;
   }
 
-  /**
-   * Generate a unique order UUID (UUID v4 format)
-   */
-  static generateOrderUUID(): string {
-    // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
-  }
 
   /**
    * Generate a device ID

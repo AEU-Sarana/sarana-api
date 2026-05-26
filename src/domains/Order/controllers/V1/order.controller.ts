@@ -1,26 +1,9 @@
 import { Request, Response } from 'express';
 import { OrderService } from '@src/domains/Order/services/order.service';
-import { OrderSyncService } from '@src/domains/Order/services/order-sync.service';
 import { logger } from '@src/shared/utils/logger';
 import { UserPayload } from '@src/shared/middleware/auth.middleware';
 
 export class OrderController {
-  static async syncOrders(req: Request, res: Response): Promise<void> {
-    try {
-      const user = req.user as UserPayload;
-      const response = await OrderSyncService.syncOrders(req.body, user.userId);
-
-      res.status(200).json({
-        success: true,
-        data: response,
-        message: 'Orders synced successfully',
-      });
-    } catch (error: any) {
-      logger.error('Sync orders error', { error: error.message });
-      throw error;
-    }
-  }
-
   static async listOrders(req: Request, res: Response): Promise<void> {
     try {
       const user = req.user as UserPayload;
@@ -63,22 +46,18 @@ export class OrderController {
     }
   }
 
-  static async getSyncStatus(req: Request, res: Response): Promise<void> {
+  static async createOrder(req: Request, res: Response): Promise<void> {
     try {
-      const orderUuids = req.query.order_uuids
-        ? (req.query.order_uuids as string).split(',')
-        : [];
+      const user = req.user as UserPayload;
+      const response = await OrderService.createOrder(req.body, user);
 
-      const request = { order_uuids: orderUuids };
-      const response = await OrderSyncService.getSyncStatus(request);
-
-      res.status(200).json({
+      res.status(201).json({
         success: true,
         data: response,
-        message: 'Sync status retrieved',
+        message: 'Order created successfully',
       });
     } catch (error: any) {
-      logger.error('Get sync status error', { error: error.message });
+      logger.error('Create order error', { error: error.message });
       throw error;
     }
   }

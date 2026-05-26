@@ -2,9 +2,26 @@ import prisma from '@src/database/client';
 import { TelegramService } from '@src/domains/Telegram/services/telegram.service';
 import { buildOrderSyncMessage } from '@src/domains/TelegramAdminBot/templates/order-sync.template';
 import { logger } from '@src/shared/utils/logger';
-import { SyncOrdersRequest } from '@src/domains/Order/types/order.types';
 
-type OrderSyncPayload = SyncOrdersRequest['orders'][number];
+type OrderSyncPayload = {
+  receipt_number: string;
+  order_date: string;
+  total_amount: number;
+  discount_amount?: number;
+  tax_amount?: number;
+  service_fee?: number;
+  payment_method: 'CASH' | 'BANK';
+  received_amount?: number;
+  seller_id?: number;
+  items: Array<{
+    product_id: number;
+    product_name?: string;
+    quantity: number;
+    unit_price: number;
+    discount_amount?: number;
+    subtotal: number;
+  }>;
+};
 
 type NotifyOrderSyncInput = {
   order: OrderSyncPayload;
@@ -35,7 +52,6 @@ export class TelegramAdminOrderNotifyService {
     if (!chatIds.length) return;
 
     const message = buildOrderSyncMessage({
-      order_uuid: order.order_uuid,
       receipt_number: order.receipt_number,
       order_date: orderDate,
       shift_id: 0,
@@ -59,7 +75,6 @@ export class TelegramAdminOrderNotifyService {
           tenantId,
           error: getErrorMessage(error),
           chatId,
-          order_uuid: order.order_uuid,
         });
       }
     }

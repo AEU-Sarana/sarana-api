@@ -3,10 +3,9 @@ import { authenticateToken } from '@src/shared/middleware/auth.middleware';
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
 import { OrderController } from '@src/domains/Order/controllers/V1/order.controller';
 import {
-  syncOrdersValidator,
   listOrdersValidator,
   getOrderValidator,
-  getSyncStatusValidator,
+  createOrderValidator,
 } from '@src/domains/Order/validators/V1/index';
 
 const router: IRouter = Router();
@@ -14,18 +13,11 @@ const router: IRouter = Router();
 // All routes require authentication
 router.use(authenticateToken);
 
-// Sync orders - All users
+// Create simple online order - All users
 router.post(
-  '/sync',
-  ...validateRequest(syncOrdersValidator),
-  OrderController.syncOrders
-);
-
-// Get sync status - All users (MUST be before /:id route)
-router.get(
-  '/sync-status',
-  ...validateRequest(getSyncStatusValidator),
-  OrderController.getSyncStatus
+  '/',
+  ...validateRequest(createOrderValidator),
+  OrderController.createOrder
 );
 
 // List orders - All users (role-based filtering)

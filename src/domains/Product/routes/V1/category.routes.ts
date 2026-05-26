@@ -52,4 +52,12 @@ router.delete(
   CategoryController.deleteCategory
 );
 
+// Toggle category status - Admin only
+router.patch(
+  '/:id/toggle-status',
+  requireAdmin,
+  ...validateRequest(getCategoryValidator),
+  CategoryController.toggleStatus
+);
+
 export default router;

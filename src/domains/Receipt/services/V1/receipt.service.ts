@@ -8,10 +8,10 @@ export class ReceiptLinkController {
       const orderIdParam = Array.isArray(req.params.order_id)
         ? req.params.order_id[0]
         : req.params.order_id;
-      const orderUuid = orderIdParam;
+      const orderId = parseInt(orderIdParam, 10);
       const user = req.user as { userId: number };
 
-      const data = await ReceiptLinkService.createReceiptLink(orderUuid, user.userId);
+      const data = await ReceiptLinkService.createReceiptLink(orderId, user.userId);
 
       res.status(200).json({
         success: true,
