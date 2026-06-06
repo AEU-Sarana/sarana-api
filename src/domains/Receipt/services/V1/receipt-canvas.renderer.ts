@@ -63,16 +63,17 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
     const contentWidth = baseWidth - (padding * 2);
 
     // Segment Heights (Dynamic)
-    const logoHeight = data.isLogoEnabled ? 300 : 0;
-    const headerHeight = 180 + logoHeight;
+    const logoHeight = data.isLogoEnabled ? 130 : 0;
+    const headerHeight = 160 + logoHeight;
     const tableHeaderHeight = 50;
-    const itemLineHeight = 60;
-    const totalsAreaHeight = 300;
-    const footerAreaHeight = 200;
-    const bottomMargin = 100;
+    const itemLineHeight = 35;
+    const totalsAreaHeight = 220 + (data.discountAmount && data.discountAmount > 0 ? 25 : 0) + (data.taxAmount && data.taxAmount > 0 ? 25 : 0) + (data.serviceFee && data.serviceFee > 0 ? 25 : 0);
+    const signaturesAreaHeight = 130;
+    const footerAreaHeight = 100;
+    const bottomMargin = 80;
 
     const itemsSectionHeight = data.orderItems.length * itemLineHeight;
-    const baseHeight = headerHeight + tableHeaderHeight + itemsSectionHeight + totalsAreaHeight + footerAreaHeight + bottomMargin;
+    const baseHeight = headerHeight + tableHeaderHeight + itemsSectionHeight + totalsAreaHeight + signaturesAreaHeight + footerAreaHeight + bottomMargin;
 
     const width = baseWidth * scale;
     const height = baseHeight * scale;
@@ -95,196 +96,293 @@ export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
 
     ctx.textBaseline = 'middle';
 
-    // 2. LOGO SECTION
-    let currentY = 50;
+    // 2 & 3. BILINGUAL HEADER
+    let headerRightY = 50;
+    let headerLeftY = 50;
+
+    // Left side: Logo & Phone
     if (data.isLogoEnabled && data.logoSource) {
         try {
             const logo = await loadImage(data.logoSource);
-            const logoW = 260;
+            const logoW = 120;
             const logoH = (logo.height / logo.width) * logoW;
-            ctx.drawImage(logo, (baseWidth - logoW) / 2, currentY, logoW, logoH);
-            currentY += logoH + 25;
+            ctx.drawImage(logo, padding, headerLeftY, logoW, logoH);
+            headerLeftY += logoH + 15;
+            
+            // Phone number below logo
+            setFont(13, 'bold');
+            ctx.fillStyle = '#374151'; // gray-700
+            ctx.textAlign = 'left';
+            ctx.fillText(`ទូរស័ព្ទ: ${data.phone || '017 62 26 26'}`, padding, headerLeftY);
+            headerLeftY += 20;
         } catch (e: any) {
             console.warn('Failed to load receipt logo:', e.message);
-            currentY += 10;
+            headerLeftY += 10;
         }
+    } else {
+        // If logo disabled, show phone number
+        setFont(13, 'bold');
+        ctx.fillStyle = '#374151'; // gray-700
+        ctx.textAlign = 'left';
+        ctx.fillText(`ទូរស័ព្ទ: ${data.phone || '017 62 26 26'}`, padding, headerLeftY);
+        headerLeftY += 20;
     }
 
-    // 3. STORE INFO
-    ctx.textAlign = 'center';
-    setFont(24, 'bold');
+    // Right side: Pharmacy & Invoice title headings
+    ctx.textAlign = 'right';
     ctx.fillStyle = '#000000';
-    ctx.fillText(data.storeName || 'Name', baseWidth / 2, currentY);
-    currentY += 50;
+    
+    setFont(17, 'bold');
+    ctx.fillText('ឱសថស្ថាន', baseWidth - padding, headerRightY);
+    headerRightY += 24;
 
-    setFont(17, '400');
-    ctx.fillStyle = '#444444';
-    if (data.phone) {
-        ctx.fillText(`Tel: ${data.phone}`, baseWidth / 2, currentY);
-        currentY += 30;
-    }
-    if (data.address) {
-        ctx.fillText(data.address, baseWidth / 2, currentY);
-        currentY += 30;
-    }
+    setFont(13, 'bold');
+    ctx.fillStyle = '#4b5563'; // gray-600
+    ctx.fillText('PHARMACIE', baseWidth - padding, headerRightY);
+    headerRightY += 32;
 
-    currentY += 40;
+    setFont(18, 'bold');
+    ctx.fillStyle = '#000000';
+    ctx.fillText('វិក្កយបត្រ', baseWidth - padding, headerRightY);
+    headerRightY += 28;
 
-    // 4. META INFO GRID
-    ctx.textAlign = 'left';
-    setFont(14, 'bold');
-    ctx.fillStyle = '#888888';
-    ctx.fillText('លេខវិក្កយបត្រ / RECEIPT ID', padding, currentY);
+    setFont(15, 'bold');
+    ctx.fillText('INVOICE', baseWidth - padding, headerRightY);
+    headerRightY += 25;
 
-    ctx.textAlign = 'right';
-    ctx.fillText('កាលបរិច្ឆេទ / DATE', baseWidth - padding, currentY);
-    currentY += 28;
+    let currentY = Math.max(headerLeftY, headerRightY) + 20;
 
-    setFont(16, 'bold');
-    ctx.fillStyle = '#111111';
-    ctx.textAlign = 'left';
-    ctx.fillText(data.receiptNumber, padding, currentY);
+    // 4. METADATA LIST (Divided by borders)
+    ctx.strokeStyle = '#e5e7eb'; // border-gray-200
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padding, currentY);
+    ctx.lineTo(baseWidth - padding, currentY);
+    ctx.stroke();
+    
+    currentY += 20;
 
-    ctx.textAlign = 'right';
-    // Use the standard application utility for consistency
-    const dateStr = new Intl.DateTimeFormat('en-GB', {
+    const drawMetaRow = (label: string, val: string, isValBold: boolean = false) => {
+        ctx.textAlign = 'left';
+        setFont(14, '400');
+        ctx.fillStyle = '#4b5563';
+        ctx.fillText(label, padding, currentY);
+
+        ctx.textAlign = 'right';
+        setFont(14, isValBold ? 'bold' : '400');
+        ctx.fillStyle = '#111111';
+        ctx.fillText(val, baseWidth - padding, currentY);
+
+        currentY += 25;
+    };
+
+    drawMetaRow('Receipt ID:', data.receiptNumber, true);
+    
+    const formattedDate = new Intl.DateTimeFormat('en-US', {
         day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit', hour12: false,
+        hour: '2-digit', minute: '2-digit', hour12: true,
         timeZone: 'Asia/Phnom_Penh'
     }).format(new Date(data.orderDate));
+    
+    drawMetaRow('Date/Time:', formattedDate);
+    drawMetaRow('Cashier:', 'Cashier One');
+    drawMetaRow('Customer:', 'Walk-in Customer');
 
-    ctx.fillText(dateStr, baseWidth - padding, currentY);
-    currentY += 55;
+    currentY += 5;
 
-    // 5. MODERN ITEMS TABLE
-    const col1X = padding;
-    const col2X = baseWidth - padding - 150;
-    const col3X = baseWidth - padding;
-
-    // Header Styled
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(padding, currentY, contentWidth, tableHeaderHeight);
+    // 5. MODERN BILINGUAL ITEMS TABLE
+    // Top border for table header
+    ctx.strokeStyle = '#d1d5db'; // border-gray-300
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padding, currentY);
+    ctx.lineTo(baseWidth - padding, currentY);
+    ctx.stroke();
 
     ctx.fillStyle = '#ffffff';
-    setFont(13, 'bold');
+    ctx.fillRect(padding, currentY, contentWidth, tableHeaderHeight);
+
+    ctx.fillStyle = '#6b7280'; // text-gray-500
+    
+    // Draw columns headings
     ctx.textAlign = 'left';
-    ctx.fillText('ឈ្មោះទំនិញ (DESCRIPTION)', col1X + 15, currentY + (tableHeaderHeight / 2));
+    setFont(12, 'bold');
+    ctx.fillText('ល.រ', padding, currentY + 15);
+    setFont(10, 'bold');
+    ctx.fillText('N°', padding, currentY + 32);
+
+    setFont(12, 'bold');
+    ctx.fillText('រាយនាមទំនិញ', padding + 40, currentY + 15);
+    setFont(10, 'bold');
+    ctx.fillText('Name of Goods', padding + 40, currentY + 32);
+
+    setFont(12, 'bold');
+    ctx.textAlign = 'center';
+    ctx.fillText('ចំនួន', padding + 310, currentY + 15);
+    setFont(10, 'bold');
+    ctx.fillText('Qty', padding + 310, currentY + 32);
+
+    setFont(12, 'bold');
     ctx.textAlign = 'right';
-    ctx.fillText('ចំនួន (QTY)', col2X, currentY + (tableHeaderHeight / 2));
-    ctx.fillText('សរុប (TOTAL)', col3X - 15, currentY + (tableHeaderHeight / 2));
-    currentY += tableHeaderHeight;
+    ctx.fillText('តម្លៃមួយ', padding + 420, currentY + 15);
+    setFont(10, 'bold');
+    ctx.fillText('U.Price', padding + 420, currentY + 32);
+
+    setFont(12, 'bold');
+    ctx.fillText('តម្លៃសរុប', baseWidth - padding, currentY + 15);
+    setFont(10, 'bold');
+    ctx.fillText('Amount', baseWidth - padding, currentY + 32);
+
+    // Bottom border for table header
+    ctx.beginPath();
+    ctx.moveTo(padding, currentY + tableHeaderHeight);
+    ctx.lineTo(baseWidth - padding, currentY + tableHeaderHeight);
+    ctx.stroke();
+
+    currentY += tableHeaderHeight + 10;
 
     // Table Body
-    ctx.strokeStyle = '#e0e0e0';
-    ctx.lineWidth = 1;
+    setFont(14, '400');
+    ctx.fillStyle = '#111111';
 
     data.orderItems.forEach((item, index) => {
-        // Soft Stripe
-        if (index % 2 === 1) {
-            ctx.fillStyle = '#f8f8f8';
-            ctx.fillRect(padding, currentY, contentWidth, itemLineHeight);
-        }
+        const rowY = currentY;
+        const itemQty = item.quantity;
+        const itemSubtotal = Number(item.subtotal);
+        const itemUPrice = itemQty > 0 ? itemSubtotal / itemQty : itemSubtotal;
 
-        // Draw Row Bottom Border
-        ctx.beginPath();
-        ctx.moveTo(padding, currentY + itemLineHeight);
-        ctx.lineTo(baseWidth - padding, currentY + itemLineHeight);
-        ctx.stroke();
-
-        // Draw Side Borders
-        ctx.beginPath();
-        ctx.moveTo(padding, currentY); ctx.lineTo(padding, currentY + itemLineHeight);
-        ctx.moveTo(baseWidth - padding, currentY); ctx.lineTo(baseWidth - padding, currentY + itemLineHeight);
-        ctx.stroke();
-
-        ctx.fillStyle = '#111111';
-        setFont(16, '400');
-
+        // Index
         ctx.textAlign = 'left';
+        setFont(14, '400');
+        ctx.fillText(`${index + 1}`, padding, rowY + 12);
+
+        // Product Name
         let name = item.productName;
-        const maxW = col2X - col1X - 40;
+        const maxW = 250;
         if (ctx.measureText(name).width > maxW) {
             while (ctx.measureText(name + '...').width > maxW) {
                 name = name.substring(0, name.length - 1);
             }
             name += '...';
         }
-        ctx.fillText(name, col1X + 15, currentY + (itemLineHeight / 2));
+        ctx.fillText(name, padding + 40, rowY + 12);
 
+        // Qty
+        ctx.textAlign = 'center';
+        ctx.fillText(`${itemQty}`, padding + 310, rowY + 12);
+
+        // Unit Price
         ctx.textAlign = 'right';
-        ctx.fillText(`${item.quantity}`, col2X, currentY + (itemLineHeight / 2));
-        ctx.fillText(`$${Number(item.subtotal).toFixed(2)}`, col3X - 15, currentY + (itemLineHeight / 2));
+        ctx.fillText(`$${itemUPrice.toFixed(2)}`, padding + 420, rowY + 12);
+
+        // Amount
+        ctx.fillText(`$${itemSubtotal.toFixed(2)}`, baseWidth - padding, rowY + 12);
 
         currentY += itemLineHeight;
     });
 
-    // 6. TOTALS (Grand)
-    currentY += 30;
+    // Add border below items table
+    ctx.strokeStyle = '#d1d5db'; // border-gray-300
+    ctx.beginPath();
+    ctx.moveTo(padding, currentY);
+    ctx.lineTo(baseWidth - padding, currentY);
+    ctx.stroke();
 
+    currentY += 20;
+
+    // 6. TOTALS SUMMARY
     const khrRate = data.exchangeRate || 4000;
+    const calculatedSubtotal = data.totalAmount + (data.discountAmount || 0) - (data.taxAmount || 0) - (data.serviceFee || 0);
 
-    const renderTotalLine = (label: string, amount: number, color: string = '#444444', isBold: boolean = false, fontSize?: number) => {
-        // USD Line
+    const drawSummaryRow = (label: string, usdAmount: number, isDiscount: boolean = false) => {
         ctx.textAlign = 'left';
-        const finalSize = fontSize || (isBold ? 17 : 15);
-        setFont(finalSize, isBold ? 'bold' : '400');
-        ctx.fillStyle = color;
+        setFont(14, '400');
+        ctx.fillStyle = '#4b5563'; // text-gray-600
         ctx.fillText(label, padding, currentY);
 
         ctx.textAlign = 'right';
-        ctx.fillText(`$${amount.toFixed(2)}`, baseWidth - padding, currentY);
+        setFont(14, '400');
+        ctx.fillStyle = isDiscount ? '#dc2626' : '#111111'; // red for discount
+        ctx.fillText(`${isDiscount ? '-' : ''}$${usdAmount.toFixed(2)}`, baseWidth - padding, currentY);
 
-        currentY += isBold ? 22 : 18;
-
-        // KHR Line (aligned to right under USD)
-        const rawKhr = amount * khrRate;
-        const khrAmount = Math.round(rawKhr / 100) * 100;
-
-        setFont(13, '400');
-        ctx.fillStyle = '#777777';
-        ctx.fillText(`${khrAmount.toLocaleString()}៛`, baseWidth - padding, currentY);
-
-        currentY += isBold ? 35 : 28;
+        currentY += 25;
     };
 
-    // Calculate subtotal
-    const calculatedSubtotal = data.totalAmount + (data.discountAmount || 0) - (data.taxAmount || 0) - (data.serviceFee || 0);
-
-    renderTotalLine('សរុបរង (SUBTOTAL)', calculatedSubtotal);
-    renderTotalLine('បញ្ចុះតម្លៃ (DISCOUNT)', -(data.discountAmount || 0));
-    renderTotalLine('ពន្ធ (TAX)', data.taxAmount || 0);
-    renderTotalLine('តម្លៃសេវា (SERVICE FEE)', data.serviceFee || 0);
-
-    currentY += 10;
-    renderTotalLine('សរុបរួម (GRAND TOTAL)', data.totalAmount, '#1f8f3a', true, 17);
-
-    // Exchange rate
-    if (data.exchangeRate) {
-        setFont(12, '400');
-        ctx.fillStyle = '#999999';
-        ctx.textAlign = 'right';
-        ctx.fillText(`អត្រាប្តូរប្រាក់: 1 USD = ${data.exchangeRate.toLocaleString()}៛`, baseWidth - padding, currentY);
-        currentY += 25;
+    drawSummaryRow('Subtotal:', calculatedSubtotal);
+    if (data.discountAmount && data.discountAmount > 0) {
+        drawSummaryRow('Discount:', data.discountAmount, true);
+    }
+    if (data.taxAmount && data.taxAmount > 0) {
+        drawSummaryRow('Tax:', data.taxAmount);
+    }
+    if (data.serviceFee && data.serviceFee > 0) {
+        drawSummaryRow('Service Fee:', data.serviceFee);
     }
 
-    currentY += 40;
+    currentY += 5;
 
-    // 7. FOOTER SECTION (Modern Cleanup)
+    // Draw Grand Total Box Outline (Double or Thick Box)
+    const totalBoxHeight = 60;
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(padding, currentY, contentWidth, totalBoxHeight);
+
+    // Inside Grand Total Box: left side text, right side USD + KHR
+    ctx.fillStyle = '#000000';
+    setFont(15, 'bold');
+    ctx.textAlign = 'left';
+    ctx.fillText('សរុប TOTAL', padding + 15, currentY + (totalBoxHeight / 2));
+
+    ctx.textAlign = 'right';
+    setFont(17, 'bold');
+    ctx.fillText(`$${data.totalAmount.toFixed(2)}`, baseWidth - padding - 15, currentY + 20);
+
+    const rawKhr = data.totalAmount * khrRate;
+    const khrAmount = Math.round(rawKhr / 100) * 100;
+    setFont(12, 'bold');
+    ctx.fillStyle = '#374151'; // gray-700
+    ctx.fillText(`${khrAmount.toLocaleString()} KHR`, baseWidth - padding - 15, currentY + 42);
+
+    currentY += totalBoxHeight + 25;
+
+    // 7. SIGNATURE SECTION
+    ctx.strokeStyle = '#d1d5db'; // border-gray-300
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padding, currentY);
+    ctx.lineTo(baseWidth - padding, currentY);
+    ctx.stroke();
+
+    currentY += 20;
+
+    setFont(12, 'bold');
+    ctx.fillStyle = '#1f2937'; // gray-800
+    ctx.textAlign = 'left';
+    ctx.fillText("អ្នកទិញ / L'acheteur", padding + 10, currentY);
+
+    ctx.textAlign = 'right';
+    ctx.fillText("អ្នកលក់ / Le vender", baseWidth - padding - 10, currentY);
+
+    // Spacing for signature line
+    currentY += 65;
+
+    ctx.beginPath();
+    ctx.moveTo(padding, currentY);
+    ctx.lineTo(baseWidth - padding, currentY);
+    ctx.stroke();
+
+    currentY += 20;
+
+    // 8. FOOTER SECTION
     ctx.textAlign = 'center';
-    if (data.footerEnabled && data.footerNote) {
-        setFont(17, 'bold');
-        ctx.fillStyle = '#222222';
-        ctx.fillText(data.footerNote, baseWidth / 2, currentY);
-        currentY += 40;
-    }
+    setFont(13, 'bold');
+    ctx.fillStyle = '#111111';
+    ctx.fillText('THANK YOU FOR YOUR PURCHASE!', baseWidth / 2, currentY);
+    currentY += 20;
 
-    setFont(15, '400');
-    ctx.fillStyle = '#777777';
-    ctx.fillText('សូមអរគុណចំពោះការមកកាន់ហាងរបស់យើង!', baseWidth / 2, currentY);
-    currentY += 28;
-    ctx.fillText('THANK YOU FOR YOUR VISIT!', baseWidth / 2, currentY);
-
-    currentY += bottomMargin;
+    setFont(10, '400');
+    ctx.fillStyle = '#9ca3af'; // gray-400
+    ctx.fillText('Medicines are non-refundable once opened. Please check expiry dates.', baseWidth / 2, currentY);
 
     return canvas.toBuffer('image/png');
 }

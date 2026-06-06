@@ -244,8 +244,55 @@ export class ReportService {
           },
         }),
 
-        // Shifts breakdown
-        Promise.resolve([] as ShiftRow[]),
+        // Shifts breakdown (dynamic cashier sales)
+        (async () => {
+          const activeCashiers = await prisma.order.groupBy({
+            by: ['sellerId'],
+            where: {
+              orderDate: {
+                gte: startOfDay,
+                lte: endOfDay,
+              },
+              ...(effectiveSellerId ? { sellerId: effectiveSellerId } : {}),
+            },
+            _count: {
+              orderId: true,
+            },
+            _sum: {
+              totalAmount: true,
+            },
+            _min: {
+              orderDate: true,
+            },
+            _max: {
+              orderDate: true,
+            },
+          });
+
+          if (activeCashiers.length === 0) return [] as ShiftRow[];
+
+          const sellerIds = activeCashiers.map(c => c.sellerId);
+          const sellers = await prisma.user.findMany({
+            where: {
+              userId: { in: sellerIds },
+            },
+            select: {
+              userId: true,
+              fullName: true,
+            },
+          });
+          const sellerMap = new Map(sellers.map(s => [s.userId, s.fullName]));
+
+          return activeCashiers.map(c => ({
+            seller_id: c.sellerId,
+            seller_name: sellerMap.get(c.sellerId) || 'Unknown',
+            shift_count: 1,
+            total_sales: Number(c._sum.totalAmount || 0),
+            total_orders: c._count.orderId,
+            start_time: c._min.orderDate,
+            end_time: c._max.orderDate,
+          })) as ShiftRow[];
+        })(),
 
         // Top products consolidated
         prisma.$queryRaw<any[]>(Prisma.sql`
@@ -482,7 +529,7 @@ export class ReportService {
             to_char(date_trunc('day', o.created_at AT TIME ZONE 'Asia/Phnom_Penh'), 'YYYY-MM-DD') AS date,
             COALESCE(SUM(oi.subtotal), 0) AS total_sales,
             COUNT(DISTINCT o.order_id) AS total_orders,
-            COUNT(DISTINCT o.shift_id) AS total_shifts
+            0 AS total_shifts
           FROM orders o
           JOIN order_items oi ON oi.order_id = o.order_id
           WHERE o.created_at >= ${startDate}
@@ -525,7 +572,7 @@ export class ReportService {
             to_char(date_trunc('day', o.created_at AT TIME ZONE 'Asia/Phnom_Penh'), 'YYYY-MM-DD') AS date,
             COALESCE(SUM(o.total_amount), 0) AS total_sales,
             COUNT(DISTINCT o.order_id) AS total_orders,
-            COUNT(DISTINCT o.shift_id) AS total_shifts
+            0 AS total_shifts
           FROM orders o
           WHERE o.created_at >= ${startDate}
             AND o.created_at <= ${endDate}

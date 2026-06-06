@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { env } from '@src/shared/config/env';
 import { Role } from '@src/shared/config/permissions';
-import { tokenBlacklistService } from '@src/domains/Auth/services/token-blacklist.service';
+import { tokenBlacklistService } from '@src/domains/Auth/services/V1/token-blacklist.service';
 import prisma from '@src/database/client';
 import { logger } from '@src/shared/utils/logger';
 

@@ -18,7 +18,7 @@ export class SettingService {
   }
 
   /**
-   * Get current app settings
+   * Get current app settings (includes receipt / invoice info)
    */
   static async getSettings(
     currentUserId: number,
@@ -36,6 +36,21 @@ export class SettingService {
       });
     }
 
+    // Fetch receipt setting (auto-create if missing)
+    let receipt = await prisma.receiptSetting.findFirst({
+      orderBy: { updatedAt: 'desc' },
+    });
+    if (!receipt) {
+      receipt = await prisma.receiptSetting.create({
+        data: {
+          storeName: 'My Store',
+          isLogoEnabled: true,
+          isFooterEnabled: true,
+          updatedBy: currentUserId,
+        } as any,
+      });
+    }
+
     await auditLogService.createAuditLog({
       userId: currentUserId,
       action: 'VIEW_SETTINGS',
@@ -46,18 +61,26 @@ export class SettingService {
     return {
       auto_backup: settings.autoBackup,
       backup_frequency: settings.backupFrequency,
-      // backup_schedule_time removed
       stock_sync_policy: settings.stockSyncPolicy,
       report_send_enabled: settings.reportSendEnabled ?? true,
       report_send_time: this.formatTime(settings.reportSendTime, '23:30'),
       report_send_timezone: settings.reportSendTimezone || 'Asia/Phnom_Penh',
       updated_at: settings.updatedAt,
       updated_by: settings.updatedBy,
+      // Invoice / Receipt info
+      store_name: receipt.storeName,
+      store_logo_path: receipt.logoPath,
+      store_phone: receipt.phone,
+      store_address: receipt.address,
+      store_tax_id: receipt.taxId,
+      store_footer_note: receipt.footerNote,
+      is_logo_enabled: receipt.isLogoEnabled,
+      is_footer_enabled: receipt.isFooterEnabled,
     };
   }
 
   /**
-   * Update app settings
+   * Update app settings (also updates receipt / invoice info when provided)
    */
   static async updateSettings(
     request: UpdateSettingsRequest,
@@ -108,6 +131,50 @@ export class SettingService {
           },
         });
 
+    // ── Update receipt / invoice info (when store_name or any invoice field is provided) ──
+    const hasReceiptFields =
+      request.store_name !== undefined ||
+      request.store_phone !== undefined ||
+      request.store_address !== undefined ||
+      request.store_tax_id !== undefined ||
+      request.store_footer_note !== undefined ||
+      request.is_logo_enabled !== undefined ||
+      request.is_footer_enabled !== undefined;
+
+    let receipt = await prisma.receiptSetting.findFirst({
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    if (!receipt) {
+      receipt = await prisma.receiptSetting.create({
+        data: {
+          storeName: request.store_name ?? 'My Store',
+          phone: request.store_phone ?? null,
+          address: request.store_address ?? null,
+          taxId: request.store_tax_id ?? null,
+          footerNote: request.store_footer_note ?? null,
+          isLogoEnabled: request.is_logo_enabled ?? true,
+          isFooterEnabled: request.is_footer_enabled ?? true,
+          updatedBy: currentUserId,
+        } as any,
+      });
+    } else if (hasReceiptFields) {
+      receipt = await prisma.receiptSetting.update({
+        where: { settingId: receipt.settingId },
+        data: {
+          ...(request.store_name !== undefined && { storeName: request.store_name }),
+          ...(request.store_phone !== undefined && { phone: request.store_phone || null }),
+          ...(request.store_address !== undefined && { address: request.store_address || null }),
+          ...(request.store_tax_id !== undefined && { taxId: request.store_tax_id || null }),
+          ...(request.store_footer_note !== undefined && { footerNote: request.store_footer_note || null }),
+          ...(request.is_logo_enabled !== undefined && { isLogoEnabled: request.is_logo_enabled }),
+          ...(request.is_footer_enabled !== undefined && { isFooterEnabled: request.is_footer_enabled }),
+          updatedBy: currentUserId,
+          updatedAt: new Date(),
+        } as any,
+      });
+    }
+
     await auditLogService.createAuditLog({
       userId: currentUserId,
       action: 'UPDATE_SETTINGS',
@@ -116,11 +183,19 @@ export class SettingService {
       newValues: {
         auto_backup: request.auto_backup,
         backup_frequency: request.backup_frequency,
-        // backup_schedule_time removed
         stock_sync_policy: request.stock_sync_policy,
         report_send_enabled: reportSendEnabled,
         report_send_time: this.formatTime(reportSendTime, '23:30'),
         report_send_timezone: reportSendTimezone,
+        ...(hasReceiptFields && {
+          store_name: receipt?.storeName,
+          store_phone: receipt?.phone,
+          store_address: receipt?.address,
+          store_tax_id: receipt?.taxId,
+          store_footer_note: receipt?.footerNote,
+          is_logo_enabled: receipt?.isLogoEnabled,
+          is_footer_enabled: receipt?.isFooterEnabled,
+        }),
       },
     });
 
@@ -140,13 +215,21 @@ export class SettingService {
     return {
       auto_backup: updated.autoBackup,
       backup_frequency: updated.backupFrequency,
-      // backup_schedule_time removed
       stock_sync_policy: updated.stockSyncPolicy,
       report_send_enabled: updated.reportSendEnabled ?? true,
       report_send_time: this.formatTime(updated.reportSendTime, '23:30'),
       report_send_timezone: updated.reportSendTimezone || 'Asia/Phnom_Penh',
       updated_at: updated.updatedAt,
       updated_by: updated.updatedBy,
+      // Invoice / Receipt info
+      store_name: receipt?.storeName,
+      store_logo_path: receipt?.logoPath,
+      store_phone: receipt?.phone,
+      store_address: receipt?.address,
+      store_tax_id: receipt?.taxId,
+      store_footer_note: receipt?.footerNote,
+      is_logo_enabled: receipt?.isLogoEnabled,
+      is_footer_enabled: receipt?.isFooterEnabled,
     };
   }
 }

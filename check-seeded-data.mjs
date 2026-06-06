@@ -1,5 +1,5 @@
-import 'dotenv/config';
-import prisma from './src/database/client.js';
+import client from './src/database/client.js';
+const prisma = client.default || client;
 
 async function checkSeededData() {
   try {
@@ -8,14 +8,13 @@ async function checkSeededData() {
       prisma.product.count(),
       prisma.stock.count(),
       prisma.stockLot.count(),
-      prisma.shift.count(),
       prisma.order.count(),
       prisma.orderItem.count(),
       prisma.stockMovement.count(),
       prisma.appSetting.count(),
       prisma.telegramConfig.count(),
-      prisma.telegramAdminLinks.count(),
-      prisma.telegramAdminMessages.count(),
+      prisma.telegramAdminLink.count(),
+      prisma.telegramAdminMessage.count(),
       prisma.auditLog.count(),
     ]);
 
@@ -25,15 +24,14 @@ async function checkSeededData() {
     console.log(`Products:           ${counts[1]}`);
     console.log(`Stock Records:       ${counts[2]}`);
     console.log(`Stock Lots:          ${counts[3]}`);
-    console.log(`Shifts:              ${counts[4]}`);
-    console.log(`Orders:              ${counts[5]}`);
-    console.log(`Order Items:         ${counts[6]}`);
-    console.log(`Stock Movements:     ${counts[7]}`);
-    console.log(`App Settings:       ${counts[8]}`);
-    console.log(`Telegram Configs:   ${counts[9]}`);
-    console.log(`Telegram Admin Links:   ${counts[10]}`);
-    console.log(`Telegram Admin Messages:   ${counts[11]}`);
-    console.log(`Audit Logs:          ${counts[12]}`);
+    console.log(`Orders:              ${counts[4]}`);
+    console.log(`Order Items:         ${counts[5]}`);
+    console.log(`Stock Movements:     ${counts[6]}`);
+    console.log(`App Settings:       ${counts[7]}`);
+    console.log(`Telegram Configs:   ${counts[8]}`);
+    console.log(`Telegram Admin Links:   ${counts[9]}`);
+    console.log(`Telegram Admin Messages:   ${counts[10]}`);
+    console.log(`Audit Logs:          ${counts[11]}`);
     console.log('==========================\n');
 
     // Check if data exists
@@ -45,8 +43,6 @@ async function checkSeededData() {
     }
   } catch (error) {
     console.error('❌ Error checking data:', error.message);
-  } finally {
-    await prisma.$disconnect();
   }
 }
 

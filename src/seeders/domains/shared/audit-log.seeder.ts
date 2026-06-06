@@ -24,14 +24,12 @@ export class AuditLogSeeder extends BaseSeeder {
       'DELETE_PRODUCT',
       'CREATE_ORDER',
       'UPDATE_ORDER',
-      'CREATE_SHIFT',
-      'CLOSE_SHIFT',
       'STOCK_IN',
       'STOCK_OUT',
       'ADJUST_STOCK',
     ];
 
-    const entityTypes = ['User', 'Product', 'Order', 'Shift', 'Stock'];
+    const entityTypes = ['User', 'Product', 'Order', 'Stock'];
     const ipAddresses = ['192.168.1.1', '192.168.1.2', '10.0.0.1', '127.0.0.1'];
     const userAgents = [
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',

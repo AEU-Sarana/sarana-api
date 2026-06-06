@@ -737,17 +737,7 @@ async function handleMessageJob(payload: TelegramAdminMessageJobPayload) {
       );
     }
 
-    if (command.type === 'SHIFT_SUMMARY') {
-      const result = await TelegramAdminInventoryService.buildShiftSummaryMessage(adminUserId, payload.tenantId);
-      return TelegramService.editMessageByChatId(
-        payload.tenantId,
-        chatId,
-        processingMessageId,
-        result.text,
-        result.parseMode ?? 'Markdown',
-        result.replyMarkup
-      );
-    }
+
 
     if (command.type === 'RESEND_LAST_REPORT') {
       const prompt = TelegramAdminConfirmService.buildConfirmPrompt('RESEND_LAST_REPORT');

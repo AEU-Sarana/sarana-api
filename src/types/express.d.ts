@@ -1,11 +1,10 @@
-import { Order, Shift } from '@src/database/generated';
+import { Order } from '@src/database/generated';
 
 declare global {
   namespace Express {
     interface Request {
       user?: import('../shared/middleware/auth.middleware').UserPayload;
       order?: Order;
-      shift?: Shift;
       apiVersion?: string;
     }
     

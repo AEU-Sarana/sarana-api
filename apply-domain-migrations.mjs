@@ -22,9 +22,6 @@ const domainConfig = {
   category: {
     tables: ['categories'],
   },
-  shift: {
-    tables: ['shifts'],
-  },
   order: {
     tables: ['order_items', 'order_payments', 'orders', 'receipt_links'],
   },
@@ -79,6 +76,7 @@ const migrationOrder = [
   'customer/20260210000002_create_customer_telegram_links_table',
   'customer/20260210000003_create_receipt_deliveries_table',
   'customer/20260210000004_create_customer_linking_tokens_table',
+  'customer/20260210000005_add_phone_email_to_customers',
   'backup/20260211000005_create_backups_table',
   'backup/20260211000006_create_backup_runs_table',
   'super-admin/20260224000001_create_packages_table',

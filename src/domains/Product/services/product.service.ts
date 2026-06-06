@@ -150,8 +150,7 @@ export class ProductService {
       skip,
       take: limit,
       orderBy: [
-        { status: 'asc' }, // 'active' comes before 'inactive' alphabetically
-        { createdAt: 'desc' }
+        { productId: 'desc' }
       ],
       include: {
         category: true,

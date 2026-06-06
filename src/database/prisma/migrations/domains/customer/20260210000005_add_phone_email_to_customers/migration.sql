@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE customers ADD COLUMN phone VARCHAR(20), ADD COLUMN email VARCHAR(255);

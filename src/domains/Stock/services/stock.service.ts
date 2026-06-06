@@ -194,6 +194,9 @@ export class StockService {
       include: {
         product: { include: { category: true } },
       },
+      orderBy: {
+        stockId: 'desc',
+      },
     });
 
     // Base set for stable summary: active products only (not affected by filters)

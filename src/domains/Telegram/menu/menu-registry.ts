@@ -48,7 +48,6 @@ export const MENU_DEFS: Record<MenuId, MenuDefinition> = {
         { text: '📦របាយការណ៍ស្តុក', callback_data: openMenu('inventory') },
       ],
       [
-        { text: '🕒សង្ខេបវេន', callback_data: action('shift_summary') },
         { text: '💰របាយការណ៍ចំណូល', callback_data: openMenu('income') },
       ],
       [

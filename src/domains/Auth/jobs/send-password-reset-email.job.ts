@@ -1,6 +1,6 @@
 import { sendEmail } from '@src/shared/services/brevo-mail.service';
 import { logger } from '@src/shared/utils/logger';
-import { type SendPasswordResetEmailJobPayload } from '@src/domains/Auth/types/auth.types';
+import { type SendPasswordResetEmailJobPayload } from '@src/domains/Auth/types/V1/auth.types';
 
 export async function sendPasswordResetEmailJob(
   payload: SendPasswordResetEmailJobPayload

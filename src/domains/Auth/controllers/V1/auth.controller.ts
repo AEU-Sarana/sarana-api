@@ -1,11 +1,10 @@
 import { Request, Response } from 'express';
-import { AuthService as LegacyAuthService } from '@src/domains/Auth/services/auth.service';
 import { AuthService as AuthSessionService } from '@src/domains/Auth/services/V1/auth.service';
 import {
   ChangePasswordRequest,
   ResetPasswordRequest,
   UpdateProfileRequest,
-} from '@src/domains/Auth/types/auth.types';
+} from '@src/domains/Auth/types/V1/auth.types';
 import { UserPayload } from '@src/shared/middleware/auth.middleware';
 import { logger } from '@src/shared/utils/logger';
 
@@ -123,7 +122,7 @@ export class AuthController {
       const request: UpdateProfileRequest = req.body ?? {};
       const imageFile = req.file;
 
-      await LegacyAuthService.updateProfile(user.userId, request, imageFile);
+      await sessionService.updateProfile(user.userId, request, imageFile);
 
       res.status(200).json({
         success: true,
@@ -144,7 +143,7 @@ export class AuthController {
       const user = req.user as UserPayload;
       const request: ChangePasswordRequest = req.body;
 
-      await LegacyAuthService.changePassword(user.userId, request);
+      await sessionService.changePassword(user.userId, request);
 
       res.status(200).json({
         success: true,

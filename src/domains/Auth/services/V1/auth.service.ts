@@ -6,13 +6,14 @@ import { env } from '@src/shared/config/env';
 type Tx = Prisma.TransactionClient;
 
 import { AuthErrorCode } from '../../enums/V2/auth-error-codes';
-import { TokenService as TokenServiceV1 } from '../token.service'; // For V1 compatibility if needed, or just use V2 TokenService
 import { TokenService } from './token.service';
 import { RefreshTokenRepository } from '../../repository/V2/refresh-token.repository';
 import { addDaysToDate, toPhnomPenhISOString } from '@src/shared/utils/date-utils';
 import { logger } from '@src/shared/utils/logger';
 import { sendPasswordResetEmailJob } from '@src/domains/Auth/jobs/send-password-reset-email.job';
-import { ValidationException } from '@src/shared/exceptions';
+import { ValidationException, BusinessLogicException } from '@src/shared/exceptions';
+import { fileStorageService } from '@src/shared/services/file-storage.service';
+import { ChangePasswordRequest, UpdateProfileRequest } from '../../types/V1/auth.types';
 
 const repo = new RefreshTokenRepository();
 
@@ -307,6 +308,8 @@ export class AuthService {
         passwordHash: true,
         role: true,
         status: true,
+        email: true,
+        fullName: true,
       },
     });
 
@@ -357,9 +360,13 @@ export class AuthService {
       idle_expires_at: toPhnomPenhISOString(idleExpiresAt),
       absolute_expires_at: toPhnomPenhISOString(absoluteExpiresAt),
       user: {
+        userId: user.userId,
         user_id: user.userId,
         username: user.username,
         role: user.role,
+        email: user.email,
+        fullName: user.fullName,
+        full_name: user.fullName,
       },
     };
   }
@@ -448,7 +455,16 @@ export class AuthService {
   async me(userId: number) {
     const user = await prisma.user.findUnique({
       where: { userId },
-      select: { userId: true, username: true, role: true, status: true },
+      select: {
+        userId: true,
+        username: true,
+        role: true,
+        status: true,
+        email: true,
+        fullName: true,
+        phone: true,
+        bio: true,
+      },
     });
     if (!user) throw new Error(AuthErrorCode.TOKEN_REVOKED);
     return {
@@ -456,6 +472,125 @@ export class AuthService {
       username: user.username,
       role: user.role,
       status: user.status,
+      email: user.email,
+      fullName: user.fullName,
+      phone: user.phone,
+      bio: (user as any).bio,
     };
+  }
+
+  async updateProfile(
+    userId: number,
+    request: UpdateProfileRequest,
+    imageFile?: Express.Multer.File
+  ): Promise<void> {
+    const { full_name, username, email, phone, bio } = request;
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { userId },
+    });
+
+    if (!user) {
+      throw new ValidationException('User not found');
+    }
+
+    // Check if username is taken
+    if (username && username !== user.username) {
+      const existing = await prisma.user.findFirst({
+        where: {
+          username,
+          userId: { not: userId }
+        }
+      });
+      if (existing) throw new BusinessLogicException('Username already taken');
+    }
+
+    // Handle image upload if provided
+    let finalProfilePath = request.profile ?? user.profileImage;
+
+    if (imageFile) {
+      try {
+        // Upload new image
+        const uploadResult = await fileStorageService.uploadFile(
+          imageFile,
+          'users/avatars',
+          {
+            filename: `user-${userId}-${Date.now()}`,
+            public: true,
+            metadata: {
+              userId: userId.toString(),
+            }
+          }
+        );
+        finalProfilePath = uploadResult.url;
+
+        // Delete old image if it exists
+        if (user.profileImage) {
+          const oldKey = fileStorageService.extractKeyFromUrl(user.profileImage);
+          if (oldKey) {
+            void fileStorageService.deleteFile(oldKey).catch(err => {
+              logger.warn('Failed to delete old profile image', { userId, oldKey, error: err });
+            });
+          }
+        }
+      } catch (error) {
+        logger.error('Failed to upload user profile image:', error);
+        throw new BusinessLogicException('Failed to upload profile image');
+      }
+    }
+
+    // Update user
+    await prisma.user.update({
+      where: { userId },
+      data: {
+        fullName: full_name,
+        username: username,
+        email,
+        phone,
+        bio,
+        profileImage: finalProfilePath,
+        updatedAt: new Date(),
+      } as any,
+    });
+
+    logger.info('User profile updated', { userId });
+  }
+
+  async changePassword(
+    userId: number,
+    request: ChangePasswordRequest
+  ): Promise<void> {
+    const { current_password, new_password } = request;
+
+    // Get user
+    const user = await prisma.user.findUnique({
+      where: { userId },
+      select: {
+        userId: true,
+        passwordHash: true,
+      },
+    });
+
+    if (!user) {
+      throw new ValidationException('User not found');
+    }
+
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(current_password, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new ValidationException('Current password is incorrect', [], 'INVALID_PASSWORD', 400);
+    }
+
+    // Hash new password
+    const newPasswordHash = await bcrypt.hash(new_password, env.BCRYPT_SALT_ROUNDS);
+
+    // Update password
+    await prisma.user.update({
+      where: { userId },
+      data: { passwordHash: newPasswordHash },
+    });
+
+    logger.info('Password changed', { userId });
   }
 }

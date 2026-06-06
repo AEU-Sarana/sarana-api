@@ -9,6 +9,7 @@ import { StockMovementSeeder } from './domains/stock/stock-movement.seeder';
 import { AppSettingsSeeder } from './domains/settings/app-settings.seeder';
 import { TelegramConfigSeeder } from './domains/telegram/telegram-config.seeder';
 import { AuditLogSeeder } from './domains/shared/audit-log.seeder';
+import { CustomerSeeder } from './domains/customer/customer.seeder';
 
 /**
  * Main seeder function
@@ -34,6 +35,7 @@ async function main() {
       // 4. Orders (depends on users, products)
       new OrderSeeder(),
       new OrderItemSeeder(), // Order items are created with orders, but keeping for consistency
+      new CustomerSeeder(),
 
       // 5. Stock Movements (depends on products, orders, users, stock lots)
       new StockMovementSeeder(),
@@ -71,6 +73,7 @@ async function main() {
       prisma.appSetting.count(),
       prisma.telegramConfig.count(),
       prisma.auditLog.count(),
+      prisma.customer.count(),
     ]);
 
     console.log('\n📊 Seeding Summary:');
@@ -85,6 +88,7 @@ async function main() {
     console.log(`App Settings: ${counts[7]}`);
     console.log(`Telegram Configs: ${counts[8]}`);
     console.log(`Audit Logs: ${counts[9]}`);
+    console.log(`Customers: ${counts[10]}`);
   } catch (error) {
     console.error('❌ Seeding failed:', error);
     throw error;

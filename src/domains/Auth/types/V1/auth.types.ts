@@ -1,4 +1,4 @@
-import { UserRole } from '../enums';
+import { UserRole } from '../../enums';
 
 // Request Types
 export interface LoginRequest {

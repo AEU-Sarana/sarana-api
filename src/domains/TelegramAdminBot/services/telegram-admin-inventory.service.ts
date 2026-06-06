@@ -311,14 +311,4 @@ export class TelegramAdminInventoryService {
     };
   }
 
-  static async buildShiftSummaryMessage(
-    adminUserId: number,
-    tenantId?: number
-  ): Promise<TelegramAdminCallbackResult> {
-    return {
-      text: '⚠️ មុខងារវេនការងារ (Shift) មិនត្រូវបានកំណត់រចនាសម្ព័ន្ធនៅលើម៉ាស៊ីនបម្រើនេះទេ។',
-      replyMarkup: { inline_keyboard: [NAV_ROW] },
-      parseMode: MARKDOWN,
-    };
-  }
 }

@@ -35,4 +35,43 @@ export const updateSettingsValidator = [
     .isString()
     .notEmpty()
     .withMessage('report_send_timezone must be a valid timezone string'),
+  // Invoice / Receipt info
+  body('store_name')
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage('store_name must be a string with max 200 chars'),
+  body('store_phone')
+    .optional({ nullable: true })
+    .isString()
+    .trim()
+    .isLength({ max: 30 })
+    .withMessage('store_phone must be a string with max 30 chars'),
+  body('store_address')
+    .optional({ nullable: true })
+    .isString()
+    .trim()
+    .withMessage('store_address must be a string'),
+  body('store_tax_id')
+    .optional({ nullable: true })
+    .isString()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('store_tax_id must be a string with max 100 chars'),
+  body('store_footer_note')
+    .optional({ nullable: true })
+    .isString()
+    .trim()
+    .withMessage('store_footer_note must be a string'),
+  body('is_logo_enabled')
+    .optional()
+    .isBoolean()
+    .withMessage('is_logo_enabled must be a boolean')
+    .toBoolean(),
+  body('is_footer_enabled')
+    .optional()
+    .isBoolean()
+    .withMessage('is_footer_enabled must be a boolean')
+    .toBoolean(),
 ];

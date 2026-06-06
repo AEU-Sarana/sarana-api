@@ -15,6 +15,7 @@ import backupRoutes from './backup.routes';
 import userRoutes from './user.routes';
 import settingRoutes from './setting.routes';
 import dashboardRoutes from './dashboard.routes';
+import customerRoutes from './customer.routes';
 
 const router: IRouter = Router();
 
@@ -33,5 +34,6 @@ router.use('/backup', backupRoutes);
 router.use('/users', userRoutes);
 router.use('/settings', settingRoutes);
 router.use('/dashboard', dashboardRoutes);
+router.use('/customers', customerRoutes);
 
 export default router;

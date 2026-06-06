@@ -14,7 +14,6 @@ export type TelegramAdminCommand =
   | { type: 'RECEIPT_START'; code: string }
   | { type: 'REPORT'; date: string }
   | { type: 'LOWSTOCK' }
-  | { type: 'SHIFT_SUMMARY' }
   | { type: 'RESEND_LAST_REPORT' }
   | { type: 'UNLINK_BOT' }
   | { type: 'PRODUCT_LOOKUP'; productCode?: string }
