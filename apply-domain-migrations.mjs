@@ -107,6 +107,17 @@ async function tableExists(client, tableName) {
   return Boolean(res.rows?.[0]?.ok);
 }
 
+async function columnExists(client, tableName, columnName) {
+  const res = await client.query(
+    `SELECT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema='public' AND table_name=$1 AND column_name=$2
+     ) AS ok`,
+    [tableName, columnName]
+  );
+  return Boolean(res.rows?.[0]?.ok);
+}
+
 function migrationSqlPath(migrationPath) {
   // ✅ Rooted from project root
   return path.join(
@@ -123,7 +134,7 @@ function migrationSqlPath(migrationPath) {
 
 /* ================================
    APPLY MIGRATIONS
-================================ */
+ ================================ */
 async function applyMigrations(client) {
   console.log('🚀 Applying migrations...\n');
 
@@ -139,12 +150,18 @@ async function applyMigrations(client) {
 
     const sql = fs.readFileSync(sqlPath, 'utf8');
 
-    // If SQL contains ALTER/RENAME we don't skip
-    const lower = sql.toLowerCase();
-    const isRenameOrAlter = lower.includes('rename to') || lower.includes('alter table');
+    // Custom check for customer phone/email migration
+    if (name === '20260210000005_add_phone_email_to_customers') {
+      const hasPhone = await columnExists(client, 'customers', 'phone');
+      if (hasPhone) {
+        console.log(`📝 ${name}`);
+        console.log(`⚠️  Columns for 'customers' already exist – skipped\n`);
+        continue;
+      }
+    }
 
     const tableName = extractTableName(sql);
-    if (!isRenameOrAlter && tableName) {
+    if (tableName) {
       const exists = await tableExists(client, tableName);
       if (exists) {
         console.log(`📝 ${name}`);

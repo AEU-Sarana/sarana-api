@@ -109,11 +109,19 @@ export class TelegramService {
     userId: number,
     tenantId?: number
   ): Promise<TelegramConfigResponse> {
-    // Encrypt bot token before storing
-    const encryptedToken = encrypt(config.bot_token, process.env.ENCRYPTION_KEY!);
-
     // Check if config exists (as multi-tenancy is removed, we only check for a single configuration)
     const existingConfig = await prisma.telegramConfig.findFirst();
+
+    let finalBotToken = config.bot_token;
+    if (config.bot_token.includes('••••')) {
+      if (!existingConfig) {
+        throw new Error('Cannot use placeholder bot token when no Telegram configuration exists');
+      }
+      finalBotToken = decrypt(existingConfig.botToken, process.env.ENCRYPTION_KEY!);
+    }
+
+    // Encrypt bot token before storing
+    const encryptedToken = encrypt(finalBotToken, process.env.ENCRYPTION_KEY!);
 
     if (existingConfig) {
       // Update existing config
@@ -140,7 +148,7 @@ export class TelegramService {
         updated_by: userId,
         updated_at: updated.updatedAt,
       });
-      await this.registerAdminWebhook(config.bot_token, updated.isActive);
+      await this.registerAdminWebhook(finalBotToken, updated.isActive);
       return response;
     } else {
       // Create new config
@@ -166,7 +174,7 @@ export class TelegramService {
         updated_by: userId,
         updated_at: created.updatedAt,
       });
-      await this.registerAdminWebhook(config.bot_token, created.isActive);
+      await this.registerAdminWebhook(finalBotToken, created.isActive);
       return response;
     }
   }

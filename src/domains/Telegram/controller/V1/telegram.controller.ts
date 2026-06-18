@@ -118,4 +118,45 @@ export class TelegramController {
       );
     }
   }
+
+  // GET /api/v1/telegram/config
+  static async getTelegramConfig(req: Request, res: Response): Promise<void> {
+    try {
+      const response = await TelegramService.getTelegramConfig();
+      if (!response) {
+        res.json({
+          success: true,
+          data: null,
+          message: 'No Telegram configuration found'
+        });
+        return;
+      }
+      
+      const maskedToken = response.bot_token
+        ? response.bot_token.substring(0, 6) + '••••••••' + response.bot_token.substring(response.bot_token.length - 4)
+        : '';
+
+      res.json({
+        success: true,
+        data: {
+          config_id: response.config_id,
+          bot_token: maskedToken,
+          has_token: !!response.bot_token,
+          group_chat_id: response.group_chat_id,
+          is_active: response.is_active,
+          last_test_time: response.last_test_time,
+          last_test_status: response.last_test_status
+        },
+        message: 'Telegram config retrieved'
+      });
+    } catch (error: any) {
+      logger.error('Get Telegram config error', { error: error.message });
+      throw new BusinessLogicException(
+        'Failed to retrieve Telegram configuration',
+        'TELEGRAM_FETCH_ERROR',
+        500,
+        { reason: error.message }
+      );
+    }
+  }
 }

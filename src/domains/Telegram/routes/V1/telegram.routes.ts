@@ -18,6 +18,12 @@ const router: IRouter = Router();
 router.use(authenticateToken);
 router.use(requireRole(Role.ADMIN));
 
+// GET /api/v1/telegram/config
+router.get(
+  '/config',
+  TelegramController.getTelegramConfig
+);
+
 // POST /api/v1/telegram/config
 router.post(
   '/config',
