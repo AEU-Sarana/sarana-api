@@ -16,10 +16,12 @@ import userRoutes from './user.routes';
 import settingRoutes from './setting.routes';
 import dashboardRoutes from './dashboard.routes';
 import customerRoutes from './customer.routes';
+import permissionRoutes from '@src/domains/Auth/routes/V1/permission.routes';
 
 const router: IRouter = Router();
 
 // Mount route modules
+router.use('/', permissionRoutes);
 router.use('/auth', authRoutes);
 router.use('/products', productRoutes);
 router.use('/categories', categoryRoutes);

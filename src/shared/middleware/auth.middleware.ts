@@ -158,3 +158,58 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
 
   next();
 }
+
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (req.user?.role !== 'ADMIN') {
+    res.status(403).json({
+      success: false,
+      message: 'Admin access required',
+      code: 'FORBIDDEN_ADMIN_ONLY',
+    });
+    return;
+  }
+  next();
+}
+
+export function requirePermission(featureKey: string) {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Authentication required', code: 'UNAUTHORIZED' });
+      return;
+    }
+
+    // ADMIN has 100% full feature access automatically
+    if (req.user.role === 'ADMIN') {
+      next();
+      return;
+    }
+
+    try {
+      const permission = await prisma.userPermission.findFirst({
+        where: {
+          userId: req.user.userId,
+          featureKey,
+        },
+      });
+
+      if (!permission) {
+        res.status(403).json({
+          success: false,
+          message: `Access denied. Feature '${featureKey}' is not assigned to your account by an Admin.`,
+          code: 'FEATURE_ACCESS_DENIED',
+          featureKey,
+        });
+        return;
+      }
+
+      next();
+    } catch (err: any) {
+      res.status(500).json({
+        success: false,
+        message: 'Permission check failed',
+        code: 'PERMISSION_CHECK_FAILED',
+      });
+    }
+  };
+}
+

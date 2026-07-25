@@ -59,15 +59,17 @@ const telegramWebhookRateLimiterConfig = rateLimit({
   },
 });
 
-// Conditional rate limiters: unlimited in development, enforced in production
+// Conditional rate limiters: rate limiting disabled by default (unlimited requests)
+const isRateLimitEnabled = process.env.ENABLE_RATE_LIMIT === 'true';
+
 export const apiRateLimiter =
-  env.NODE_ENV === 'production' ? apiRateLimiterConfig : noOpRateLimiter;
+  isRateLimitEnabled ? apiRateLimiterConfig : noOpRateLimiter;
 
 export const authRateLimiter =
-  env.NODE_ENV === 'production' ? authRateLimiterConfig : noOpRateLimiter;
+  isRateLimitEnabled ? authRateLimiterConfig : noOpRateLimiter;
 
 export const receiptScanRateLimiter =
-  env.NODE_ENV === 'production' ? receiptScanRateLimiterConfig : noOpRateLimiter;
+  isRateLimitEnabled ? receiptScanRateLimiterConfig : noOpRateLimiter;
 
 export const telegramWebhookRateLimiter =
-  env.NODE_ENV === 'production' ? telegramWebhookRateLimiterConfig : noOpRateLimiter;
+  isRateLimitEnabled ? telegramWebhookRateLimiterConfig : noOpRateLimiter;

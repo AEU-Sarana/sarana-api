@@ -9,5 +9,5 @@ export const getStockMovementsValidator = [
   query('date_from').optional().isISO8601().withMessage('Date from must be a valid ISO 8601 date'),
   query('date_to').optional().isISO8601().withMessage('Date to must be a valid ISO 8601 date'),
   query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
-  query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100'),
+  query('limit').optional().isInt({ min: 1, max: 10000 }).withMessage('Limit must be between 1 and 10000'),
 ];

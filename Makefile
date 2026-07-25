@@ -187,7 +187,9 @@ health:
 	@$(COMPOSE_CMD) ps
 	@echo "--- API ---"
 	@if [ "$(ENV)" = "dev" ]; then \
-		curl -s http://localhost:3000/health || echo "API not reachable"; \
+		NGINX_PORT=$$(grep -E '^NGINX_HTTP_PORT=' .env 2>/dev/null | cut -d '=' -f2); \
+		PORT=$${NGINX_PORT:-8088}; \
+		curl -s http://localhost:$$PORT/health || echo "API not reachable"; \
 	else \
 		curl -s http://localhost/health || echo "API not reachable"; \
 	fi

@@ -505,8 +505,8 @@ export class ReportService {
       if (page < 1) {
         throw new ValidationException('page must be greater than 0');
       }
-      if (limit < 1 || limit > 100) {
-        throw new ValidationException('limit must be between 1 and 100');
+      if (limit < 1 || limit > 10000) {
+        throw new ValidationException('limit must be between 1 and 10000');
       }
 
       const offset = (page - 1) * limit;

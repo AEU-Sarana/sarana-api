@@ -14,8 +14,10 @@ import { sendPasswordResetEmailJob } from '@src/domains/Auth/jobs/send-password-
 import { ValidationException, BusinessLogicException } from '@src/shared/exceptions';
 import { fileStorageService } from '@src/shared/services/file-storage.service';
 import { ChangePasswordRequest, UpdateProfileRequest } from '../../types/V1/auth.types';
+import { PermissionService } from './permission.service';
 
 const repo = new RefreshTokenRepository();
+const permissionService = new PermissionService();
 
 export class AuthService {
   /**
@@ -352,6 +354,8 @@ export class AuthService {
       role: user.role as 'ADMIN' | 'CASHIER',
     });
 
+    const permissions = await permissionService.getUserPermissions(user.userId, user.role);
+
     return {
       token: accessToken,
       refresh_token: refreshRaw,
@@ -367,6 +371,7 @@ export class AuthService {
         email: user.email,
         fullName: user.fullName,
         full_name: user.fullName,
+        permissions,
       },
     };
   }
@@ -467,7 +472,10 @@ export class AuthService {
       },
     });
     if (!user) throw new Error(AuthErrorCode.TOKEN_REVOKED);
+    const permissions = await permissionService.getUserPermissions(user.userId, user.role);
+
     return {
+      userId: user.userId,
       user_id: user.userId,
       username: user.username,
       role: user.role,
@@ -476,6 +484,7 @@ export class AuthService {
       fullName: user.fullName,
       phone: user.phone,
       bio: (user as any).bio,
+      permissions,
     };
   }
 

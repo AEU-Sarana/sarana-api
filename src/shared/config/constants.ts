@@ -5,7 +5,7 @@ export const APP_CONSTANTS = {
   // Pagination
   DEFAULT_PAGE: 1,
   DEFAULT_LIMIT: 10,
-  MAX_LIMIT: 100,
+  MAX_LIMIT: 10000,
 
   // Product
   MAX_PRODUCTS: 50, // Phase 1 limit

@@ -33,6 +33,6 @@ export const getSalesHistoryReportValidator = [
 
   query('limit')
     .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage('limit must be between 1 and 100'),
+    .isInt({ min: 1, max: 10000 })
+    .withMessage('limit must be between 1 and 10000'),
 ];
