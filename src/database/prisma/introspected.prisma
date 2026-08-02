@@ -314,7 +314,6 @@ model users {
   receipt_settings                                  receipt_settings[]
   refresh_tokens                                    refresh_tokens[]
   stock_movements                                   stock_movements[]
-  subscriptions                                     subscriptions[]
   telegram_admin_links                              telegram_admin_links[]
   telegram_config_telegram_config_created_byTousers telegram_config[]      @relation("telegram_config_created_byTousers")
   telegram_config_telegram_config_updated_byTousers telegram_config[]      @relation("telegram_config_updated_byTousers")
@@ -335,6 +334,7 @@ model user_permissions {
   id                                            Int      @id @default(autoincrement())
   user_id                                       Int
   feature_key                                   String   @db.VarChar(100)
+  actions                                       String   @default("read") @db.VarChar(255)
   granted_by                                    Int?
   created_at                                    DateTime @default(now()) @db.Timestamp(6)
   users_granted_by                              users?   @relation("user_permissions_granted_byTousers", fields: [granted_by], references: [user_id], onDelete: SetNull, onUpdate: NoAction)
@@ -448,77 +448,7 @@ model backups {
   @@index([status], map: "idx_backups_status")
 }
 
-model packages {
-  id               Int                @id @default(autoincrement())
-  name             String             @db.VarChar(100)
-  description      String?
-  is_active        Boolean            @default(true)
-  created_at       DateTime           @default(now())
-  updated_at       DateTime           @default(now())
-  package_features package_features[]
-  plans            plans[]
-}
 
-model plans {
-  id            Int             @id @default(autoincrement())
-  package_id    Int
-  name          String          @db.VarChar(100)
-  type          String          @db.VarChar(20)
-  price         Decimal         @db.Decimal(10, 2)
-  is_active     Boolean         @default(true)
-  created_at    DateTime        @default(now())
-  updated_at    DateTime        @default(now())
-  packages      packages        @relation(fields: [package_id], references: [id])
-  subscriptions subscriptions[]
-}
-
-model subscriptions {
-  id                    Int                     @id @default(autoincrement())
-  user_id               Int
-  plan_id               Int
-  status                String                  @db.VarChar(20)
-  start_date            DateTime
-  end_date              DateTime?
-  close_reason          String?
-  effective_close_date  DateTime?
-  created_at            DateTime                @default(now())
-  updated_at            DateTime                @default(now())
-  subscription_payments subscription_payments[]
-  plans                 plans                   @relation(fields: [plan_id], references: [id])
-  users                 users                   @relation(fields: [user_id], references: [user_id])
-
-  @@index([status])
-  @@index([user_id])
-}
-
-model package_features {
-  id            Int      @id @default(autoincrement())
-  package_id    Int
-  feature_code  String   @db.VarChar(100)
-  feature_value String?
-  is_enabled    Boolean  @default(true)
-  description   String?
-  created_at    DateTime @default(now())
-  updated_at    DateTime @default(now())
-  packages      packages @relation(fields: [package_id], references: [id], onDelete: Cascade)
-
-  @@index([package_id])
-}
-
-model subscription_payments {
-  id              Int           @id @default(autoincrement())
-  subscription_id Int
-  amount          Decimal       @db.Decimal(10, 2)
-  payment_date    DateTime      @default(now())
-  payment_method  String        @db.VarChar(50)
-  status          String        @default("COMPLETED") @db.VarChar(20)
-  transaction_id  String?       @unique @db.VarChar(255)
-  created_at      DateTime      @default(now())
-  subscriptions   subscriptions @relation(fields: [subscription_id], references: [id])
-
-  @@index([status])
-  @@index([subscription_id])
-}
 
 model password_reset_otps {
   id         Int       @id @default(autoincrement())

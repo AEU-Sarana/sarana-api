@@ -171,7 +171,7 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   next();
 }
 
-export function requirePermission(featureKey: string) {
+export function requirePermission(featureKey: string, requiredAction: string = 'read') {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     if (!req.user) {
       res.status(401).json({ success: false, message: 'Authentication required', code: 'UNAUTHORIZED' });
@@ -198,6 +198,20 @@ export function requirePermission(featureKey: string) {
           message: `Access denied. Feature '${featureKey}' is not assigned to your account by an Admin.`,
           code: 'FEATURE_ACCESS_DENIED',
           featureKey,
+        });
+        return;
+      }
+
+      const userActions = permission.actions ? permission.actions.split(',') : ['read'];
+      const hasAction = userActions.includes('all') || userActions.includes(requiredAction);
+
+      if (!hasAction) {
+        res.status(403).json({
+          success: false,
+          message: `Access denied. Action '${requiredAction}' on feature '${featureKey}' is not permitted.`,
+          code: 'ACTION_ACCESS_DENIED',
+          featureKey,
+          requiredAction,
         });
         return;
       }

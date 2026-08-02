@@ -83,7 +83,7 @@ export class PermissionController {
       if (!Array.isArray(permissions)) {
         res.status(400).json({
           success: false,
-          message: 'Permissions must be an array of feature key strings',
+          message: 'Permissions must be an array of feature items or strings',
         });
         return;
       }

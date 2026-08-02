@@ -1,8 +1,6 @@
 import { Router, type IRouter } from 'express';
-import { authenticateToken } from '@src/shared/middleware/auth.middleware';
-import { requireAdmin, requirePermission } from '@src/shared/middleware/authorization.middleware';
+import { authenticateToken, requirePermission } from '@src/shared/middleware/auth.middleware';
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
-import { Permission } from '@src/shared/config/permissions';
 import { ProductController } from '@src/domains/Product/controllers/V1/product.controller';
 import {
   listProductsValidator,
@@ -39,40 +37,36 @@ router.get(
   ProductController.getProduct
 );
 
-// Create product - Admin only
+// Create product
 router.post(
   '/',
-  requireAdmin,
-  requirePermission(Permission.PRODUCT_CREATE),
+  requirePermission('catalog.manage_products', 'create'),
   productImageUploadAny, // Handle single image upload with any field name
   ...validateRequest(createProductValidator),
   ProductController.createProduct
 );
 
-// Update product - Admin only
+// Update product
 router.put(
   '/:id',
-  requireAdmin,
-  requirePermission(Permission.PRODUCT_UPDATE),
+  requirePermission('catalog.manage_products', 'update'),
   productImageUploadAny, // Handle single image upload with any field name
   ...validateRequest(updateProductValidator),
   ProductController.updateProduct
 );
 
-// Delete product (soft delete) - Admin only
+// Delete product (soft delete)
 router.delete(
   '/:id',
-  requireAdmin,
-  requirePermission(Permission.PRODUCT_DELETE),
+  requirePermission('catalog.manage_products', 'delete'),
   ...validateRequest(deleteProductValidator),
   ProductController.deleteProduct
 );
 
-// Toggle product status (active <-> inactive) - Admin only
+// Toggle product status (active <-> inactive)
 router.patch(
   '/:id/toggle-status',
-  requireAdmin,
-  requirePermission(Permission.PRODUCT_UPDATE),
+  requirePermission('catalog.manage_products', 'update'),
   ...validateRequest(toggleStatusValidator),
   ProductController.toggleStatus
 );

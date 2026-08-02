@@ -1,9 +1,17 @@
+export type PermissionAction = 'read' | 'create' | 'update' | 'delete' | 'all';
+
 export interface SystemFeature {
   key: string;
   name: string;
   category: 'POS & Checkout' | 'Catalog & Products' | 'Inventory' | 'Sales & Orders' | 'Reports' | 'Customers & Users';
   description: string;
   defaultCashier: boolean;
+  supportedActions: PermissionAction[];
+}
+
+export interface UserPermissionItem {
+  featureKey: string;
+  actions: PermissionAction[];
 }
 
 export const SYSTEM_FEATURES: SystemFeature[] = [
@@ -14,6 +22,7 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'POS & Checkout',
     description: 'Process sales transactions and accept payments',
     defaultCashier: true,
+    supportedActions: ['read', 'create', 'update', 'all'],
   },
   {
     key: 'pos.apply_discount',
@@ -21,6 +30,7 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'POS & Checkout',
     description: 'Apply custom discounts to cart items or total order',
     defaultCashier: false,
+    supportedActions: ['read', 'create', 'all'],
   },
   {
     key: 'pos.edit_price',
@@ -28,6 +38,7 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'POS & Checkout',
     description: 'Manually edit product price during checkout',
     defaultCashier: false,
+    supportedActions: ['read', 'update', 'all'],
   },
   {
     key: 'pos.hold_cart',
@@ -35,6 +46,7 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'POS & Checkout',
     description: 'Save active cart items to resume sales later',
     defaultCashier: true,
+    supportedActions: ['read', 'create', 'update', 'delete', 'all'],
   },
   {
     key: 'pos.reprint_receipt',
@@ -42,6 +54,7 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'POS & Checkout',
     description: 'Reprint receipts for previous sales transactions',
     defaultCashier: true,
+    supportedActions: ['read', 'create', 'all'],
   },
 
   // Catalog & Products
@@ -51,6 +64,7 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'Catalog & Products',
     description: 'Browse products, prices, and stock counts',
     defaultCashier: true,
+    supportedActions: ['read', 'all'],
   },
   {
     key: 'catalog.manage_products',
@@ -58,6 +72,7 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'Catalog & Products',
     description: 'Create new products, edit details, and prices',
     defaultCashier: false,
+    supportedActions: ['read', 'create', 'update', 'delete', 'all'],
   },
   {
     key: 'catalog.categories',
@@ -65,6 +80,7 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'Catalog & Products',
     description: 'Create, update, and organize product categories',
     defaultCashier: false,
+    supportedActions: ['read', 'create', 'update', 'delete', 'all'],
   },
 
   // Inventory
@@ -74,6 +90,7 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'Inventory',
     description: 'Inspect product stock counts and batch expiry dates',
     defaultCashier: true,
+    supportedActions: ['read', 'all'],
   },
   {
     key: 'stock.stock_in',
@@ -81,6 +98,7 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'Inventory',
     description: 'Record incoming stock deliveries from suppliers',
     defaultCashier: false,
+    supportedActions: ['read', 'create', 'update', 'all'],
   },
   {
     key: 'stock.adjustments',
@@ -88,6 +106,7 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'Inventory',
     description: 'Perform stock adjustments to correct inventory count',
     defaultCashier: false,
+    supportedActions: ['read', 'create', 'update', 'all'],
   },
 
   // Sales & Orders
@@ -97,6 +116,7 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'Sales & Orders',
     description: 'View past completed transaction history',
     defaultCashier: true,
+    supportedActions: ['read', 'all'],
   },
   {
     key: 'sales.refund_order',
@@ -104,6 +124,7 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'Sales & Orders',
     description: 'Process product returns and issue money refunds',
     defaultCashier: false,
+    supportedActions: ['read', 'create', 'update', 'all'],
   },
   {
     key: 'sales.cancel_order',
@@ -111,6 +132,7 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'Sales & Orders',
     description: 'Void or cancel an existing order transaction',
     defaultCashier: false,
+    supportedActions: ['read', 'update', 'delete', 'all'],
   },
 
   // Reports
@@ -120,6 +142,7 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'Reports',
     description: 'View register end-of-shift closing summary',
     defaultCashier: true,
+    supportedActions: ['read', 'all'],
   },
   {
     key: 'reports.full_analytics',
@@ -127,6 +150,7 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'Reports',
     description: 'View store-wide revenue, profit, and business reports',
     defaultCashier: false,
+    supportedActions: ['read', 'all'],
   },
 
   // Customers & Users
@@ -136,6 +160,7 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'Customers & Users',
     description: 'Register and update customer information',
     defaultCashier: true,
+    supportedActions: ['read', 'create', 'update', 'delete', 'all'],
   },
   {
     key: 'users.manage',
@@ -143,9 +168,13 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     category: 'Customers & Users',
     description: 'Create and update cashier staff accounts and permissions',
     defaultCashier: false,
+    supportedActions: ['read', 'create', 'update', 'delete', 'all'],
   },
 ];
 
-export const DEFAULT_CASHIER_PERMISSIONS: string[] = SYSTEM_FEATURES
+export const DEFAULT_CASHIER_PERMISSIONS: UserPermissionItem[] = SYSTEM_FEATURES
   .filter((f) => f.defaultCashier)
-  .map((f) => f.key);
+  .map((f) => ({
+    featureKey: f.key,
+    actions: ['read', 'create', 'update'],
+  }));

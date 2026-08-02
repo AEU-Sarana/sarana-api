@@ -1,6 +1,5 @@
 import { Router, type IRouter } from 'express';
-import { authenticateToken } from '@src/shared/middleware/auth.middleware';
-import { requireAdmin } from '@src/shared/middleware/authorization.middleware';
+import { authenticateToken, requirePermission } from '@src/shared/middleware/auth.middleware';
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
 import { CategoryController } from '@src/domains/Product/controllers/V1/category.controller';
 import {
@@ -27,35 +26,35 @@ router.get(
   CategoryController.getCategory
 );
 
-// Create category - Admin only
+// Create category
 router.post(
   '/',
-  requireAdmin,
+  requirePermission('catalog.categories', 'create'),
   ...validateRequest(createCategoryValidator),
   CategoryController.createCategory
 );
 
-// Update category - Admin only
+// Update category
 router.put(
   '/:id',
-  requireAdmin,
+  requirePermission('catalog.categories', 'update'),
   ...validateRequest(getCategoryValidator),
   ...validateRequest(updateCategoryValidator),
   CategoryController.updateCategory
 );
 
-// Delete category (soft delete) - Admin only
+// Delete category (soft delete)
 router.delete(
   '/:id',
-  requireAdmin,
+  requirePermission('catalog.categories', 'delete'),
   ...validateRequest(getCategoryValidator),
   CategoryController.deleteCategory
 );
 
-// Toggle category status - Admin only
+// Toggle category status
 router.patch(
   '/:id/toggle-status',
-  requireAdmin,
+  requirePermission('catalog.categories', 'update'),
   ...validateRequest(getCategoryValidator),
   CategoryController.toggleStatus
 );

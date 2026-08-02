@@ -1,6 +1,7 @@
 import { BaseSeeder } from '../../base-seeder';
 import prisma from '../../../database/client';
 import { userSeedData } from './user-seed-data';
+import { DEFAULT_CASHIER_PERMISSIONS } from '../../../shared/constants/permissions';
 
 export class UserSeeder extends BaseSeeder {
   name = 'Users';
@@ -88,6 +89,31 @@ export class UserSeeder extends BaseSeeder {
       }
     }
 
-    console.log(`   Created/Updated ${userSeedData.length} users`);
+    // Seed default permissions for CASHIER users if none assigned
+    const adminUser = Array.from(usersByUsername.values()).find((u) => u.role === 'ADMIN');
+    const adminId = adminUser ? adminUser.userId : 1;
+
+    for (const user of usersByUsername.values()) {
+      if (user.role === 'CASHIER') {
+        const existingCount = await prisma.userPermission.count({
+          where: { userId: user.userId },
+        });
+
+        if (existingCount === 0) {
+          for (const perm of DEFAULT_CASHIER_PERMISSIONS) {
+            await prisma.userPermission.create({
+              data: {
+                userId: user.userId,
+                featureKey: perm.featureKey,
+                actions: perm.actions.join(','),
+                grantedBy: adminId,
+              },
+            });
+          }
+        }
+      }
+    }
+
+    console.log(`   Created/Updated ${userSeedData.length} users with default permissions`);
   }
 }

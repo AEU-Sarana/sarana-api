@@ -43,9 +43,6 @@ const domainConfig = {
   backup: {
     tables: ['backups', 'backup_runs'],
   },
-  'super-admin': {
-    tables: ['packages', 'plans', 'subscriptions', 'package_features', 'subscription_payments'],
-  },
 };
 
 /* ================================
@@ -79,11 +76,6 @@ const migrationOrder = [
   'customer/20260210000005_add_phone_email_to_customers',
   'backup/20260211000005_create_backups_table',
   'backup/20260211000006_create_backup_runs_table',
-  'super-admin/20260224000001_create_packages_table',
-  'super-admin/20260224000002_create_plans_table',
-  'super-admin/20260224000003_create_subscriptions_table',
-  'super-admin/20260224000004_create_package_features_table',
-  'super-admin/20260224000005_create_subscription_payments_table',
   'order/20260525000001_remove_order_uuid',
 ];
 

@@ -1,9 +1,7 @@
 
-import { Router , type IRouter} from 'express';
-import { authenticateToken } from '@src/shared/middleware/auth.middleware';
-import { requireAdmin, requirePermission } from '@src/shared/middleware/authorization.middleware';
+import { Router, type IRouter } from 'express';
+import { authenticateToken, requirePermission } from '@src/shared/middleware/auth.middleware';
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
-import { Permission } from '@src/shared/config/permissions';
 import { UserController } from '@src/domains/User/controllers/V1/user.controller';
 import {
   listUsersValidator,
@@ -20,13 +18,10 @@ const router: IRouter = Router();
 // All routes require authentication
 router.use(authenticateToken);
 
-// All routes require admin
-router.use(requireAdmin);
-
 // List users
 router.get(
   '/',
-  requirePermission(Permission.USER_VIEW),
+  requirePermission('users.manage', 'read'),
   ...validateRequest(listUsersValidator),
   UserController.listUsers
 );
@@ -34,7 +29,7 @@ router.get(
 // List cashiers only
 router.get(
   '/cashiers',
-  requirePermission(Permission.USER_VIEW),
+  requirePermission('users.manage', 'read'),
   ...validateRequest(listCashiersValidator),
   UserController.listCashiers
 );
@@ -42,7 +37,7 @@ router.get(
 // Get user details
 router.get(
   '/:id',
-  requirePermission(Permission.USER_VIEW),
+  requirePermission('users.manage', 'read'),
   ...validateRequest(getUserValidator),
   UserController.getUser
 );
@@ -50,7 +45,7 @@ router.get(
 // Create user/cashier
 router.post(
   '/',
-  requirePermission(Permission.USER_CREATE),
+  requirePermission('users.manage', 'create'),
   ...validateRequest(createUserValidator),
   UserController.createUser
 );
@@ -58,7 +53,7 @@ router.post(
 // Update user/cashier
 router.put(
   '/:id',
-  requirePermission(Permission.USER_UPDATE),
+  requirePermission('users.manage', 'update'),
   ...validateRequest(updateUserValidator),
   UserController.updateUser
 );
@@ -66,15 +61,15 @@ router.put(
 // Deactivate user (soft delete)
 router.delete(
   '/:id',
-  requirePermission(Permission.USER_DELETE),
+  requirePermission('users.manage', 'delete'),
   ...validateRequest(deactivateUserValidator),
   UserController.deactivateUser
 );
 
-//Set user PIN
+// Set user PIN
 router.put(
   '/:id/pin',
-  requirePermission(Permission.USER_UPDATE),
+  requirePermission('users.manage', 'update'),
   ...validateRequest(createPinValidator),
   UserController.setUserPIN
 );

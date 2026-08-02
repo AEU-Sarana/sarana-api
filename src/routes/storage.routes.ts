@@ -7,34 +7,10 @@ import { authenticateToken } from '@src/shared/middleware/auth.middleware';
 
 const router: IRouter = Router();
 
-// Apply auth middleware only to storage routes
-// Since this router is mounted at '/', we need to check the path first
-router.use((req: Request, res: Response, next: any) => {
-  // Allow public access for receipt images (Telegram bot needs to fetch them)
-  const urlPath = req.url || req.path;
-  const isReceiptImage = urlPath.includes('/receipts/') ||
-    urlPath.includes('/receipt-images/') ||
-    urlPath.match(/\/receipt[-_]?images?\//i);
-
-  if (isReceiptImage) {
-    // Skip authentication for receipt images
-    logger.debug('Public access granted for receipt image:', urlPath);
-    return next();
-  }
-
-  // For other storage paths, apply authentication
-  if (req.path.startsWith('/storage/')) {
-    return authenticateToken(req, res, next);
-  }
-  // For all other routes, skip authentication
-  next();
-});
-
-router.get(/^\/storage\/([^\/]+)\/(.+)$/, async (req: Request, res: Response) => {
+router.get(/(?:^\/storage|.*\/storage)\/([^\/]+)\/(.+)$/, async (req: Request, res: Response) => {
   try {
-
     const urlPath = req.url || req.path;
-    const match = urlPath.match(/^\/storage\/([^\/]+)\/(.+)$/);
+    const match = urlPath.match(/(?:^\/storage|.*\/storage)\/([^\/]+)\/(.+)$/);
 
     if (!match) {
       logger.warn('Invalid storage path:', urlPath);
