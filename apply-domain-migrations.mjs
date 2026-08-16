@@ -14,7 +14,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 ================================ */
 const domainConfig = {
   auth: {
-    tables: ['users', 'refresh_tokens', 'password_reset_otps'],
+    tables: ['users', 'refresh_tokens', 'password_reset_otps', 'user_permissions', 'roles', 'role_permissions'],
   },
   product: {
     tables: ['products'],
@@ -43,6 +43,12 @@ const domainConfig = {
   backup: {
     tables: ['backups', 'backup_runs'],
   },
+  supplier: {
+    tables: ['suppliers'],
+  },
+  purchasing: {
+    tables: ['goods_received_items', 'goods_received', 'purchase_order_items', 'purchase_orders'],
+  },
 };
 
 /* ================================
@@ -52,6 +58,9 @@ const migrationOrder = [
   'auth/20260118000001_create_users_table',
   'auth/20260118000002_create_refresh_tokens_table',
   'auth/20260217000001_create_password_reset_otps_table',
+  'auth/20260725000001_create_user_permissions_table',
+  'auth/20260814000001_create_roles_tables',
+  'auth/20260814000002_drop_users_role_check_constraint',
   'product/20260118000003_create_products_table',
   'category/20260524000001_create_categories_table',
   'order/20260118000005_create_orders_table',
@@ -77,6 +86,11 @@ const migrationOrder = [
   'backup/20260211000005_create_backups_table',
   'backup/20260211000006_create_backup_runs_table',
   'order/20260525000001_remove_order_uuid',
+  'supplier/20260816000001_create_suppliers_table',
+  'purchasing/20260816000002_create_purchase_orders_table',
+  'purchasing/20260816000003_create_purchase_order_items_table',
+  'purchasing/20260816000004_create_goods_received_table',
+  'purchasing/20260816000005_create_goods_received_items_table',
 ];
 
 /* ================================

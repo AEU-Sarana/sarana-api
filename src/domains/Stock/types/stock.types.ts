@@ -97,6 +97,7 @@ export interface StockInRequest {
   date?: Date;
   received_at?: Date;
   expired_at?: Date;
+  note?: string;
 }
 
 export interface StockInResponse {

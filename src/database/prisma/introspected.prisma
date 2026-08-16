@@ -125,6 +125,8 @@ model products {
   stock_movements                  stock_movements[]
   stocks                           stocks?
   categories                       categories?       @relation(fields: [category_id], references: [category_id], onDelete: SetNull, onUpdate: NoAction)
+  purchase_order_items             purchase_order_items[]
+  goods_received_items             goods_received_items[]
 
   @@index([category_id], map: "idx_products_category_id")
   @@index([has_expiry], map: "idx_products_has_expiry")
@@ -319,6 +321,9 @@ model users {
   telegram_config_telegram_config_updated_byTousers telegram_config[]      @relation("telegram_config_updated_byTousers")
   user_permissions_granted                         user_permissions[]     @relation("user_permissions_granted_byTousers")
   user_permissions                                  user_permissions[]     @relation("user_permissions_user_idTousers")
+  purchase_orders_approved_byTousers               purchase_orders[]      @relation("purchase_orders_approved_byTousers")
+  purchase_orders_created_byTousers                purchase_orders[]      @relation("purchase_orders_created_byTousers")
+  goods_received                                   goods_received[]
   users_users_created_byTousers                     users?                 @relation("users_created_byTousers", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
   other_users_users_created_byTousers               users[]                @relation("users_created_byTousers")
   users_users_updated_byTousers                     users?                 @relation("users_updated_byTousers", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
@@ -473,3 +478,131 @@ model categories {
   updated_at  DateTime   @default(now()) @db.Timestamp(6)
   products    products[]
 }
+
+model suppliers {
+  supplier_id     Int               @id @default(autoincrement())
+  company_name    String            @db.VarChar(255)
+  contact_person  String?           @db.VarChar(255)
+  phone           String?           @db.VarChar(50)
+  email           String?           @db.VarChar(255)
+  address         String?
+  tax_id          String?           @db.VarChar(100)
+  payment_terms   String?           @default("NET_30") @db.VarChar(100)
+  is_active       Boolean           @default(true)
+  created_at      DateTime          @default(now()) @db.Timestamp(6)
+  updated_at      DateTime          @default(now()) @db.Timestamp(6)
+  goods_received  goods_received[]
+  purchase_orders purchase_orders[]
+
+  @@index([company_name], map: "idx_suppliers_company_name")
+  @@index([is_active], map: "idx_suppliers_is_active")
+}
+
+model purchase_orders {
+  po_id                                    Int                    @id @default(autoincrement())
+  po_number                                String                 @unique(map: "idx_purchase_orders_po_number") @db.VarChar(50)
+  supplier_id                              Int
+  status                                   String                 @default("DRAFT") @db.VarChar(50)
+  order_date                               DateTime               @default(now()) @db.Timestamp(6)
+  expected_delivery_date                   DateTime?              @db.Timestamp(6)
+  subtotal                                 Decimal                @default(0.00) @db.Decimal(12, 2)
+  tax_amount                               Decimal                @default(0.00) @db.Decimal(12, 2)
+  discount_amount                          Decimal                @default(0.00) @db.Decimal(12, 2)
+  total_amount                             Decimal                @default(0.00) @db.Decimal(12, 2)
+  notes                                    String?
+  created_by                               Int
+  approved_by                              Int?
+  created_at                               DateTime               @default(now()) @db.Timestamp(6)
+  updated_at                               DateTime               @default(now()) @db.Timestamp(6)
+  goods_received                           goods_received[]
+  purchase_order_items                     purchase_order_items[]
+  users_purchase_orders_approved_byTousers users?                 @relation("purchase_orders_approved_byTousers", fields: [approved_by], references: [user_id], onUpdate: NoAction)
+  users_purchase_orders_created_byTousers  users                  @relation("purchase_orders_created_byTousers", fields: [created_by], references: [user_id], onUpdate: NoAction)
+  suppliers                                suppliers              @relation(fields: [supplier_id], references: [supplier_id], onUpdate: NoAction)
+
+  @@index([order_date], map: "idx_purchase_orders_order_date")
+  @@index([status], map: "idx_purchase_orders_status")
+  @@index([supplier_id], map: "idx_purchase_orders_supplier_id")
+}
+
+model purchase_order_items {
+  po_item_id           Int                    @id @default(autoincrement())
+  po_id                Int
+  product_id           Int
+  ordered_quantity     Int
+  received_quantity    Int                    @default(0)
+  unit_cost            Decimal                @default(0.00) @db.Decimal(12, 2)
+  subtotal             Decimal                @default(0.00) @db.Decimal(12, 2)
+  notes                String?                @db.VarChar(255)
+  goods_received_items goods_received_items[]
+  purchase_orders      purchase_orders        @relation(fields: [po_id], references: [po_id], onDelete: Cascade, onUpdate: NoAction)
+  products             products               @relation(fields: [product_id], references: [product_id], onUpdate: NoAction)
+
+  @@index([po_id], map: "idx_purchase_order_items_po_id")
+  @@index([product_id], map: "idx_purchase_order_items_product_id")
+}
+
+model goods_received {
+  gr_id                 Int                    @id @default(autoincrement())
+  gr_number             String                 @unique @db.VarChar(50)
+  po_id                 Int?
+  supplier_id           Int
+  received_date         DateTime               @default(now()) @db.Timestamp(6)
+  invoice_number        String?                @db.VarChar(100)
+  total_received_amount Decimal                @default(0.00) @db.Decimal(12, 2)
+  notes                 String?
+  received_by           Int
+  created_at            DateTime               @default(now()) @db.Timestamp(6)
+  purchase_orders       purchase_orders?       @relation(fields: [po_id], references: [po_id], onUpdate: NoAction)
+  users                 users                  @relation(fields: [received_by], references: [user_id], onUpdate: NoAction)
+  suppliers             suppliers              @relation(fields: [supplier_id], references: [supplier_id], onUpdate: NoAction)
+  goods_received_items  goods_received_items[]
+
+  @@index([po_id], map: "idx_goods_received_po_id")
+  @@index([received_date], map: "idx_goods_received_received_date")
+  @@index([supplier_id], map: "idx_goods_received_supplier_id")
+}
+
+model goods_received_items {
+  gr_item_id           Int                   @id @default(autoincrement())
+  gr_id                Int
+  po_item_id           Int?
+  product_id           Int
+  quantity_received    Int
+  unit_cost            Decimal               @default(0.00) @db.Decimal(12, 2)
+  batch_number         String?               @db.VarChar(100)
+  expiry_date          DateTime?             @db.Timestamp(6)
+  subtotal             Decimal               @default(0.00) @db.Decimal(12, 2)
+  goods_received       goods_received        @relation(fields: [gr_id], references: [gr_id], onDelete: Cascade, onUpdate: NoAction)
+  purchase_order_items purchase_order_items? @relation(fields: [po_item_id], references: [po_item_id], onUpdate: NoAction)
+  products             products              @relation(fields: [product_id], references: [product_id], onUpdate: NoAction)
+
+  @@index([gr_id], map: "idx_goods_received_items_gr_id")
+  @@index([po_item_id], map: "idx_goods_received_items_po_item_id")
+  @@index([product_id], map: "idx_goods_received_items_product_id")
+}
+
+model roles {
+  role_id          Int                @id @default(autoincrement())
+  key              String             @unique @db.VarChar(50)
+  name             String             @db.VarChar(100)
+  description      String?            @db.VarChar(255)
+  is_system        Boolean            @default(false)
+  created_at       DateTime           @default(now()) @db.Timestamp(6)
+  updated_at       DateTime           @default(now()) @db.Timestamp(6)
+  role_permissions role_permissions[]
+}
+
+model role_permissions {
+  id          Int      @id @default(autoincrement())
+  role_id     Int
+  feature_key String   @db.VarChar(100)
+  actions     String   @default("read") @db.VarChar(255)
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+  roles       roles    @relation(fields: [role_id], references: [role_id], onDelete: Cascade)
+
+  @@unique([role_id, feature_key], map: "uq_role_feature")
+  @@index([role_id], map: "idx_role_permissions_role_id")
+}
+
+

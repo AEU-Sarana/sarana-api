@@ -4,7 +4,7 @@ import { Permission, Role, hasPermission } from '@src/shared/config/permissions'
 /**
  * Middleware to require specific role(s)
  */
-export function requireRole(...allowedRoles: Role[]) {
+export function requireRole(...allowedRoles: (Role | string)[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({
@@ -46,7 +46,7 @@ export function requirePermission(...permissions: Permission[]) {
 
     const userRole = req.user.role;
     const hasAllPermissions = permissions.every((permission) =>
-      hasPermission(userRole, permission)
+      hasPermission(userRole as Role, permission)
     );
 
     if (!hasAllPermissions) {

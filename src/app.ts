@@ -99,10 +99,35 @@ const app: Application = express();
 
 // Security middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, postman)
+      if (!origin) return callback(null, true);
+
+      const normalizedOrigin = origin.replace(/\/$/, '');
+      const allowed = (process.env.ALLOWED_ORIGINS || '*')
+        .split(',')
+        .map((o) => o.trim().replace(/\/$/, ''));
+
+      if (allowed.includes('*') || allowed.includes(normalizedOrigin)) {
+        return callback(null, true);
+      }
+
+      // Automatically allow ngrok or Cloudflare tunnel origins
+      if (
+        normalizedOrigin.includes('ngrok-free.dev') ||
+        normalizedOrigin.includes('ngrok.io') ||
+        normalizedOrigin.includes('trycloudflare.com')
+      ) {
+        return callback(null, true);
+      }
+
+      return callback(null, false);
+    },
+    credentials: true,
+  })
+);
 
 // Route normalization (fix for double slashes // causing 404s)
 app.use((req, res, next) => {

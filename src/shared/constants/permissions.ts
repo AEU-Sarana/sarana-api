@@ -170,6 +170,40 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     defaultCashier: false,
     supportedActions: ['read', 'create', 'update', 'delete', 'all'],
   },
+
+  // Purchasing & Suppliers
+  {
+    key: 'purchasing.manage_suppliers',
+    name: 'Manage Suppliers',
+    category: 'Inventory',
+    description: 'Create, update, and manage supplier profiles',
+    defaultCashier: false,
+    supportedActions: ['read', 'create', 'update', 'delete', 'all'],
+  },
+  {
+    key: 'purchasing.create_po',
+    name: 'Create & Edit Purchase Orders',
+    category: 'Inventory',
+    description: 'Draft and build purchase orders to send to suppliers',
+    defaultCashier: false,
+    supportedActions: ['read', 'create', 'update', 'all'],
+  },
+  {
+    key: 'purchasing.approve_po',
+    name: 'Approve & Cancel Purchase Orders',
+    category: 'Inventory',
+    description: 'Approve draft purchase orders or void order requests',
+    defaultCashier: false,
+    supportedActions: ['read', 'update', 'all'],
+  },
+  {
+    key: 'purchasing.receive_stock',
+    name: 'Receive Goods & Stock In',
+    category: 'Inventory',
+    description: 'Process incoming goods received against purchase orders',
+    defaultCashier: false,
+    supportedActions: ['read', 'create', 'all'],
+  },
 ];
 
 export const DEFAULT_CASHIER_PERMISSIONS: UserPermissionItem[] = SYSTEM_FEATURES

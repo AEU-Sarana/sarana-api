@@ -10,6 +10,8 @@ import { AppSettingsSeeder } from './domains/settings/app-settings.seeder';
 import { TelegramConfigSeeder } from './domains/telegram/telegram-config.seeder';
 import { AuditLogSeeder } from './domains/shared/audit-log.seeder';
 import { CustomerSeeder } from './domains/customer/customer.seeder';
+import { SupplierSeeder } from './domains/purchasing/supplier.seeder';
+import { PurchaseOrderSeeder } from './domains/purchasing/po.seeder';
 
 /**
  * Main seeder function
@@ -37,19 +39,23 @@ async function main() {
       new OrderItemSeeder(), // Order items are created with orders, but keeping for consistency
       new CustomerSeeder(),
 
-      // 5. Stock Movements (depends on products, orders, users, stock lots)
+      // 5. Suppliers & Purchase Orders (3.0 Purchasing)
+      new SupplierSeeder(),
+      new PurchaseOrderSeeder(),
+
+      // 6. Stock Movements (depends on products, orders, users, stock lots)
       new StockMovementSeeder(),
 
-      // 6. Stock totals (sync from stock lots)
+      // 7. Stock totals (sync from stock lots)
       new StockSeeder(),
 
-      // 7. Settings (depends on users)
+      // 8. Settings (depends on users)
       new AppSettingsSeeder(),
 
-      // 8. Telegram Config (depends on users)
+      // 9. Telegram Config (depends on users)
       new TelegramConfigSeeder(),
 
-      // 9. Audit Logs (depends on users, but can be independent)
+      // 10. Audit Logs (depends on users, but can be independent)
       new AuditLogSeeder(),
     );
   }

@@ -13,10 +13,13 @@ import telegramRoutes from './telegram.routes';
 import telegramAdminBotRoutes from './telegram-admin-bot.routes';
 import backupRoutes from './backup.routes';
 import userRoutes from './user.routes';
+import roleRoutes from '@src/domains/User/routes/V1/role.routes';
 import settingRoutes from './setting.routes';
 import dashboardRoutes from './dashboard.routes';
 import customerRoutes from './customer.routes';
 import permissionRoutes from '@src/domains/Auth/routes/V1/permission.routes';
+import supplierRoutes from '@src/domains/Supplier/routes/V1/supplier.routes';
+import purchasingRoutes from '@src/domains/Purchasing/routes/V1/po.routes';
 
 const router: IRouter = Router();
 
@@ -34,8 +37,11 @@ router.use('/telegram', telegramRoutes);
 router.use('/telegram-admin-bot', telegramAdminBotRoutes);
 router.use('/backup', backupRoutes);
 router.use('/users', userRoutes);
+router.use('/roles', roleRoutes);
 router.use('/settings', settingRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/customers', customerRoutes);
+router.use('/suppliers', supplierRoutes);
+router.use('/purchasing', purchasingRoutes);
 
 export default router;

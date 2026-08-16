@@ -317,6 +317,14 @@ export class UserService {
       updateData.phone = request.phone;
     }
 
+    if (request.role !== undefined) {
+      updateData.role = request.role;
+    }
+
+    if (request.password && request.password.trim().length > 0) {
+      updateData.passwordHash = await bcrypt.hash(request.password, env.BCRYPT_SALT_ROUNDS);
+    }
+
     if (request.status !== undefined) {
       updateData.status = request.status;
       

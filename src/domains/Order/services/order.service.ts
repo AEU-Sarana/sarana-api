@@ -46,11 +46,7 @@ export class OrderService {
     const where: any = {};
 
     // Role-based filtering
-    if (isAdminRole(currentUserRole)) {
-      if (seller_id) {
-        where.sellerId = seller_id;
-      }
-    } else if (currentUserRole === Role.CASHIER) {
+    if (currentUserRole === Role.CASHIER) {
       if (seller_id && seller_id !== currentUserId) {
         logger.warn('Order list access denied: seller cannot view other sellers', {
           userId: currentUserId,
@@ -62,12 +58,10 @@ export class OrderService {
 
       where.sellerId = currentUserId;
     } else {
-      logger.warn('Order list access denied: unsupported role', {
-        userId: currentUserId,
-        role: currentUserRole,
-        orderId: null,
-      });
-      throw new ForbiddenException('You do not have permission to access these orders', 'ORDER_ACCESS_DENIED');
+      // Admin and other roles with assigned permission (e.g. RECEIVER)
+      if (seller_id) {
+        where.sellerId = seller_id;
+      }
     }
 
     if (start_date || end_date) {
@@ -203,15 +197,6 @@ export class OrderService {
         });
         throw new ForbiddenException('You do not have permission to access this order', 'ORDER_ACCESS_DENIED');
       }
-    } else if (isAdminRole(currentUserRole)) {
-      // Admins have global access as multi-tenancy is removed
-    } else {
-      logger.warn('Order access denied: unsupported role', {
-        userId: currentUserId,
-        role: currentUserRole,
-        orderId,
-      });
-      throw new ForbiddenException('You do not have permission to access this order', 'ORDER_ACCESS_DENIED');
     }
 
     await auditLogService.createAuditLog({

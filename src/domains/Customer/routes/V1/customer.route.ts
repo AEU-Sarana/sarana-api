@@ -1,7 +1,5 @@
 import { Router, type IRouter } from 'express';
-import { authenticateToken } from '@src/shared/middleware/auth.middleware';
-import { requirePermission } from '@src/shared/middleware/authorization.middleware';
-import { Permission } from '@src/shared/config/permissions';
+import { authenticateToken, requirePermission } from '@src/shared/middleware/auth.middleware';
 import { CustomerController } from '../../controllers/V1/customer.controller';
 
 const router: IRouter = Router();
@@ -12,7 +10,7 @@ router.use(authenticateToken);
 // List customers
 router.get(
   '/',
-  requirePermission(Permission.DASHBOARD_VIEW),
+  requirePermission('customers.manage', 'read'),
   CustomerController.listCustomers
 );
 

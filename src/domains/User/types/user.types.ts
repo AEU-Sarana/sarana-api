@@ -27,6 +27,8 @@ export interface UpdateUserRequest {
   email?: string;
   phone?: string;
   status?: UserStatus;
+  password?: string;
+  role?: string;
 }
 
 export interface DeactivateUserRequest {

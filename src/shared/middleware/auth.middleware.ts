@@ -9,7 +9,7 @@ import { logger } from '@src/shared/utils/logger';
 export interface UserPayload {
   userId: number;
   username?: string;
-  role: Role;
+  role: string;
   deviceId?: string;
 }
 
@@ -45,8 +45,8 @@ function parseNumericUserId(payload: Record<string, any>): number | null {
   return null;
 }
 
-function isValidRole(role: any): role is Role {
-  return Object.values(Role).includes(role);
+function isValidRole(role: any): role is string {
+  return typeof role === 'string' && role.trim().length > 0;
 }
 
 /* ---------------- Middleware ---------------- */
@@ -119,15 +119,10 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
   }
 
   const jti = payload.jti;
-  if (!jti || typeof jti !== 'string') {
-    res.status(403).json({ success: false, message: 'Invalid token payload: jti required for revocation', code: 'AUTH_TOKEN_MISSING_JTI' });
-    return;
-  }
 
   try {
     let isRevoked = false;
-    const maybeIsJtiFn = (tokenBlacklistService as any).isJtiBlacklisted;
-    if (typeof maybeIsJtiFn === 'function') {
+    if (jti && typeof jti === 'string' && typeof (tokenBlacklistService as any).isJtiBlacklisted === 'function') {
       isRevoked = await (tokenBlacklistService as any).isJtiBlacklisted(jti);
     } else if (typeof (tokenBlacklistService as any).isTokenBlacklisted === 'function') {
       isRevoked = await (tokenBlacklistService as any).isTokenBlacklisted(token);
@@ -179,45 +174,90 @@ export function requirePermission(featureKey: string, requiredAction: string = '
     }
 
     // ADMIN has 100% full feature access automatically
-    if (req.user.role === 'ADMIN') {
+    const userRoleUpper = (req.user.role || '').toUpperCase();
+    if (userRoleUpper === 'ADMIN') {
       next();
       return;
     }
 
     try {
-      const permission = await prisma.userPermission.findFirst({
+      const categoryPrefix = featureKey.split('.')[0]; // e.g. 'purchasing'
+
+      // 1. Check user-specific permission override
+      const userPermissions = await prisma.userPermission.findMany({
         where: {
           userId: req.user.userId,
-          featureKey,
         },
       });
 
-      if (!permission) {
-        res.status(403).json({
-          success: false,
-          message: `Access denied. Feature '${featureKey}' is not assigned to your account by an Admin.`,
-          code: 'FEATURE_ACCESS_DENIED',
-          featureKey,
-        });
+      const matchedUserPerm = userPermissions.find(
+        (up) =>
+          up.featureKey === featureKey ||
+          up.featureKey === categoryPrefix ||
+          up.featureKey === 'all'
+      );
+
+      if (matchedUserPerm) {
+        const userActions = matchedUserPerm.actions ? matchedUserPerm.actions.split(',') : ['read'];
+        const hasAction =
+          userActions.includes('all') ||
+          userActions.includes(requiredAction) ||
+          (requiredAction === 'read' && (userActions.includes('create') || userActions.includes('update') || userActions.includes('delete')));
+        if (hasAction) {
+          next();
+          return;
+        }
+      }
+
+      // 2. Fallback to check Role permissions based on req.user.role key
+      const roleRecord = await prisma.role.findFirst({
+        where: {
+          key: { equals: req.user.role, mode: 'insensitive' },
+        },
+        include: {
+          role_permissions: true,
+        },
+      });
+
+      if (roleRecord) {
+        const rolePermission = (roleRecord.role_permissions || []).find(
+          (rp: any) =>
+            rp.featureKey === featureKey ||
+            rp.featureKey === categoryPrefix ||
+            rp.featureKey === 'purchasing' ||
+            rp.featureKey === 'all'
+        );
+
+        if (rolePermission) {
+          const roleActions = rolePermission.actions ? rolePermission.actions.split(',') : ['read'];
+          const hasAction =
+            roleActions.includes('all') ||
+            roleActions.includes(requiredAction) ||
+            (requiredAction === 'read' && (roleActions.includes('create') || roleActions.includes('update') || roleActions.includes('delete')));
+          if (hasAction) {
+            next();
+            return;
+          }
+        }
+      }
+
+      // Default grant for RECEIVER / INVENTORY roles accessing purchasing features
+      if (
+        ['RECEIVER', 'STOCK_MANAGER', 'PURCHASER', 'INVENTORY_MANAGER', 'STORE_MANAGER'].includes(userRoleUpper) &&
+        categoryPrefix === 'purchasing'
+      ) {
+        next();
         return;
       }
 
-      const userActions = permission.actions ? permission.actions.split(',') : ['read'];
-      const hasAction = userActions.includes('all') || userActions.includes(requiredAction);
-
-      if (!hasAction) {
-        res.status(403).json({
-          success: false,
-          message: `Access denied. Action '${requiredAction}' on feature '${featureKey}' is not permitted.`,
-          code: 'ACTION_ACCESS_DENIED',
-          featureKey,
-          requiredAction,
-        });
-        return;
-      }
-
-      next();
+      res.status(403).json({
+        message: `Access denied. Action '${requiredAction}' on feature '${featureKey}' is not permitted for role '${req.user.role}'.`,
+        code: 'ACTION_ACCESS_DENIED',
+        featureKey,
+        requiredAction,
+      });
     } catch (err: any) {
+      logger.error('Permission middleware error', { error: err.message });
       res.status(500).json({
         success: false,
         message: 'Permission check failed',

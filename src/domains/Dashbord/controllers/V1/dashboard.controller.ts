@@ -10,7 +10,7 @@ export class DashboardController {
   static async getOverview(req: Request, res: Response): Promise<void> {
     try {
       const user = req.user as UserPayload;
-      const response = await DashboardService.getOverview(user.userId, user.role);
+      const response = await DashboardService.getOverview(user.userId, user.role as any);
 
       res.status(200).json({
         success: true,

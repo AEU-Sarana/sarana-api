@@ -117,7 +117,11 @@ export class TelegramService {
       if (!existingConfig) {
         throw new Error('Cannot use placeholder bot token when no Telegram configuration exists');
       }
-      finalBotToken = decrypt(existingConfig.botToken, process.env.ENCRYPTION_KEY!);
+      try {
+        finalBotToken = decrypt(existingConfig.botToken, process.env.ENCRYPTION_KEY!);
+      } catch {
+        finalBotToken = existingConfig.botToken;
+      }
     }
 
     // Encrypt bot token before storing
@@ -193,8 +197,15 @@ export class TelegramService {
       return null;
     }
 
-    // Decrypt bot token
-    const decryptedToken = decrypt(config.botToken, process.env.ENCRYPTION_KEY!);
+    // Decrypt bot token (fallback to raw string if unencrypted placeholder)
+    let decryptedToken = config.botToken;
+    try {
+      if (process.env.ENCRYPTION_KEY) {
+        decryptedToken = decrypt(config.botToken, process.env.ENCRYPTION_KEY);
+      }
+    } catch {
+      decryptedToken = config.botToken;
+    }
 
     return {
       config_id: config.configId,

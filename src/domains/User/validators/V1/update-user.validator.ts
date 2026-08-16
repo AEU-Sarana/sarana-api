@@ -26,4 +26,17 @@ export const updateUserValidator = [
     .optional()
     .isIn(['active', 'inactive'])
     .withMessage('Status must be active or inactive'),
+
+  body('password')
+    .optional()
+    .isLength({ min: 4 })
+    .withMessage('Password must be at least 4 characters')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+
+  body('role')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Role cannot be empty'),
 ];
