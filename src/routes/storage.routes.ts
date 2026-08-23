@@ -76,6 +76,7 @@ router.get(/(?:^\/storage|.*\/storage)\/([^\/]+)\/(.+)$/, async (req: Request, r
     }
     res.setHeader('Cache-Control', 'public, max-age=3600');
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
 
     // Stream the file
     if (response.Body) {

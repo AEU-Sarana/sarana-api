@@ -28,9 +28,6 @@ const domainConfig = {
   stock: {
     tables: ['stock_movements', 'stock_lots', 'stocks'],
   },
-  telegram: {
-    tables: ['telegram_config', 'telegram_admin_links', 'telegram_admin_messages'],
-  },
   setting: {
     tables: ['app_settings', 'receipt_settings'],
   },
@@ -38,7 +35,7 @@ const domainConfig = {
     tables: ['audit_logs'],
   },
   customer: {
-    tables: ['customers', 'customer_telegram_links', 'receipt_deliveries'],
+    tables: ['customer_payments', 'customer_linking_tokens', 'receipt_deliveries', 'customers'],
   },
   backup: {
     tables: ['backups', 'backup_runs'],
@@ -47,7 +44,7 @@ const domainConfig = {
     tables: ['suppliers'],
   },
   purchasing: {
-    tables: ['goods_received_items', 'goods_received', 'purchase_order_items', 'purchase_orders'],
+    tables: ['supplier_payments', 'goods_received_items', 'goods_received', 'purchase_order_items', 'purchase_orders'],
   },
 };
 
@@ -72,17 +69,14 @@ const migrationOrder = [
   'stock/20260118000009_create_stocks_table',
   'stock/202601180000010_create_stock_lots_table',
   'stock/202601180000011_create_stock_movements_table',
-  'telegram/202601180000012_create_telegram_config_table',
-  'telegram/202601180000013_create_telegram_admin_links_table',
-  'telegram/202601180000014_create_telegram_admin_messages_table',
   'setting/202601180000016_create_settings_table',
   'setting/20260213000001_add_backup_schedule_time_to_settings_table',
   'shared/202601180000017_create_audit_logs_table',
   'customer/20260210000001_create_customers_table',
-  'customer/20260210000002_create_customer_telegram_links_table',
   'customer/20260210000003_create_receipt_deliveries_table',
   'customer/20260210000004_create_customer_linking_tokens_table',
   'customer/20260210000005_add_phone_email_to_customers',
+  'customer/20260823000002_add_customer_debt_and_payments',
   'backup/20260211000005_create_backups_table',
   'backup/20260211000006_create_backup_runs_table',
   'order/20260525000001_remove_order_uuid',
@@ -91,6 +85,7 @@ const migrationOrder = [
   'purchasing/20260816000003_create_purchase_order_items_table',
   'purchasing/20260816000004_create_goods_received_table',
   'purchasing/20260816000005_create_goods_received_items_table',
+  'purchasing/20260823000001_add_supplier_debt_and_payments',
 ];
 
 /* ================================

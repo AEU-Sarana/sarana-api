@@ -7,7 +7,6 @@ import { OrderSeeder } from './domains/order/order.seeder';
 import { OrderItemSeeder } from './domains/order/order-item.seeder';
 import { StockMovementSeeder } from './domains/stock/stock-movement.seeder';
 import { AppSettingsSeeder } from './domains/settings/app-settings.seeder';
-import { TelegramConfigSeeder } from './domains/telegram/telegram-config.seeder';
 import { AuditLogSeeder } from './domains/shared/audit-log.seeder';
 import { CustomerSeeder } from './domains/customer/customer.seeder';
 import { SupplierSeeder } from './domains/purchasing/supplier.seeder';
@@ -31,31 +30,30 @@ async function main() {
       // 2. Products (depends on users)
       new ProductSeeder(),
 
-      // 3. Stock lots (depends on products)
+      // 3. Customers & Suppliers (needed before orders & POs)
+      new CustomerSeeder(),
+      new SupplierSeeder(),
+
+      // 4. Stock lots (depends on products)
       new StockLotSeeder(),
 
-      // 4. Orders (depends on users, products)
+      // 5. Orders (depends on users, products, customers)
       new OrderSeeder(),
-      new OrderItemSeeder(), // Order items are created with orders, but keeping for consistency
-      new CustomerSeeder(),
+      new OrderItemSeeder(),
 
-      // 5. Suppliers & Purchase Orders (3.0 Purchasing)
-      new SupplierSeeder(),
+      // 6. Purchase Orders (depends on suppliers)
       new PurchaseOrderSeeder(),
 
-      // 6. Stock Movements (depends on products, orders, users, stock lots)
+      // 7. Stock Movements (depends on products, orders, users, stock lots)
       new StockMovementSeeder(),
 
-      // 7. Stock totals (sync from stock lots)
+      // 8. Stock totals (sync from stock lots)
       new StockSeeder(),
 
-      // 8. Settings (depends on users)
+      // 9. Settings (depends on users)
       new AppSettingsSeeder(),
 
-      // 9. Telegram Config (depends on users)
-      new TelegramConfigSeeder(),
-
-      // 10. Audit Logs (depends on users, but can be independent)
+      // 10. Audit Logs
       new AuditLogSeeder(),
     );
   }
@@ -77,7 +75,6 @@ async function main() {
       prisma.orderItem.count(),
       prisma.stockMovement.count(),
       prisma.appSetting.count(),
-      prisma.telegramConfig.count(),
       prisma.auditLog.count(),
       prisma.customer.count(),
     ]);
@@ -92,9 +89,8 @@ async function main() {
     console.log(`Order Items: ${counts[5]}`);
     console.log(`Stock Movements: ${counts[6]}`);
     console.log(`App Settings: ${counts[7]}`);
-    console.log(`Telegram Configs: ${counts[8]}`);
-    console.log(`Audit Logs: ${counts[9]}`);
-    console.log(`Customers: ${counts[10]}`);
+    console.log(`Audit Logs: ${counts[8]}`);
+    console.log(`Customers: ${counts[9]}`);
   } catch (error) {
     console.error('❌ Seeding failed:', error);
     throw error;

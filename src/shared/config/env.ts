@@ -59,7 +59,6 @@ export const env = {
   // Encryption
   ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
 
-  TELEGRAM_WEBHOOK_SECRET: process.env.TELEGRAM_WEBHOOK_SECRET,
   RECEIPT_QR_HMAC_SECRET: process.env.RECEIPT_QR_HMAC_SECRET,
 
   // Password

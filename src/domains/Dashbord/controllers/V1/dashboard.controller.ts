@@ -22,4 +22,25 @@ export class DashboardController {
       throw error;
     }
   }
+
+  /**
+   * GET /api/v1/dashboard/top-products
+   */
+  static async getTopProducts(req: Request, res: Response): Promise<void> {
+    try {
+      const limit = Number(req.query.limit) || 5;
+      const sortBy = (req.query.sortBy as 'quantity' | 'revenue') || 'quantity';
+
+      const topProducts = await DashboardService.getTopProducts(limit, sortBy);
+
+      res.status(200).json({
+        success: true,
+        data: topProducts,
+        message: 'Top selling products retrieved successfully',
+      });
+    } catch (error: any) {
+      logger.error('Get top products error', { error: error.message });
+      throw error;
+    }
+  }
 }

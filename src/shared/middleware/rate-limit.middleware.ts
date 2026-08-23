@@ -48,17 +48,6 @@ const receiptScanRateLimiterConfig = rateLimit({
   },
 });
 
-// Rate limit for telegram webhook (production only)
-// Even with a secret token, we want to prevent DDoS
-const telegramWebhookRateLimiterConfig = rateLimit({
-  windowMs: 1 * 60 * 1000,
-  max: 300,
-  message: {
-    success: false,
-    message: 'Too many updates',
-  },
-});
-
 // Conditional rate limiters: rate limiting disabled by default (unlimited requests)
 const isRateLimitEnabled = process.env.ENABLE_RATE_LIMIT === 'true';
 
@@ -70,6 +59,3 @@ export const authRateLimiter =
 
 export const receiptScanRateLimiter =
   isRateLimitEnabled ? receiptScanRateLimiterConfig : noOpRateLimiter;
-
-export const telegramWebhookRateLimiter =
-  isRateLimitEnabled ? telegramWebhookRateLimiterConfig : noOpRateLimiter;

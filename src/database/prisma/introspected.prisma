@@ -69,21 +69,28 @@ model orders {
   discount_amount    Decimal              @default(0) @db.Decimal(10, 2)
   tax_amount         Decimal              @default(0) @db.Decimal(10, 2)
   service_fee        Decimal              @default(0) @db.Decimal(10, 2)
+  customer_id        Int?
+  paid_amount        Decimal              @default(0) @db.Decimal(10, 2)
+  balance_due        Decimal              @default(0) @db.Decimal(10, 2)
+  payment_status     String               @default("PAID") @db.VarChar(20)
   payment_method     String               @default("CASH") @db.VarChar(20)
+  payment_due_date   DateTime?            @db.Timestamp(6)
   exchange_rate      Decimal              @default(4000) @db.Decimal(10, 2)
   created_at         DateTime             @default(now()) @db.Timestamp(6)
   updated_at         DateTime             @default(now()) @db.Timestamp(6)
   order_items        order_items[]
   order_payments     order_payments[]
+  customer_payments  customer_payments[]
   users              users                @relation(fields: [seller_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  receipt_deliveries receipt_deliveries[]
-  receipt_links      receipt_links[]
+  customers          customers?           @relation(fields: [customer_id], references: [customer_id], onUpdate: NoAction)
   stock_movements    stock_movements[]
 
   @@index([created_at], map: "idx_orders_created_at")
   @@index([order_date], map: "idx_orders_order_date")
   @@index([seller_id, order_date], map: "idx_orders_seller_date")
   @@index([seller_id], map: "idx_orders_seller_id")
+  @@index([customer_id], map: "idx_orders_customer_id")
+  @@index([payment_status], map: "idx_orders_payment_status")
 }
 
 model order_payments {
@@ -133,28 +140,6 @@ model products {
   @@index([status], map: "idx_products_status")
 }
 
-model receipt_links {
-  receipt_link_id    Int                  @id @default(autoincrement())
-  order_id           Int
-  code               String               @unique(map: "idx_receipt_links_code") @db.VarChar(100)
-  link_status        String               @default("PENDING") @db.VarChar(20)
-  expires_at         DateTime             @db.Timestamp(6)
-  used_at            DateTime?            @db.Timestamp(6)
-  telegram_user_id   BigInt?
-  telegram_chat_id   BigInt?
-  telegram_username  String?              @db.VarChar(255)
-  created_by         Int
-  created_at         DateTime             @default(now()) @db.Timestamp(6)
-  receipt_deliveries receipt_deliveries[]
-  users              users                @relation(fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  orders             orders               @relation(fields: [order_id], references: [order_id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@index([created_at], map: "idx_receipt_links_created_at")
-  @@index([expires_at], map: "idx_receipt_links_expires_at")
-  @@index([order_id], map: "idx_receipt_links_order_id")
-  @@index([link_status], map: "idx_receipt_links_status")
-  @@index([telegram_user_id], map: "idx_receipt_links_telegram_user_id")
-}
 
 model receipt_settings {
   setting_id        Int      @id @default(autoincrement())
@@ -244,47 +229,6 @@ model stock_movements {
   @@index([movement_type], map: "idx_stock_movements_type")
 }
 
-model telegram_admin_links {
-  id               Int       @id @default(autoincrement())
-  user_id          Int
-  telegram_user_id BigInt    @unique
-  chat_id          BigInt
-  status           String    @default("ACTIVE") @db.VarChar(10)
-  linked_at        DateTime  @default(now()) @db.Timestamp(6)
-  revoked_at       DateTime? @db.Timestamp(6)
-  last_seen_at     DateTime? @db.Timestamp(6)
-  users            users     @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
-}
-
-model telegram_admin_messages {
-  id               Int      @id @default(autoincrement())
-  telegram_user_id BigInt
-  command          String
-  request_id       String?  @db.Uuid
-  status           String   @default("SENT") @db.VarChar(10)
-  message_id       BigInt?
-  error_message    String?
-  created_at       DateTime @default(now()) @db.Timestamp(6)
-
-  @@index([request_id], map: "idx_telegram_admin_messages_request")
-  @@index([telegram_user_id], map: "idx_telegram_admin_messages_user")
-}
-
-model telegram_config {
-  config_id                               Int       @id @default(autoincrement())
-  bot_token                               String
-  group_chat_id                           String    @db.VarChar(255)
-  is_active                               Boolean   @default(true)
-  last_test_time                          DateTime? @db.Timestamp(6)
-  last_test_status                        String?   @db.VarChar(20)
-  created_by                              Int
-  created_at                              DateTime  @default(now()) @db.Timestamp(6)
-  updated_by                              Int
-  updated_at                              DateTime  @default(now()) @db.Timestamp(6)
-  users_telegram_config_created_byTousers users     @relation("telegram_config_created_byTousers", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  users_telegram_config_updated_byTousers users     @relation("telegram_config_updated_byTousers", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-}
-
 model users {
   user_id                                           Int                    @id @default(autoincrement())
   username                                          String                 @unique @db.VarChar(100)
@@ -312,18 +256,16 @@ model users {
   password_reset_otps                               password_reset_otps[]
   products_products_created_byTousers               products[]             @relation("products_created_byTousers")
   products_products_updated_byTousers               products[]             @relation("products_updated_byTousers")
-  receipt_links                                     receipt_links[]
   receipt_settings                                  receipt_settings[]
   refresh_tokens                                    refresh_tokens[]
   stock_movements                                   stock_movements[]
-  telegram_admin_links                              telegram_admin_links[]
-  telegram_config_telegram_config_created_byTousers telegram_config[]      @relation("telegram_config_created_byTousers")
-  telegram_config_telegram_config_updated_byTousers telegram_config[]      @relation("telegram_config_updated_byTousers")
   user_permissions_granted                         user_permissions[]     @relation("user_permissions_granted_byTousers")
   user_permissions                                  user_permissions[]     @relation("user_permissions_user_idTousers")
   purchase_orders_approved_byTousers               purchase_orders[]      @relation("purchase_orders_approved_byTousers")
   purchase_orders_created_byTousers                purchase_orders[]      @relation("purchase_orders_created_byTousers")
   goods_received                                   goods_received[]
+  supplier_payments                                supplier_payments[]
+  customer_payments                                customer_payments[]
   users_users_created_byTousers                     users?                 @relation("users_created_byTousers", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
   other_users_users_created_byTousers               users[]                @relation("users_created_byTousers")
   users_users_updated_byTousers                     users?                 @relation("users_updated_byTousers", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
@@ -363,50 +305,20 @@ model stocks {
   @@index([stock_version], map: "idx_stocks_version")
 }
 
-model customer_telegram_links {
-  id               Int       @id @default(autoincrement())
-  customer_id      Int       @unique
-  telegram_chat_id BigInt
-  telegram_user_id BigInt?
-  linked_at        DateTime  @default(now()) @db.Timestamp(6)
-  updated_at       DateTime  @default(now()) @db.Timestamp(6)
-  customers        customers @relation(fields: [customer_id], references: [customer_id], onDelete: Cascade, onUpdate: NoAction)
-}
-
 model customers {
   customer_id             Int                       @id @default(autoincrement())
   device_id               String?                   @unique @db.VarChar(255)
   full_name               String?                   @db.VarChar(255)
   phone                   String?                   @db.VarChar(20)
   email                   String?                   @db.VarChar(255)
+  total_debt              Decimal                   @default(0.00) @db.Decimal(12, 2)
   created_at              DateTime                  @default(now()) @db.Timestamp(6)
   updated_at              DateTime                  @default(now()) @db.Timestamp(6)
   customer_linking_tokens customer_linking_tokens[]
-  customer_telegram_links customer_telegram_links?
+  orders                  orders[]
+  customer_payments       customer_payments[]
 }
 
-model receipt_deliveries {
-  id                  Int            @id @default(autoincrement())
-  order_id            Int
-  telegram_chat_id    BigInt
-  status              String         @db.VarChar(20)
-  sent_at             DateTime?      @db.Timestamp(6)
-  receipt_link_id     Int?
-  receipt_code        String?        @db.VarChar(255)
-  telegram_message_id BigInt?
-  error_code          Int?
-  error_message       String?        @db.VarChar(500)
-  last_attempt_at     DateTime       @default(now()) @db.Timestamp(6)
-  created_at          DateTime       @default(now()) @db.Timestamp(6)
-  updated_at          DateTime       @default(now()) @db.Timestamp(6)
-  orders              orders         @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: NoAction)
-  receipt_links       receipt_links? @relation(fields: [receipt_link_id], references: [receipt_link_id], onUpdate: NoAction)
-
-  @@unique([receipt_link_id, telegram_chat_id], map: "uq_receipt_deliveries_link_chat")
-  @@index([telegram_chat_id], map: "idx_receipt_deliveries_telegram_chat_id")
-  @@index([receipt_link_id], map: "idx_receipt_deliveries_link_id")
-  @@index([receipt_link_id, telegram_chat_id], map: "idx_receipt_deliveries_link_chat")
-}
 
 model customer_linking_tokens {
   token        String    @id @db.VarChar(64)
@@ -488,11 +400,13 @@ model suppliers {
   address         String?
   tax_id          String?           @db.VarChar(100)
   payment_terms   String?           @default("NET_30") @db.VarChar(100)
+  total_debt      Decimal           @default(0.00) @db.Decimal(12, 2)
   is_active       Boolean           @default(true)
   created_at      DateTime          @default(now()) @db.Timestamp(6)
   updated_at      DateTime          @default(now()) @db.Timestamp(6)
   goods_received  goods_received[]
   purchase_orders purchase_orders[]
+  supplier_payments supplier_payments[]
 
   @@index([company_name], map: "idx_suppliers_company_name")
   @@index([is_active], map: "idx_suppliers_is_active")
@@ -509,6 +423,11 @@ model purchase_orders {
   tax_amount                               Decimal                @default(0.00) @db.Decimal(12, 2)
   discount_amount                          Decimal                @default(0.00) @db.Decimal(12, 2)
   total_amount                             Decimal                @default(0.00) @db.Decimal(12, 2)
+  paid_amount                              Decimal                @default(0.00) @db.Decimal(12, 2)
+  balance_due                              Decimal                @default(0.00) @db.Decimal(12, 2)
+  payment_status                           String                 @default("UNPAID") @db.VarChar(50)
+  payment_method                           String?                @db.VarChar(50)
+  payment_due_date                         DateTime?              @db.Timestamp(6)
   notes                                    String?
   created_by                               Int
   approved_by                              Int?
@@ -516,12 +435,15 @@ model purchase_orders {
   updated_at                               DateTime               @default(now()) @db.Timestamp(6)
   goods_received                           goods_received[]
   purchase_order_items                     purchase_order_items[]
+  supplier_payments                        supplier_payments[]
   users_purchase_orders_approved_byTousers users?                 @relation("purchase_orders_approved_byTousers", fields: [approved_by], references: [user_id], onUpdate: NoAction)
   users_purchase_orders_created_byTousers  users                  @relation("purchase_orders_created_byTousers", fields: [created_by], references: [user_id], onUpdate: NoAction)
   suppliers                                suppliers              @relation(fields: [supplier_id], references: [supplier_id], onUpdate: NoAction)
 
   @@index([order_date], map: "idx_purchase_orders_order_date")
   @@index([status], map: "idx_purchase_orders_status")
+  @@index([payment_status], map: "idx_purchase_orders_payment_status")
+  @@index([payment_due_date], map: "idx_purchase_orders_payment_due_date")
   @@index([supplier_id], map: "idx_purchase_orders_supplier_id")
 }
 
@@ -603,6 +525,48 @@ model role_permissions {
 
   @@unique([role_id, feature_key], map: "uq_role_feature")
   @@index([role_id], map: "idx_role_permissions_role_id")
+}
+
+model supplier_payments {
+  payment_id       Int              @id @default(autoincrement())
+  payment_number   String           @unique(map: "idx_supplier_payments_payment_number") @db.VarChar(50)
+  supplier_id      Int
+  po_id            Int?
+  amount           Decimal          @default(0.00) @db.Decimal(12, 2)
+  payment_method   String           @db.VarChar(50)
+  reference_number String?          @db.VarChar(100)
+  payment_date     DateTime         @default(now()) @db.Timestamp(6)
+  notes            String?
+  created_by       Int
+  created_at       DateTime         @default(now()) @db.Timestamp(6)
+  users            users            @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+  suppliers        suppliers        @relation(fields: [supplier_id], references: [supplier_id], onUpdate: NoAction)
+  purchase_orders  purchase_orders? @relation(fields: [po_id], references: [po_id], onUpdate: NoAction)
+
+  @@index([supplier_id], map: "idx_supplier_payments_supplier_id")
+  @@index([po_id], map: "idx_supplier_payments_po_id")
+  @@index([payment_date], map: "idx_supplier_payments_payment_date")
+}
+
+model customer_payments {
+  payment_id       Int         @id @default(autoincrement())
+  payment_number   String      @unique(map: "idx_customer_payments_payment_number") @db.VarChar(50)
+  customer_id      Int
+  order_id         Int?
+  amount           Decimal     @default(0.00) @db.Decimal(12, 2)
+  payment_method   String      @db.VarChar(50)
+  reference_number String?     @db.VarChar(100)
+  payment_date     DateTime    @default(now()) @db.Timestamp(6)
+  notes            String?
+  created_by       Int
+  created_at       DateTime    @default(now()) @db.Timestamp(6)
+  users            users       @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+  customers        customers   @relation(fields: [customer_id], references: [customer_id], onUpdate: NoAction)
+  orders           orders?     @relation(fields: [order_id], references: [order_id], onUpdate: NoAction)
+
+  @@index([customer_id], map: "idx_customer_payments_customer_id")
+  @@index([order_id], map: "idx_customer_payments_order_id")
+  @@index([payment_date], map: "idx_customer_payments_payment_date")
 }
 
 

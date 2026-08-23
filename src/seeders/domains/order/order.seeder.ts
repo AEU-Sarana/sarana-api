@@ -23,6 +23,8 @@ export class OrderSeeder extends BaseSeeder {
       return;
     }
 
+    const customers = await prisma.customer.findMany({ take: 5 });
+
     const orders = [];
     let orderIndex = 0;
 
@@ -32,7 +34,9 @@ export class OrderSeeder extends BaseSeeder {
 
       for (let i = 0; i < orderCount; i++) {
         const orderDate = new Date();
-        orderDate.setDate(orderDate.getDate() - SeederHelper.randomInt(0, 30));
+        if (i >= 3) {
+          orderDate.setDate(orderDate.getDate() - SeederHelper.randomInt(1, 30));
+        }
 
         // Create order items (1-5 items per order)
         const itemCount = SeederHelper.randomInt(1, 5);
@@ -73,14 +77,29 @@ export class OrderSeeder extends BaseSeeder {
         const discountAmount = SeederHelper.randomFloat(0, totalAmount * 0.05);
         const taxAmount = (totalAmount - discountAmount) * 0.1;
         const serviceFee = SeederHelper.randomFloat(0, 10);
-        const finalTotal = totalAmount - discountAmount + taxAmount + serviceFee;
+        const finalTotal = Number((totalAmount - discountAmount + taxAmount + serviceFee).toFixed(2));
+
+        // Randomly attach customer and debt status
+        const customer = customers.length > 0 && i % 3 === 0 ? customers[i % customers.length] : null;
+        const isDebt = customer && i % 6 === 0;
+        const isPartial = customer && !isDebt && i % 5 === 0;
+
+        const paidAmount = isDebt ? 0 : isPartial ? Number((finalTotal * 0.3).toFixed(2)) : finalTotal;
+        const balanceDue = Math.max(0, Number((finalTotal - paidAmount).toFixed(2)));
+        const paymentStatus = balanceDue <= 0 ? 'PAID' : paidAmount > 0 ? 'PARTIAL' : 'UNPAID';
+        const dueDate = balanceDue > 0 ? new Date(orderDate.getTime() + 30 * 24 * 3600 * 1000) : null;
 
         const order = await prisma.order.create({
           data: {
             receiptNumber: DataGenerator.generateReceiptNumber(orderIndex++),
             sellerId: seller.userId,
+            customerId: customer ? customer.customerId : null,
             orderDate,
             totalAmount: finalTotal,
+            paidAmount,
+            balanceDue,
+            paymentStatus,
+            paymentDueDate: dueDate,
             discountAmount,
             taxAmount,
             serviceFee,
@@ -91,10 +110,31 @@ export class OrderSeeder extends BaseSeeder {
           },
         });
 
+        if (customer && balanceDue > 0) {
+          await prisma.customer.update({
+            where: { customerId: customer.customerId },
+            data: { totalDebt: { increment: balanceDue } },
+          });
+
+          if (paidAmount > 0) {
+            await prisma.customerPayment.create({
+              data: {
+                paymentNumber: `CPAY-${orderDate.toISOString().slice(0, 10).replace(/-/g, '')}-${orderIndex}`,
+                customerId: customer.customerId,
+                orderId: order.orderId,
+                amount: paidAmount,
+                paymentMethod: 'CASH',
+                notes: 'Deposit paid at POS checkout',
+                createdBy: seller.userId,
+              },
+            });
+          }
+        }
+
         orders.push(order);
       }
     }
 
-    console.log(`   Created ${orders.length} orders`);
+    console.log(`   Created ${orders.length} orders with customer debt balances`);
   }
 }

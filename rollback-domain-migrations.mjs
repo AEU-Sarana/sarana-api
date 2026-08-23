@@ -36,10 +36,6 @@ const domainConfig = {
     tables: ['stock_movements', 'stock_lots', 'stocks'],
   },
 
-  telegram: {
-    tables: ['telegram_config', 'telegram_admin_links', 'telegram_admin_messages'],
-  },
-
   setting: {
     tables: ['settings'],
   },
@@ -62,9 +58,6 @@ const migrationRollbackOrder = [
   'shared/202601180000014_create_audit_logs_table',
   'setting/20260213000001_add_backup_schedule_time_to_settings_table',
   'setting/202601180000013_create_settings_table',
-  'telegram/202601180000011_create_telegram_admin_messages_table',
-  'telegram/202601180000010_create_telegram_admin_links_table',
-  'telegram/20260118000009_create_telegram_config_table',
   'stock/20260205000009_add_stock_movements_product_created_at_index',
   'stock/20260118000008_create_stock_movements_table',
   'stock/20260118000007_create_stock_lots_table',

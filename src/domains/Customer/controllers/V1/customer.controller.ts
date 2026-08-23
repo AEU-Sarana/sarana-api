@@ -17,7 +17,6 @@ export class CustomerController {
         page: req.query.page ? parseInt(req.query.page as string, 10) : 1,
         limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 20,
         search: req.query.search as string,
-        telegramFilter: (req.query.telegramFilter as any) || 'all',
       };
 
       const response = await CustomerService.listCustomers(request, user.userId);

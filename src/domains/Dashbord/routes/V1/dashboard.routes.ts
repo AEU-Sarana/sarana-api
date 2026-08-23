@@ -13,4 +13,10 @@ router.get(
   DashboardController.getOverview
 );
 
+// Top selling products of the month
+router.get(
+  '/top-products',
+  DashboardController.getTopProducts
+);
+
 export default router;

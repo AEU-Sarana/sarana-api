@@ -9,18 +9,11 @@ import { errorMiddleware } from '@src/shared/middleware/error.middleware';
 import { registerStockEventListeners } from '@src/domains/Stock/events/stock.listeners';
 import { registerReportEventListeners } from '@src/domains/Report/events/report.listeners';
 import { registerReportExportProcessor } from '@src/domains/Report/queues/report-export.processor';
-import { registerReceiptScanProcessor } from '@src/domains/Receipt/queues/receipt-scan.processor';
-import { registerTelegramEventListeners } from './domains/Telegram/events/telegram.listeners';
-import { startTelegramDailyReportScheduler } from '@src/domains/Telegram/jobs/telegram-daily-report.scheduler';
 import { auditMutationMiddleware } from '@src/shared/middleware/audit-mutation.middleware';
 import { responseTimezoneMiddleware } from '@src/shared/middleware/response-timezone.middleware';
-import { startTelegramAdminWorker } from '@src/domains/TelegramAdminBot/jobs/telegram-admin.worker';
-import { startTelegramAdminExportWorker } from '@src/domains/TelegramAdminBot/jobs/telegram-admin-export-excel.worker';
-import { startTelegramAdminStockHistoryExportWorker } from '@src/domains/TelegramAdminBot/jobs/telegram-admin-stock-history-export.worker';
 import { startBackupSchedulerJob } from '@src/domains/Backup/jobs/backup-scheduler.job';
 import { startBackupRetentionCleanupJob } from '@src/domains/Backup/jobs/backup-retention-cleanup.job';
 import { startBackupExportCleanupJob } from '@src/domains/Backup/jobs/backup-export-cleanup.job';
-import { startTelegramExpiryAlertScheduler } from '@src/domains/TelegramAdminBot/jobs/telegram-expiry-alert.scheduler';
 
 // Register event listeners
 registerStockEventListeners();
@@ -32,41 +25,6 @@ try {
 } catch (error) {
   console.error('Failed to register report export processor:', error);
 }
-
-// Register receipt scan worker
-try {
-  registerReceiptScanProcessor();
-} catch (error) {
-  console.error('Failed to register receipt scan processor:', error);
-}
-
-// Register Telegram admin worker
-try {
-  startTelegramAdminWorker();
-} catch (error) {
-  console.error('Failed to start telegram admin worker:', error);
-}
-
-// Register Telegram admin export worker
-try {
-  startTelegramAdminExportWorker();
-} catch (error) {
-  console.error('Failed to start telegram admin export worker:', error);
-}
-
-// Register Telegram admin stock history export worker
-try {
-  startTelegramAdminStockHistoryExportWorker();
-} catch (error) {
-  console.error('Failed to start telegram admin stock history export worker:', error);
-}
-
-
-// Register telegram event listeners
-registerTelegramEventListeners();
-
-// Start scheduled Telegram daily report
-startTelegramDailyReportScheduler();
 
 // Start Backup background jobs
 try {
@@ -87,18 +45,15 @@ try {
   console.error('Failed to start backup export cleanup job:', error);
 }
 
-// Start tiered stock expiry alerts
-try {
-  startTelegramExpiryAlertScheduler();
-} catch (error) {
-  console.error('Failed to start telegram expiry alert scheduler:', error);
-}
-
 
 const app: Application = express();
 
 // Security middleware
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 app.use(
   cors({
     origin: (origin, callback) => {

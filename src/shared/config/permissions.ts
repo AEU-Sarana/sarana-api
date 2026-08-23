@@ -32,12 +32,6 @@ export enum Permission {
   REPORT_VIEW_STOCK = 'REPORT_VIEW_STOCK',
   REPORT_EXPORT = 'REPORT_EXPORT',
 
-  // Telegram
-  TELEGRAM_CONFIG = 'TELEGRAM_CONFIG',
-  TELEGRAM_TEST = 'TELEGRAM_TEST',
-  TELEGRAM_SEND = 'TELEGRAM_SEND',
-  TELEGRAM_RESEND = 'TELEGRAM_RESEND',
-
   // Backup
   BACKUP_CREATE = 'BACKUP_CREATE',
   BACKUP_LIST = 'BACKUP_LIST',
@@ -98,12 +92,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.REPORT_VIEW_SALES,
     Permission.REPORT_VIEW_STOCK,
     Permission.REPORT_EXPORT,
-
-    // Telegram - All
-    Permission.TELEGRAM_CONFIG,
-    Permission.TELEGRAM_TEST,
-    Permission.TELEGRAM_SEND,
-    Permission.TELEGRAM_RESEND,
 
     // Backup - All
     Permission.BACKUP_CREATE,

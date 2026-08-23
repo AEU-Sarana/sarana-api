@@ -11,7 +11,6 @@ export interface CustomerResponse {
   phone: string | null;
   email: string | null;
   deviceId: string | null;
-  telegramLinked: boolean;
   createdAt: Date;
   lastBuyAt: Date | null;
   totalPaid: number;
@@ -22,7 +21,6 @@ export interface ListCustomersRequest {
   page?: number;
   limit?: number;
   search?: string;
-  telegramFilter?: 'all' | 'linked' | 'unlinked';
 }
 
 export interface ListCustomersResponse {

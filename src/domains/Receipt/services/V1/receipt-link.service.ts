@@ -2,10 +2,7 @@ import crypto from 'crypto';
 import prisma from '@src/database/client';
 import { ValidationException, BusinessLogicException } from '@src/shared/exceptions';
 import { auditLogService } from '@src/shared/services/audit-log.service';
-import { logger } from '@src/shared/utils/logger';
 import { ReceiptLinkStatus } from '@src/domains/Receipt/enums/V1/receipt-link-status.enum';
-import { TelegramService } from '@src/domains/Telegram/services/telegram.service';
-import { TelegramBotService } from '@src/domains/Telegram/services/telegram-bot.service';
 
 const DEFAULT_EXPIRE_MINUTES = 20;
 
@@ -16,7 +13,6 @@ export class ReceiptLinkService {
     code: string;
     link_status: ReceiptLinkStatus;
     expires_at: Date;
-    telegram_deep_link: string;
   }> {
     const order = await prisma.order.findUnique({
       where: { orderId },
@@ -25,7 +21,6 @@ export class ReceiptLinkService {
         paymentMethod: true,
         totalAmount: true,
         receiptNumber: true,
-
       },
     });
 
@@ -33,7 +28,6 @@ export class ReceiptLinkService {
       throw new ValidationException('Order not found');
     }
 
-    // Paid/completed eligibility check (adapt according to final order payment state field)
     if (!order.totalAmount || Number(order.totalAmount) <= 0) {
       throw new BusinessLogicException('Receipt link can only be generated for paid/completed orders');
     }
@@ -42,7 +36,6 @@ export class ReceiptLinkService {
     const expiresAt = new Date(Date.now() + DEFAULT_EXPIRE_MINUTES * 60 * 1000);
 
     const result = await prisma.$transaction(async (tx) => {
-      // Revoke any still-active pending link for this order (regenerate behavior)
       await tx.receiptLink.updateMany({
         where: {
           orderId: order.orderId,
@@ -75,105 +68,15 @@ export class ReceiptLinkService {
       details: { order_id: order.orderId, expires_at: expiresAt },
     });
 
-    // Get bot username from Telegram config
-    let botUsername = '';
-    try {
-      const telegramConfig = await TelegramService.getTelegramConfig(1);
-      if (telegramConfig) {
-        const botInfo = await TelegramBotService.getMe(telegramConfig.bot_token);
-        botUsername = botInfo.username;
-      }
-    } catch (error) {
-      logger.warn('Failed to fetch bot username from Telegram, using fallback', { error });
-    }
-
     return {
       receipt_link_id: result.receiptLinkId,
       order_id: result.orderId,
       code: result.code,
       link_status: result.linkStatus as ReceiptLinkStatus,
       expires_at: result.expiresAt,
-      telegram_deep_link: `https://t.me/${botUsername}?start=${result.code}`,
     };
   }
 
-  static async claimReceipt(input: {
-    code: string;
-    telegram_user_id: string;
-    telegram_chat_id: string;
-    telegram_username?: string;
-  }): Promise<{
-    order_id: number;
-    receipt_number: string;
-    link_status: ReceiptLinkStatus;
-  }> {
-    const now = new Date();
-
-    const link = await prisma.receiptLink.findUnique({
-      where: { code: input.code },
-      include: {
-        order: true,
-      },
-    });
-
-    if (!link) {
-      throw new ValidationException('Invalid receipt code');
-    }
-
-    if (link.linkStatus === ReceiptLinkStatus.USED) {
-      throw new BusinessLogicException('This receipt code was already used');
-    }
-
-    if (link.linkStatus === ReceiptLinkStatus.REVOKED) {
-      throw new BusinessLogicException('This receipt code is no longer active');
-    }
-
-    if (link.expiresAt <= now) {
-      await prisma.receiptLink.update({
-        where: { receiptLinkId: link.receiptLinkId },
-        data: { linkStatus: ReceiptLinkStatus.EXPIRED },
-      });
-      throw new BusinessLogicException('Receipt code has expired');
-    }
-
-    if (!link.order || Number(link.order.totalAmount) <= 0) {
-      throw new BusinessLogicException('Order is not eligible for receipt claim');
-    }
-
-    await prisma.$transaction(async (tx) => {
-      await tx.receiptLink.update({
-        where: { receiptLinkId: link.receiptLinkId },
-        data: {
-          linkStatus: ReceiptLinkStatus.USED,
-          usedAt: now,
-          telegramUserId: parseInt(input.telegram_user_id, 10),
-          telegramChatId: parseInt(input.telegram_chat_id, 10),
-          telegramUsername: input.telegram_username || null,
-        },
-      });
-    });
-
-    await auditLogService.createAuditLog({
-      action: 'RECEIPT_LINK_CLAIMED',
-      resource: 'ReceiptLink',
-      entityId: link.receiptLinkId,
-      details: {
-        order_id: link.orderId,
-        telegram_user_id: input.telegram_user_id,
-      },
-    });
-
-    return {
-      order_id: link.orderId,
-      receipt_number: link.order.receiptNumber,
-      link_status: ReceiptLinkStatus.USED,
-    };
-  }
-
-  /**
-   * Validate receipt code without marking as used
-   * This allows checking if a receipt is valid before attempting to send it
-   */
   static async validateReceiptCode(code: string): Promise<{
     order_id: number;
     receipt_number: string;
@@ -217,58 +120,6 @@ export class ReceiptLinkService {
       receipt_number: link.order.receiptNumber,
       link_status: link.linkStatus as ReceiptLinkStatus,
     };
-  }
-
-  /**
-   * Mark receipt as used after successful delivery
-   * This should only be called after the receipt has been successfully sent
-   */
-  static async markReceiptAsUsed(
-    code: string,
-    input: {
-      telegram_user_id: string;
-      telegram_chat_id: string;
-      telegram_username?: string;
-    }
-  ): Promise<void> {
-    const now = new Date();
-
-    const link = await prisma.receiptLink.findUnique({
-      where: { code },
-    });
-
-    if (!link) {
-      throw new ValidationException('Invalid receipt code');
-    }
-
-    // Double-check it's still in a valid state
-    if (link.linkStatus === ReceiptLinkStatus.USED) {
-      // Already marked as used, this is idempotent
-      return;
-    }
-
-    await prisma.$transaction(async (tx) => {
-      await tx.receiptLink.update({
-        where: { receiptLinkId: link.receiptLinkId },
-        data: {
-          linkStatus: ReceiptLinkStatus.USED,
-          usedAt: now,
-          telegramUserId: parseInt(input.telegram_user_id, 10),
-          telegramChatId: parseInt(input.telegram_chat_id, 10),
-          telegramUsername: input.telegram_username || null,
-        },
-      });
-    });
-
-    await auditLogService.createAuditLog({
-      action: 'RECEIPT_LINK_CLAIMED',
-      resource: 'ReceiptLink',
-      entityId: link.receiptLinkId,
-      details: {
-        order_id: link.orderId,
-        telegram_user_id: input.telegram_user_id,
-      },
-    });
   }
 
   public static generateSecureCode(): string {

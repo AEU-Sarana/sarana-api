@@ -33,7 +33,7 @@ export class PurchaseOrderSeeder extends BaseSeeder {
     const p2 = products[1] || products[0];
     const p3 = products[2] || products[0];
 
-    // PO 1: RECEIVED (Completed)
+    // PO 1: RECEIVED (Completed & PAID in full)
     const po1 = await prisma.purchaseOrder.create({
       data: {
         poNumber: 'PO-20260816-0001',
@@ -45,6 +45,11 @@ export class PurchaseOrderSeeder extends BaseSeeder {
         taxAmount: 22.50,
         discountAmount: 10.00,
         totalAmount: 462.50,
+        paidAmount: 462.50,
+        balanceDue: 0.00,
+        paymentStatus: 'PAID',
+        paymentMethod: 'ABA_BANK',
+        paymentDueDate: new Date(Date.now() + 23 * 24 * 3600 * 1000),
         notes: 'Urgent restock for antibiotics and painkillers.',
         createdBy: adminUser.userId,
         approvedBy: adminUser.userId,
@@ -66,6 +71,20 @@ export class PurchaseOrderSeeder extends BaseSeeder {
             },
           ],
         },
+      },
+    });
+
+    // Record payment for PO 1
+    await prisma.supplierPayment.create({
+      data: {
+        paymentNumber: 'PAY-20260816-0001',
+        supplierId: s1.supplierId,
+        poId: po1.poId,
+        amount: 462.50,
+        paymentMethod: 'ABA_BANK',
+        referenceNumber: 'TRX-ABA-98124',
+        notes: 'Paid via ABA Mobile Transfer',
+        createdBy: adminUser.userId,
       },
     });
 
@@ -101,8 +120,8 @@ export class PurchaseOrderSeeder extends BaseSeeder {
       },
     });
 
-    // PO 2: PARTIAL_RECEIVED
-    await prisma.purchaseOrder.create({
+    // PO 2: PARTIAL_RECEIVED (Deposit paid $100, Balance Due $200)
+    const po2 = await prisma.purchaseOrder.create({
       data: {
         poNumber: 'PO-20260816-0002',
         supplierId: s2.supplierId,
@@ -113,6 +132,11 @@ export class PurchaseOrderSeeder extends BaseSeeder {
         taxAmount: 0.00,
         discountAmount: 0.00,
         totalAmount: 300.00,
+        paidAmount: 100.00,
+        balanceDue: 200.00,
+        paymentStatus: 'PARTIAL',
+        paymentMethod: 'CASH',
+        paymentDueDate: new Date(Date.now() + 27 * 24 * 3600 * 1000),
         notes: 'Partial shipment expected first batch.',
         createdBy: adminUser.userId,
         approvedBy: adminUser.userId,
@@ -130,18 +154,40 @@ export class PurchaseOrderSeeder extends BaseSeeder {
       },
     });
 
-    // PO 3: APPROVED (Pending Delivery)
-    await prisma.purchaseOrder.create({
+    await prisma.supplierPayment.create({
+      data: {
+        paymentNumber: 'PAY-20260816-0002',
+        supplierId: s2.supplierId,
+        poId: po2.poId,
+        amount: 100.00,
+        paymentMethod: 'CASH',
+        notes: 'Upfront deposit paid upon order creation',
+        createdBy: adminUser.userId,
+      },
+    });
+
+    await prisma.supplier.update({
+      where: { supplierId: s2.supplierId },
+      data: { totalDebt: 200.00 },
+    });
+
+    // PO 3: APPROVED (Pending Delivery, 100% DEBT - Overdue test sample)
+    const po3 = await prisma.purchaseOrder.create({
       data: {
         poNumber: 'PO-20260816-0003',
         supplierId: s3.supplierId,
         status: 'APPROVED',
-        orderDate: new Date(Date.now() - 1 * 24 * 3600 * 1000),
-        expectedDeliveryDate: new Date(Date.now() + 5 * 24 * 3600 * 1000),
+        orderDate: new Date(Date.now() - 35 * 24 * 3600 * 1000),
+        expectedDeliveryDate: new Date(Date.now() - 30 * 24 * 3600 * 1000),
         subtotal: 620.00,
         taxAmount: 31.00,
         discountAmount: 15.00,
         totalAmount: 636.00,
+        paidAmount: 0.00,
+        balanceDue: 636.00,
+        paymentStatus: 'UNPAID',
+        paymentMethod: 'CREDIT_TERMS',
+        paymentDueDate: new Date(Date.now() - 5 * 24 * 3600 * 1000), // 5 days overdue
         notes: 'Monthly bulk medical supplies order.',
         createdBy: adminUser.userId,
         approvedBy: adminUser.userId,
@@ -159,6 +205,11 @@ export class PurchaseOrderSeeder extends BaseSeeder {
       },
     });
 
+    await prisma.supplier.update({
+      where: { supplierId: s3.supplierId },
+      data: { totalDebt: 636.00 },
+    });
+
     // PO 4: DRAFT
     await prisma.purchaseOrder.create({
       data: {
@@ -170,6 +221,11 @@ export class PurchaseOrderSeeder extends BaseSeeder {
         taxAmount: 0.00,
         discountAmount: 0.00,
         totalAmount: 150.00,
+        paidAmount: 0.00,
+        balanceDue: 150.00,
+        paymentStatus: 'UNPAID',
+        paymentMethod: 'ON_CREDIT',
+        paymentDueDate: new Date(Date.now() + 30 * 24 * 3600 * 1000),
         notes: 'Draft order pending manager review.',
         createdBy: adminUser.userId,
         purchase_order_items: {
@@ -186,6 +242,6 @@ export class PurchaseOrderSeeder extends BaseSeeder {
       },
     });
 
-    console.log('   Seeded 4 purchase orders with items and receiving history');
+    console.log('   Seeded 4 purchase orders with debt balances and payment histories');
   }
 }

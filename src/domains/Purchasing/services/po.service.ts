@@ -17,6 +17,10 @@ export interface CreatePOInput {
   discountAmount?: number;
   notes?: string;
   status?: 'DRAFT' | 'APPROVED';
+  paymentType?: 'PAID' | 'DEBT' | 'PARTIAL';
+  initialPaidAmount?: number;
+  paymentMethod?: string;
+  paymentDueDate?: string;
   items: CreatePOItemInput[];
 }
 
@@ -104,8 +108,22 @@ export class POService {
       prisma.purchaseOrder.count({ where }),
     ]);
 
+    const formattedPOs = pos.map((po: any) => ({
+      ...po,
+      totalAmount: Number(po.totalAmount ?? po.total_amount ?? 0),
+      paidAmount: Number(po.paidAmount ?? po.paid_amount ?? 0),
+      balanceDue: Number(po.balanceDue ?? po.balance_due ?? 0),
+      taxAmount: Number(po.taxAmount ?? po.tax_amount ?? 0),
+      discountAmount: Number(po.discountAmount ?? po.discount_amount ?? 0),
+      purchase_order_items: (po.purchase_order_items || []).map((item: any) => ({
+        ...item,
+        unitCost: Number(item.unitCost ?? item.unit_cost ?? 0),
+        subtotal: Number(item.subtotal ?? 0),
+      })),
+    }));
+
     return {
-      pos,
+      pos: formattedPOs,
       pagination: {
         page,
         limit,
@@ -147,7 +165,29 @@ export class POService {
       throw new NotFoundException('Purchase order not found');
     }
 
-    return po;
+    const rawPO = po as any;
+    return {
+      ...po,
+      totalAmount: Number(rawPO.totalAmount ?? rawPO.total_amount ?? 0),
+      paidAmount: Number(rawPO.paidAmount ?? rawPO.paid_amount ?? 0),
+      balanceDue: Number(rawPO.balanceDue ?? rawPO.balance_due ?? 0),
+      taxAmount: Number(rawPO.taxAmount ?? rawPO.tax_amount ?? 0),
+      discountAmount: Number(rawPO.discountAmount ?? rawPO.discount_amount ?? 0),
+      purchase_order_items: (po.purchase_order_items || []).map((item: any) => ({
+        ...item,
+        unitCost: Number(item.unitCost ?? item.unit_cost ?? 0),
+        subtotal: Number(item.subtotal ?? 0),
+      })),
+      goods_received: (po.goods_received || []).map((gr: any) => ({
+        ...gr,
+        totalReceivedAmount: Number(gr.totalReceivedAmount ?? gr.total_received_amount ?? 0),
+        goods_received_items: (gr.goods_received_items || []).map((gri: any) => ({
+          ...gri,
+          unitCost: Number(gri.unitCost ?? gri.unit_cost ?? 0),
+          subtotal: Number(gri.subtotal ?? 0),
+        })),
+      })),
+    };
   }
 
   static async createPO(input: CreatePOInput, userId: number) {
@@ -165,7 +205,7 @@ export class POService {
     }
 
     let subtotal = 0;
-    const validatedItems = [];
+    const validatedItems: any[] = [];
 
     for (const item of input.items) {
       if (!item.productId || item.orderedQuantity <= 0 || item.unitCost < 0) {
@@ -195,27 +235,90 @@ export class POService {
     const poNumber = this.generatePONumber();
     const poStatus = input.status || 'DRAFT';
 
-    const po = await prisma.purchaseOrder.create({
-      data: {
-        poNumber,
-        supplierId: input.supplierId,
-        status: poStatus,
-        orderDate: new Date(),
-        expectedDeliveryDate: input.expectedDeliveryDate ? new Date(input.expectedDeliveryDate) : null,
-        subtotal,
-        taxAmount,
-        discountAmount,
-        totalAmount,
-        notes: input.notes || null,
-        createdBy: userId,
-        approvedBy: poStatus === 'APPROVED' ? userId : null,
-        purchase_order_items: {
-          create: validatedItems,
+    // Calculate Payment & Debt fields
+    let initialPaidAmount = 0;
+    if (input.paymentType === 'PAID') {
+      initialPaidAmount = totalAmount;
+    } else if (input.paymentType === 'DEBT') {
+      initialPaidAmount = 0;
+    } else if (input.paymentType === 'PARTIAL') {
+      initialPaidAmount = Math.min(input.initialPaidAmount || 0, totalAmount);
+    } else {
+      initialPaidAmount = Math.min(input.initialPaidAmount || 0, totalAmount);
+    }
+
+    const balanceDue = Math.max(0, totalAmount - initialPaidAmount);
+    const paymentStatus = balanceDue <= 0 ? 'PAID' : initialPaidAmount > 0 ? 'PARTIAL' : 'UNPAID';
+    const paymentMethod = input.paymentMethod || (input.paymentType === 'DEBT' ? 'ON_CREDIT' : 'CASH');
+
+    // Determine Due Date
+    let dueDate: Date | null = null;
+    if (input.paymentDueDate) {
+      dueDate = new Date(input.paymentDueDate);
+    } else if (balanceDue > 0) {
+      const terms = supplier.paymentTerms || 'NET_30';
+      const days = terms === 'NET_7' ? 7 : terms === 'NET_15' ? 15 : terms === 'COD' ? 0 : 30;
+      dueDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    }
+
+    const po = await prisma.$transaction(async (tx) => {
+      const createdPO = await tx.purchaseOrder.create({
+        data: {
+          poNumber,
+          supplierId: input.supplierId,
+          status: poStatus,
+          orderDate: new Date(),
+          expectedDeliveryDate: input.expectedDeliveryDate ? new Date(input.expectedDeliveryDate) : null,
+          subtotal,
+          taxAmount,
+          discountAmount,
+          totalAmount,
+          paidAmount: initialPaidAmount,
+          balanceDue: balanceDue,
+          paymentStatus: paymentStatus,
+          paymentMethod: paymentMethod,
+          paymentDueDate: dueDate,
+          notes: input.notes || null,
+          createdBy: userId,
+          approvedBy: poStatus === 'APPROVED' ? userId : null,
+          purchase_order_items: {
+            create: validatedItems,
+          },
         },
-      },
-      include: {
-        purchase_order_items: true,
-      },
+        include: {
+          purchase_order_items: true,
+        },
+      });
+
+      // Update Supplier total debt balance if there is a balance due
+      if (balanceDue > 0) {
+        await tx.supplier.update({
+          where: { supplierId: input.supplierId },
+          data: {
+            totalDebt: { increment: balanceDue },
+            updatedAt: new Date(),
+          },
+        });
+      }
+
+      // Record initial payment entry if deposit/paid amount > 0
+      if (initialPaidAmount > 0) {
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+        await tx.supplierPayment.create({
+          data: {
+            paymentNumber: `PAY-${dateStr}-${rand}`,
+            supplierId: input.supplierId,
+            poId: createdPO.poId,
+            amount: initialPaidAmount,
+            paymentMethod: paymentMethod,
+            notes: 'Initial payment upon PO creation',
+            createdBy: userId,
+          },
+        });
+      }
+
+      return createdPO;
     });
 
     await auditLogService.createAuditLog({
@@ -223,7 +326,7 @@ export class POService {
       action: 'CREATE_PURCHASE_ORDER',
       resource: 'PurchaseOrder',
       entityId: po.poId,
-      details: { poNumber, totalAmount, supplierId: input.supplierId },
+      details: { poNumber, totalAmount, initialPaidAmount, balanceDue, supplierId: input.supplierId },
     });
 
     return po;
@@ -291,9 +394,12 @@ export class POService {
       });
 
       for (const item of input.items) {
-        if (item.quantityReceived <= 0) continue;
+        const qtyRec = Math.max(0, Number(item.quantityReceived || 0));
+        if (qtyRec <= 0) continue;
 
-        const lineSubtotal = item.quantityReceived * item.unitCost;
+        const rawCost = Number(item.unitCost);
+        const unitCostNum = Math.max(0, isNaN(rawCost) ? 0 : rawCost);
+        const lineSubtotal = Number((qtyRec * unitCostNum).toFixed(2));
         totalReceivedAmount += lineSubtotal;
 
         // Create goods_received_items record
@@ -301,9 +407,9 @@ export class POService {
           data: {
             grId: newGR.grId,
             poItemId: item.poItemId || null,
-            productId: item.productId,
-            quantityReceived: item.quantityReceived,
-            unitCost: item.unitCost,
+            productId: Number(item.productId),
+            quantityReceived: qtyRec,
+            unitCost: unitCostNum,
             batchNumber: item.batchNumber?.trim() || null,
             expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
             subtotal: lineSubtotal,
@@ -315,7 +421,7 @@ export class POService {
           await tx.purchaseOrderItem.update({
             where: { poItemId: item.poItemId },
             data: {
-              receivedQuantity: { increment: item.quantityReceived },
+              receivedQuantity: { increment: qtyRec },
             },
           });
         }
@@ -323,9 +429,9 @@ export class POService {
         // Perform Stock In using StockService to create stock_lots & stock_movements
         await StockService.stockIn(
           {
-            product_id: item.productId,
-            quantity: item.quantityReceived,
-            cost: item.unitCost,
+            product_id: Number(item.productId),
+            quantity: qtyRec,
+            cost: unitCostNum,
             expired_at: item.expiryDate ? new Date(item.expiryDate) : undefined,
             note: input.notes || `Stock In via GR #${grNumber}`,
           },
@@ -334,8 +440,8 @@ export class POService {
 
         // Update product's last purchase cost
         await tx.product.update({
-          where: { productId: item.productId },
-          data: { lastPurchaseCost: item.unitCost },
+          where: { productId: Number(item.productId) },
+          data: { lastPurchaseCost: unitCostNum },
         });
       }
 

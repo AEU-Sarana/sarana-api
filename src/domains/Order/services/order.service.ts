@@ -13,7 +13,6 @@ import { Role } from '@src/shared/config/permissions';
 import { StockService } from '@src/domains/Stock/services/stock.service';
 import { ReceiptLinkService } from '@src/domains/Receipt/services/V1/receipt-link.service';
 import { ReceiptLinkStatus } from '@src/domains/Receipt/enums/V1/receipt-link-status.enum';
-import { TelegramAdminOrderNotifyService } from '@src/domains/TelegramAdminBot/services/telegram-admin-order-notify.service';
 import { eventBus } from '@src/shared/events/event-bus';
 
 type CurrentUserContext = {
@@ -85,15 +84,6 @@ export class OrderService {
             fullName: true,
           },
         },
-        receipt_links: {
-          select: {
-            receiptLinkId: true,
-            linkStatus: true,
-            expiresAt: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-        },
       },
     });
 
@@ -106,8 +96,6 @@ export class OrderService {
 
     return {
       orders: orders.map((o) => {
-        const latestReceiptLink = o.receipt_links[0] || null;
-
         return {
           order_id: o.orderId,
           receipt_number: o.receiptNumber,
@@ -121,8 +109,8 @@ export class OrderService {
           service_fee: Number(o.serviceFee),
           exchange_rate: 4000,
           payment_method: o.paymentMethod,
-          has_receipt_link: !!latestReceiptLink,
-          receipt_link_status: latestReceiptLink?.linkStatus || null,
+          has_receipt_link: false,
+          receipt_link_status: null,
           created_at: o.createdAt,
         };
       }),
@@ -165,16 +153,6 @@ export class OrderService {
             },
           },
         },
-        receipt_links: {
-          select: {
-            receiptLinkId: true,
-            linkStatus: true,
-            expiresAt: true,
-            code: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-        },
         order_payments: {
           select: {
             receivedAmount: true,
@@ -206,7 +184,6 @@ export class OrderService {
       entityId: orderId,
     });
 
-    const latestReceiptLink = order.receipt_links[0] || null;
     const receivedAmount = order.order_payments.reduce(
       (sum, payment) => sum + Number(payment.receivedAmount),
       0
@@ -226,8 +203,8 @@ export class OrderService {
       exchange_rate: 4000,
       payment_method: order.paymentMethod,
       received_amount: receivedAmount,
-      has_receipt_link: !!latestReceiptLink,
-      receipt_link_status: latestReceiptLink?.linkStatus || null,
+      has_receipt_link: false,
+      receipt_link_status: null,
       items: order.order_items.map((item) => ({
         order_item_id: item.orderItemId,
         product_id: item.productId,
@@ -257,7 +234,23 @@ export class OrderService {
 
     // Calculate sum of item subtotals
     const itemsSubtotal = request.items.reduce((sum, item) => sum + item.subtotal, 0);
-    const totalAmount = itemsSubtotal - (request.discount_amount || 0) + (request.tax_amount || 0) + (request.service_fee || 0);
+    const totalAmount = Number((itemsSubtotal - (request.discount_amount || 0) + (request.tax_amount || 0) + (request.service_fee || 0)).toFixed(2));
+
+    // Calculate Payment & Customer Debt
+    let initialPaidAmount = totalAmount;
+    if (request.payment_type === 'DEBT') {
+      initialPaidAmount = 0;
+    } else if (request.payment_type === 'PARTIAL') {
+      initialPaidAmount = Math.min(request.initial_paid_amount || 0, totalAmount);
+    } else if (request.payment_type === 'PAID') {
+      initialPaidAmount = totalAmount;
+    } else {
+      initialPaidAmount = Math.min(request.initial_paid_amount ?? request.received_amount ?? totalAmount, totalAmount);
+    }
+
+    const balanceDue = Math.max(0, totalAmount - initialPaidAmount);
+    const paymentStatus = balanceDue <= 0 ? 'PAID' : initialPaidAmount > 0 ? 'PARTIAL' : 'UNPAID';
+    const dueDate = request.payment_due_date ? new Date(request.payment_due_date) : (balanceDue > 0 ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null);
 
     const orderId = await prisma.$transaction(async (tx) => {
       // 1. Create order
@@ -265,8 +258,13 @@ export class OrderService {
         data: {
           receiptNumber: receiptNumber,
           sellerId: currentUser.userId,
+          customerId: request.customer_id || null,
           orderDate: now,
-          totalAmount: Number(totalAmount.toFixed(2)),
+          totalAmount: totalAmount,
+          paidAmount: initialPaidAmount,
+          balanceDue: balanceDue,
+          paymentStatus: paymentStatus,
+          paymentDueDate: dueDate,
           discountAmount: request.discount_amount || 0,
           taxAmount: request.tax_amount || 0,
           serviceFee: request.service_fee || 0,
@@ -274,14 +272,41 @@ export class OrderService {
         },
       });
 
-      // 2. Create order payment record
-      const receivedAmountVal = request.received_amount ?? totalAmount;
+      // 2. Update Customer Total Debt if balance due > 0
+      if (request.customer_id && balanceDue > 0) {
+        await tx.customer.update({
+          where: { customerId: request.customer_id },
+          data: {
+            totalDebt: { increment: balanceDue },
+            updatedAt: now,
+          },
+        });
+      }
+
+      // 3. Create order payment record
+      const receivedAmountVal = request.received_amount ?? initialPaidAmount;
       await tx.orderPayment.create({
         data: {
           orderId: newOrder.orderId,
           receivedAmount: receivedAmountVal,
         },
       });
+
+      // 4. Record initial customer debt repayment if deposit paid
+      if (request.customer_id && initialPaidAmount > 0 && balanceDue > 0) {
+        const cpayRand = Math.random().toString(36).slice(2, 6).toUpperCase();
+        await tx.customerPayment.create({
+          data: {
+            paymentNumber: `CPAY-${dateStr}-${cpayRand}`,
+            customerId: request.customer_id,
+            orderId: newOrder.orderId,
+            amount: initialPaidAmount,
+            paymentMethod: request.payment_method,
+            notes: 'Initial deposit paid at POS checkout',
+            createdBy: currentUser.userId,
+          },
+        });
+      }
 
       // 3. Process items and decrement stock
       for (const item of request.items) {
@@ -341,33 +366,6 @@ export class OrderService {
 
     // Send notifications/events in background
     setImmediate(() => {
-      // Trigger Telegram notification
-      TelegramAdminOrderNotifyService.notifyOrderSyncSuccess({
-        order: {
-          receipt_number: receiptNumber,
-          order_date: now.toISOString(),
-          total_amount: totalAmount,
-          discount_amount: request.discount_amount || 0,
-          tax_amount: request.tax_amount || 0,
-          service_fee: request.service_fee || 0,
-          payment_method: request.payment_method,
-          received_amount: request.received_amount ?? totalAmount,
-          items: request.items.map(item => ({
-            product_id: item.product_id,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            discount_amount: item.discount_amount,
-            subtotal: item.subtotal,
-          })),
-        },
-        status: 'synced',
-        orderId: orderId,
-        fallbackSellerId: currentUser.userId,
-        orderDate: now,
-      }).catch((notifyError: unknown) => {
-        logger.error('Telegram order notification failed', { error: notifyError });
-      });
-
       // Emit event for real-time receipt printer waits
       eventBus.emit(`order_synced:${orderId}`, { orderId });
     });

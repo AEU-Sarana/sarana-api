@@ -13,6 +13,12 @@ export interface OrderResponse {
   shift_id: number | null;
   seller_id: number;
   seller_name: string | null;
+  customer_id?: number | null;
+  customer_name?: string | null;
+  paid_amount?: number;
+  balance_due?: number;
+  payment_status?: string;
+  payment_due_date?: Date | null;
   order_date: Date;
   total_amount: number;
   discount_amount: number;
@@ -49,7 +55,11 @@ export interface GetOrderResponse extends OrderResponse {
 }
 
 export interface CreateOrderRequest {
-  payment_method: 'CASH' | 'BANK';
+  payment_method: string;
+  customer_id?: number;
+  payment_type?: 'PAID' | 'DEBT' | 'PARTIAL';
+  initial_paid_amount?: number;
+  payment_due_date?: string;
   received_amount?: number;
   discount_amount?: number;
   tax_amount?: number;

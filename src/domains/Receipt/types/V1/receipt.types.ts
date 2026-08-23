@@ -4,21 +4,6 @@ export interface CreateReceiptLinkResponse {
   code: string;
   link_status: 'PENDING' | 'USED' | 'EXPIRED' | 'REVOKED';
   expires_at: string;
-  telegram_deep_link: string;
-}
-
-export interface TelegramReceiptClaimRequest {
-  code: string;
-  telegram_user_id: string;
-  telegram_chat_id: string;
-  telegram_username?: string;
-}
-
-export interface TelegramReceiptClaimResponse {
-  order_id: number;
-  receipt_number: string;
-  link_status: 'USED';
-  receipt_text: string;
 }
 
 export interface ReceiptSettingsResponse {

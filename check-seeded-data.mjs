@@ -1,4 +1,4 @@
-import client from './src/database/client.js';
+import client from './src/database/client';
 const prisma = client.default || client;
 
 async function checkSeededData() {
@@ -12,9 +12,6 @@ async function checkSeededData() {
       prisma.orderItem.count(),
       prisma.stockMovement.count(),
       prisma.appSetting.count(),
-      prisma.telegramConfig.count(),
-      prisma.telegramAdminLink.count(),
-      prisma.telegramAdminMessage.count(),
       prisma.auditLog.count(),
     ]);
 
@@ -28,10 +25,7 @@ async function checkSeededData() {
     console.log(`Order Items:         ${counts[5]}`);
     console.log(`Stock Movements:     ${counts[6]}`);
     console.log(`App Settings:       ${counts[7]}`);
-    console.log(`Telegram Configs:   ${counts[8]}`);
-    console.log(`Telegram Admin Links:   ${counts[9]}`);
-    console.log(`Telegram Admin Messages:   ${counts[10]}`);
-    console.log(`Audit Logs:          ${counts[11]}`);
+    console.log(`Audit Logs:          ${counts[8]}`);
     console.log('==========================\n');
 
     // Check if data exists

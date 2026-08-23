@@ -178,7 +178,7 @@ migrate:
 	@$(COMPOSE_CMD) exec $(APP_SERVICE) pnpm db:migrate:deploy
 
 seed:
-	@$(COMPOSE_CMD) exec $(APP_SERVICE) pnpm db:seed
+	@$(COMPOSE_CMD) exec $(APP_SERVICE) pnpm seed
 
 # ==============================
 # Health & Cleanup

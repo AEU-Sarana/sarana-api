@@ -60,9 +60,20 @@ export interface SellerDashboardOverview {
   sync_status: DashboardSyncStatus;
 }
 
+export interface TopSellingProduct {
+  rank: number;
+  product_id: number;
+  product_name: string;
+  category_name: string | null;
+  units_sold: number;
+  total_revenue: number;
+  image_path: string | null;
+}
+
 export interface AdminDashboardOverview {
   today_summary: DashboardTodaySummaryAdmin;
   low_stock_warnings: DashboardLowStockWarning[];
   recent_activity: Array<DashboardRecentOrderActivity | DashboardRecentStockMovementActivity>;
   sync_status: DashboardSyncStatus;
+  top_products?: TopSellingProduct[];
 }

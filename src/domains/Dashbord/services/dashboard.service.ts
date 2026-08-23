@@ -1,11 +1,13 @@
 import prisma from '@src/database/client';
 import { auditLogService } from '@src/shared/services/audit-log.service';
 import { Role } from '@src/shared/config/permissions';
+import { ProductService } from '@src/domains/Product/services/product.service';
 import {
   SellerDashboardOverview,
   AdminDashboardOverview,
   DashboardRecentOrderActivity,
   DashboardRecentStockMovementActivity,
+  TopSellingProduct,
 } from '@src/domains/Dashbord/types';
 
 const ACTIVITY_LIMIT = 5;
@@ -201,6 +203,8 @@ export class DashboardService {
         low_stock_threshold: stock.product.lowStockThreshold ?? 0,
       }));
 
+    const topProducts = await this.getTopProducts(5, 'quantity');
+
     await auditLogService.createAuditLog({
       userId: currentUserId,
       action: 'VIEW_DASHBOARD_OVERVIEW',
@@ -220,6 +224,59 @@ export class DashboardService {
         pending_orders: 0,
         last_sync_time: null,
       },
+      top_products: topProducts,
     };
+  }
+
+  static async getTopProducts(
+    limit: number = 5,
+    sortBy: 'quantity' | 'revenue' = 'quantity'
+  ): Promise<TopSellingProduct[]> {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Phnom_Penh',
+      year: 'numeric',
+      month: '2-digit',
+    });
+    const yearMonthStr = formatter.format(now); // "YYYY-MM"
+    const startOfMonth = new Date(`${yearMonthStr}-01T00:00:00+07:00`);
+
+    const orderItemsGrouped = await prisma.orderItem.groupBy({
+      by: ['productId', 'productName'],
+      where: {
+        order: {
+          orderDate: { gte: startOfMonth },
+        },
+      },
+      _sum: {
+        quantity: true,
+        subtotal: true,
+      },
+      orderBy: sortBy === 'revenue'
+        ? { _sum: { subtotal: 'desc' } }
+        : { _sum: { quantity: 'desc' } },
+      take: limit,
+    });
+
+    const productIds = orderItemsGrouped.map((item) => item.productId);
+    const productsInfo = await prisma.product.findMany({
+      where: { productId: { in: productIds } },
+      include: { category: true },
+    });
+
+    const productMap = new Map(productsInfo.map((p) => [p.productId, p]));
+
+    return orderItemsGrouped.map((item, index) => {
+      const product = productMap.get(item.productId);
+      return {
+        rank: index + 1,
+        product_id: item.productId,
+        product_name: item.productName || product?.productName || 'Unknown Product',
+        category_name: product?.category?.name || null,
+        units_sold: item._sum.quantity || 0,
+        total_revenue: Number(item._sum.subtotal || 0),
+        image_path: ProductService.normalizeImageUrl(product?.imagePath || null),
+      };
+    });
   }
 }

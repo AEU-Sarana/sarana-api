@@ -8,8 +8,7 @@ export class CustomerSeeder extends BaseSeeder {
   async seed(): Promise<void> {
     // Clear existing customers
     await this.clearTable('customers');
-    await this.clearTable('customer_telegram_links');
-    await this.clearTable('receipt_deliveries'); // clear mock receipt deliveries too
+    await this.clearTable('receipt_deliveries');
 
     const firstNames = [
       'Sok', 'Chan', 'Srey', 'Dara', 'Ratha', 'Sopheap', 'Sophat', 'Sreyneang',
@@ -33,50 +32,12 @@ export class CustomerSeeder extends BaseSeeder {
       const customer = await prisma.customer.create({
         data: {
           fullName,
-          phone: i % 4 === 0 ? null : phone, // some null phones
-          email: i % 3 === 0 ? null : email, // some null emails
+          phone: i % 4 === 0 ? null : phone,
+          email: i % 3 === 0 ? null : email,
           deviceId,
         },
       });
       customers.push(customer);
-    }
-
-    // Link some customers to Telegram (e.g. 8 of them)
-    // and link them to orders so they have purchase histories
-    const orders = await prisma.order.findMany({
-      orderBy: { orderId: 'asc' },
-      take: 20
-    });
-
-    for (let i = 0; i < 8; i++) {
-      const customer = customers[i];
-      const chatId = 100000000 + i * 12345;
-      const userId = 200000000 + i * 54321;
-
-      // 1. Create Telegram link
-      await prisma.customerTelegramLink.create({
-        data: {
-          customerId: customer.customerId,
-          telegramChatId: BigInt(chatId),
-          telegramUserId: BigInt(userId),
-        },
-      });
-
-      // 2. Deliver some orders to this chat ID (creates purchase history)
-      // Customer 0 gets order 0 and 1
-      // Customer 1 gets order 2
-      // etc.
-      const assignedOrders = orders.slice(i * 2, i * 2 + 2);
-      for (const order of assignedOrders) {
-        await prisma.receiptDelivery.create({
-          data: {
-            orderId: order.orderId,
-            telegramChatId: BigInt(chatId),
-            status: 'SENT',
-            sentAt: new Date(),
-          },
-        });
-      }
     }
 
     console.log(`   Created/Updated ${customers.length} customers`);
