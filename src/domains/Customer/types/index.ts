@@ -14,6 +14,8 @@ export interface CustomerResponse {
   createdAt: Date;
   lastBuyAt: Date | null;
   totalPaid: number;
+  totalDebt?: number;
+  ordersCount?: number;
   purchases: CustomerPurchase[];
 }
 
@@ -31,4 +33,16 @@ export interface ListCustomersResponse {
     total: number;
     totalPages: number;
   };
+}
+
+export interface CreateCustomerPayload {
+  full_name: string;
+  phone?: string | null;
+  email?: string | null;
+}
+
+export interface UpdateCustomerPayload {
+  full_name?: string;
+  phone?: string | null;
+  email?: string | null;
 }

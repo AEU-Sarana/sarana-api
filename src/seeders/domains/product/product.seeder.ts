@@ -1,6 +1,6 @@
 import { BaseSeeder } from '../../base-seeder';
 import prisma from '../../../database/client';
-import { productSeedData } from './product-seed-data';
+import { productSeedData, categorySeedData } from './product-seed-data';
 import { SeederHelper } from '../utils/seeder-helper';
 
 export class ProductSeeder extends BaseSeeder {
@@ -15,30 +15,64 @@ export class ProductSeeder extends BaseSeeder {
       throw new Error('No admin user found. Please seed users first.');
     }
 
-    // 1. Seed categories first
-    const categoryNames = Array.from(
-      new Set(productSeedData.map((p) => p.category).filter((c): c is string => !!c))
-    );
+    // Clear dependent tables to ensure clean pharmacy product & category dataset
+    await this.clearTable('stock_movements');
+    await this.clearTable('order_items');
+    await this.clearTable('orders');
+    await this.clearTable('goods_received_items');
+    await this.clearTable('goods_received');
+    await this.clearTable('purchase_order_items');
+    await this.clearTable('purchase_orders');
+    await this.clearTable('stock_lots');
+    await this.clearTable('stocks');
+    await this.clearTable('products');
+    await this.clearTable('categories');
+
+    // 1. Seed categories with rich pharmacy descriptions
     const categoryMap = new Map<string, number>();
 
-    for (const name of categoryNames) {
+    for (const catData of categorySeedData) {
       const cat = await prisma.category.upsert({
-        where: { name },
-        update: {},
+        where: { name: catData.name },
+        update: {
+          description: catData.description,
+        },
         create: {
-          name,
-          description: `${name} products`,
+          name: catData.name,
+          description: catData.description,
         },
         select: { categoryId: true },
       });
-      categoryMap.set(name, cat.categoryId);
+      categoryMap.set(catData.name, cat.categoryId);
     }
+
+    // Delete any obsolete categories not in pharmacy seed set
+    await prisma.category.deleteMany({
+      where: {
+        name: {
+          notIn: categorySeedData.map((c) => c.name),
+        },
+      },
+    });
+
+    // Default sample fallback images by category
+    const defaultCategoryImages: Record<string, string> = {
+      'Pain & Fever Relief': 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=500&auto=format&fit=crop',
+      'Antibiotics & Anti-Infectives': 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=500&auto=format&fit=crop',
+      'Cold, Cough & Allergy': 'https://images.unsplash.com/photo-1585435557343-3b092031a831?w=500&auto=format&fit=crop',
+      'Vitamins & Supplements': 'https://images.unsplash.com/photo-1577401239170-897942555fb3?w=500&auto=format&fit=crop',
+      'Digestive & GI Health': 'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?w=500&auto=format&fit=crop',
+      'Cardiovascular & Diabetes': 'https://images.unsplash.com/photo-1576602976047-174e57a47881?w=500&auto=format&fit=crop',
+      'First Aid & Medical Supplies': 'https://images.unsplash.com/photo-1603398938378-e54eab446dde?w=500&auto=format&fit=crop',
+      'Topical & Skincare Remedies': 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=500&auto=format&fit=crop',
+    };
 
     // 2. Seed products with categoryId links
     for (const productData of productSeedData) {
       const costMultiplier = SeederHelper.randomFloat(0.5, 0.9);
       const avgCost = parseFloat((productData.price * costMultiplier).toFixed(2));
       const categoryId = productData.category ? categoryMap.get(productData.category) : null;
+      const imagePath = productData.imagePath || (productData.category ? defaultCategoryImages[productData.category] : null);
 
       await prisma.product.upsert({
         where: {
@@ -51,7 +85,7 @@ export class ProductSeeder extends BaseSeeder {
           lastPurchaseCost: avgCost,
           categoryId,
           description: productData.description,
-          imagePath: productData.imagePath,
+          imagePath,
           lowStockThreshold: productData.lowStockThreshold,
           reorderPoint: productData.lowStockThreshold ?? 0,
           hasExpiry: productData.hasExpiry ?? false,
@@ -66,7 +100,7 @@ export class ProductSeeder extends BaseSeeder {
           lastPurchaseCost: avgCost,
           categoryId,
           description: productData.description,
-          imagePath: productData.imagePath,
+          imagePath,
           lowStockThreshold: productData.lowStockThreshold,
           reorderPoint: productData.lowStockThreshold ?? 0,
           hasExpiry: productData.hasExpiry ?? false,

@@ -92,6 +92,41 @@ export class BackupRestoreService {
     }
   }
 
+  static async downloadBackup(backupId: number): Promise<{ filePath: string; fileName: string }> {
+    const dbUrl = process.env.DATABASE_URL || '';
+    const client = new Client({ connectionString: dbUrl });
+    await client.connect();
+
+    try {
+      const meta = await client.query(
+        'SELECT backup_id, backup_name, object_key FROM backups WHERE backup_id = $1 AND status = $2',
+        [backupId, 'success']
+      );
+
+      if (meta.rows.length === 0) {
+        const err = new Error('Backup not found');
+        (err as any).code = 'BACKUP_NOT_FOUND';
+        throw err;
+      }
+
+      const objectKey = meta.rows[0].object_key as string;
+      const backupName = meta.rows[0].backup_name as string;
+
+      const encPath = path.join('/tmp', `dl_${backupId}.sql.enc`);
+      const sqlPath = path.join('/tmp', `${backupName}.sql`);
+
+      const s3 = buildS3Client();
+      await getObjectToFile(s3, BUCKET, objectKey, encPath);
+      await decryptFile(encPath, sqlPath, process.env.BACKUP_ENCRYPTION_KEY || '');
+
+      try { fs.unlinkSync(encPath); } catch {}
+
+      return { filePath: sqlPath, fileName: `${backupName}.sql` };
+    } finally {
+      await client.end();
+    }
+  }
+
   private static async sanitizeSqlDumpForCompatibility(filePath: string): Promise<void> {
     const content = await fs.promises.readFile(filePath, 'utf8');
     const sanitized = content.replace(/^SET transaction_timeout = .*;\n/gm, '');

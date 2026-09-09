@@ -21,6 +21,13 @@ router.post(
   OrderController.createOrder
 );
 
+// List pending cancellation requests (Admin only)
+router.get(
+  '/cancellation-requests',
+  requirePermission('sales.view_history', 'read'),
+  OrderController.listCancellationRequests
+);
+
 // List orders - permission guarded
 router.get(
   '/',
@@ -35,6 +42,30 @@ router.get(
   requirePermission('sales.view_history', 'read'),
   ...validateRequest(getOrderValidator),
   OrderController.getOrder
+);
+
+// Request order cancellation (Cashier / Admin)
+router.post(
+  '/:id/request-cancel',
+  requirePermission('sales.view_history', 'update'),
+  ...validateRequest(getOrderValidator),
+  OrderController.requestCancellation
+);
+
+// Approve order cancellation (Admin only)
+router.post(
+  '/:id/approve-cancel',
+  requirePermission('sales.view_history', 'delete'),
+  ...validateRequest(getOrderValidator),
+  OrderController.approveCancellation
+);
+
+// Reject order cancellation (Admin only)
+router.post(
+  '/:id/reject-cancel',
+  requirePermission('sales.view_history', 'delete'),
+  ...validateRequest(getOrderValidator),
+  OrderController.rejectCancellation
 );
 
 export default router;

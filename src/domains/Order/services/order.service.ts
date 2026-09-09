@@ -6,7 +6,7 @@ import {
   CreateOrderRequest,
   CreateOrderResponse,
 } from '@src/domains/Order/types/order.types';
-import { ForbiddenException, NotFoundException, ValidationException } from '@src/shared/exceptions';
+import { ForbiddenException, NotFoundException, ValidationException, BusinessLogicException } from '@src/shared/exceptions';
 import { logger } from '@src/shared/utils/logger';
 import { auditLogService } from '@src/shared/services/audit-log.service';
 import { Role } from '@src/shared/config/permissions';
@@ -109,6 +109,13 @@ export class OrderService {
           service_fee: Number(o.serviceFee),
           exchange_rate: 4000,
           payment_method: o.paymentMethod,
+          order_status: o.orderStatus || 'COMPLETED',
+          cancel_reason: o.cancelReason || null,
+          cancel_requested_at: o.cancelRequestedAt || null,
+          cancel_requested_by: o.cancelRequestedBy || null,
+          cancelled_at: o.cancelledAt || null,
+          cancelled_by: o.cancelledBy || null,
+          rejection_reason: o.rejectionReason || null,
           has_receipt_link: false,
           receipt_link_status: null,
           created_at: o.createdAt,
@@ -156,6 +163,14 @@ export class OrderService {
         order_payments: {
           select: {
             receivedAmount: true,
+            transactionId: true,
+            paymentMethod: true,
+            receivedUsd: true,
+            receivedKhr: true,
+            changeUsd: true,
+            changeKhr: true,
+            slipUrl: true,
+            notes: true,
           },
         },
       },
@@ -189,6 +204,8 @@ export class OrderService {
       0
     );
 
+    const latestPayment = order.order_payments[order.order_payments.length - 1] || null;
+
     return {
       order_id: order.orderId,
       receipt_number: order.receiptNumber,
@@ -202,7 +219,22 @@ export class OrderService {
       service_fee: Number(order.serviceFee),
       exchange_rate: 4000,
       payment_method: order.paymentMethod,
+      order_status: order.orderStatus || 'COMPLETED',
+      cancel_reason: order.cancelReason || null,
+      cancel_requested_at: order.cancelRequestedAt || null,
+      cancel_requested_by: order.cancelRequestedBy || null,
+      cancelled_at: order.cancelledAt || null,
+      cancelled_by: order.cancelledBy || null,
+      rejection_reason: order.rejectionReason || null,
       received_amount: receivedAmount,
+      reference_number: latestPayment?.transactionId || null,
+      transaction_id: latestPayment?.transactionId || null,
+      received_usd: latestPayment ? Number(latestPayment.receivedUsd) : null,
+      received_khr: latestPayment ? Number(latestPayment.receivedKhr) : null,
+      change_usd: latestPayment ? Number(latestPayment.changeUsd) : null,
+      change_khr: latestPayment ? Number(latestPayment.changeKhr) : null,
+      slip_url: latestPayment?.slipUrl || null,
+      notes: latestPayment?.notes || null,
       has_receipt_link: false,
       receipt_link_status: null,
       items: order.order_items.map((item) => ({
@@ -285,10 +317,19 @@ export class OrderService {
 
       // 3. Create order payment record
       const receivedAmountVal = request.received_amount ?? initialPaidAmount;
+      const refNum = request.reference_number || request.transaction_id || null;
       await tx.orderPayment.create({
         data: {
           orderId: newOrder.orderId,
           receivedAmount: receivedAmountVal,
+          transactionId: refNum,
+          paymentMethod: request.payment_method,
+          receivedUsd: request.received_usd || 0,
+          receivedKhr: request.received_khr || 0,
+          changeUsd: request.change_usd || 0,
+          changeKhr: request.change_khr || 0,
+          slipUrl: request.slip_url || null,
+          notes: request.notes || null,
         },
       });
 
@@ -380,5 +421,202 @@ export class OrderService {
     });
 
     return await this.getOrder(orderId, currentUser);
+  }
+
+  /**
+   * Cashier requests order cancellation with a mandatory reason
+   */
+  static async requestOrderCancellation(
+    orderId: number,
+    reason: string,
+    currentUser: CurrentUserContext
+  ): Promise<GetOrderResponse> {
+    const order = await prisma.order.findUnique({ where: { orderId } });
+    if (!order) {
+      throw new NotFoundException('Order not found', 'ORDER_NOT_FOUND');
+    }
+
+    if (order.orderStatus === 'CANCEL_REQUESTED') {
+      throw new BusinessLogicException('Cancellation request is already pending for this order');
+    }
+
+    if (order.orderStatus === 'CANCELLED') {
+      throw new BusinessLogicException('Order is already cancelled');
+    }
+
+    const now = new Date();
+    await prisma.order.update({
+      where: { orderId },
+      data: {
+        orderStatus: 'CANCEL_REQUESTED',
+        cancelReason: reason,
+        cancelRequestedAt: now,
+        cancelRequestedBy: currentUser.userId,
+      },
+    });
+
+    await auditLogService.createAuditLog({
+      userId: currentUser.userId,
+      action: 'REQUEST_ORDER_CANCELLATION',
+      resource: 'Order',
+      entityId: orderId,
+      details: { reason },
+    });
+
+    return await this.getOrder(orderId, currentUser);
+  }
+
+  /**
+   * Admin approves cancellation, restores inventory stock & reverses customer debt
+   */
+  static async approveOrderCancellation(
+    orderId: number,
+    currentUser: CurrentUserContext
+  ): Promise<GetOrderResponse> {
+    if (!isAdminRole(currentUser.role)) {
+      throw new ForbiddenException('Only admins can approve order cancellations');
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { orderId },
+      include: { order_items: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found', 'ORDER_NOT_FOUND');
+    }
+
+    if (order.orderStatus !== 'CANCEL_REQUESTED') {
+      throw new BusinessLogicException('No pending cancellation request found for this order');
+    }
+
+    const now = new Date();
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Update order status to CANCELLED
+      await tx.order.update({
+        where: { orderId },
+        data: {
+          orderStatus: 'CANCELLED',
+          cancelledAt: now,
+          cancelledBy: currentUser.userId,
+        },
+      });
+
+      // 2. Restore stock for each item
+      for (const item of order.order_items) {
+        await tx.stock.upsert({
+          where: { productId: item.productId },
+          update: {
+            quantity: { increment: item.quantity },
+            stockVersion: { increment: 1 },
+            updatedAt: now,
+          },
+          create: {
+            productId: item.productId,
+            quantity: item.quantity,
+            stockVersion: 1,
+            updatedAt: now,
+          },
+        });
+
+        await tx.stockMovement.create({
+          data: {
+            productId: item.productId,
+            movementType: 'RETURN',
+            quantity: item.quantity,
+            price: item.unitPrice,
+            reason: `Restock from cancelled order ${order.receiptNumber}`,
+            orderId: order.orderId,
+            createdBy: currentUser.userId,
+            createdAt: now,
+          },
+        });
+      }
+
+      // 3. Reversely decrement customer total debt if debt was owed
+      if (order.customerId && Number(order.balanceDue) > 0) {
+        await tx.customer.update({
+          where: { customerId: order.customerId },
+          data: {
+            totalDebt: { decrement: Number(order.balanceDue) },
+            updatedAt: now,
+          },
+        });
+      }
+    });
+
+    await auditLogService.createAuditLog({
+      userId: currentUser.userId,
+      action: 'APPROVE_ORDER_CANCELLATION',
+      resource: 'Order',
+      entityId: orderId,
+      details: { receiptNumber: order.receiptNumber },
+    });
+
+    return await this.getOrder(orderId, currentUser);
+  }
+
+  /**
+   * Admin rejects order cancellation
+   */
+  static async rejectOrderCancellation(
+    orderId: number,
+    rejectionReason: string,
+    currentUser: CurrentUserContext
+  ): Promise<GetOrderResponse> {
+    if (!isAdminRole(currentUser.role)) {
+      throw new ForbiddenException('Only admins can reject order cancellations');
+    }
+
+    const order = await prisma.order.findUnique({ where: { orderId } });
+    if (!order) {
+      throw new NotFoundException('Order not found', 'ORDER_NOT_FOUND');
+    }
+
+    if (order.orderStatus !== 'CANCEL_REQUESTED') {
+      throw new BusinessLogicException('No pending cancellation request found for this order');
+    }
+
+    await prisma.order.update({
+      where: { orderId },
+      data: {
+        orderStatus: 'COMPLETED',
+        rejectionReason: rejectionReason || 'Rejection by admin',
+      },
+    });
+
+    await auditLogService.createAuditLog({
+      userId: currentUser.userId,
+      action: 'REJECT_ORDER_CANCELLATION',
+      resource: 'Order',
+      entityId: orderId,
+      details: { rejectionReason },
+    });
+
+    return await this.getOrder(orderId, currentUser);
+  }
+
+  /**
+   * List pending cancellation requests (Admin only)
+   */
+  static async listCancellationRequests(
+    currentUser: CurrentUserContext
+  ): Promise<GetOrderResponse[]> {
+    if (!isAdminRole(currentUser.role)) {
+      throw new ForbiddenException('Only admins can view cancellation requests');
+    }
+
+    const pendingOrders = await prisma.order.findMany({
+      where: { orderStatus: 'CANCEL_REQUESTED' },
+      orderBy: { cancelRequestedAt: 'desc' },
+      select: { orderId: true },
+    });
+
+    const results = await Promise.all(
+      pendingOrders.map((o) => this.getOrder(o.orderId, currentUser))
+    );
+
+    return results;
   }
 }

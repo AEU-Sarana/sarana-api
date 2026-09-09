@@ -130,4 +130,18 @@ export class BackupService {
       throw error;
     }
   }
+
+  static async downloadBackup(backupId: number): Promise<{ filePath: string; fileName: string }> {
+    try {
+      const data = await BackupRestoreService.downloadBackup(backupId);
+      await auditLogService.createAuditLog({
+        action: 'BACKUP_EXPORT',
+        resource: 'backup',
+        details: { backup_id: backupId, action: 'download' },
+      });
+      return data;
+    } catch (error: any) {
+      throw error;
+    }
+  }
 }

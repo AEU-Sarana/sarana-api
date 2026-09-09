@@ -61,4 +61,78 @@ export class OrderController {
       throw error;
     }
   }
+
+  static async requestCancellation(req: Request, res: Response): Promise<void> {
+    try {
+      const user = req.user as UserPayload;
+      const orderId = parseInt(req.params.id as string, 10);
+      const { reason } = req.body;
+
+      const response = await OrderService.requestOrderCancellation(orderId, reason, user);
+
+      res.status(200).json({
+        success: true,
+        data: response,
+        message: 'Cancellation requested successfully',
+      });
+    } catch (error: any) {
+      logger.error('Request order cancellation error', { error: error.message });
+      throw error;
+    }
+  }
+
+  static async approveCancellation(req: Request, res: Response): Promise<void> {
+    try {
+      const user = req.user as UserPayload;
+      const orderId = parseInt(req.params.id as string, 10);
+
+      const response = await OrderService.approveOrderCancellation(orderId, user);
+
+      res.status(200).json({
+        success: true,
+        data: response,
+        message: 'Order cancellation approved successfully',
+      });
+    } catch (error: any) {
+      logger.error('Approve order cancellation error', { error: error.message });
+      throw error;
+    }
+  }
+
+  static async rejectCancellation(req: Request, res: Response): Promise<void> {
+    try {
+      const user = req.user as UserPayload;
+      const orderId = parseInt(req.params.id as string, 10);
+      const { reason } = req.body;
+
+      const response = await OrderService.rejectOrderCancellation(orderId, reason, user);
+
+      res.status(200).json({
+        success: true,
+        data: response,
+        message: 'Order cancellation rejected successfully',
+      });
+    } catch (error: any) {
+      logger.error('Reject order cancellation error', { error: error.message });
+      throw error;
+    }
+  }
+
+  static async listCancellationRequests(req: Request, res: Response): Promise<void> {
+    try {
+      const user = req.user as UserPayload;
+
+      const response = await OrderService.listCancellationRequests(user);
+
+      res.status(200).json({
+        success: true,
+        data: response,
+        message: 'Cancellation requests retrieved successfully',
+      });
+    } catch (error: any) {
+      logger.error('List cancellation requests error', { error: error.message });
+      throw error;
+    }
+  }
 }
+

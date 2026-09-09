@@ -76,6 +76,13 @@ model orders {
   payment_method     String               @default("CASH") @db.VarChar(20)
   payment_due_date   DateTime?            @db.Timestamp(6)
   exchange_rate      Decimal              @default(4000) @db.Decimal(10, 2)
+  order_status       String               @default("COMPLETED") @db.VarChar(30)
+  cancel_reason      String?
+  cancel_requested_at DateTime?           @db.Timestamp(6)
+  cancel_requested_by Int?
+  cancelled_at       DateTime?            @db.Timestamp(6)
+  cancelled_by       Int?
+  rejection_reason   String?
   created_at         DateTime             @default(now()) @db.Timestamp(6)
   updated_at         DateTime             @default(now()) @db.Timestamp(6)
   order_items        order_items[]
@@ -84,6 +91,7 @@ model orders {
   users              users                @relation(fields: [seller_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
   customers          customers?           @relation(fields: [customer_id], references: [customer_id], onUpdate: NoAction)
   stock_movements    stock_movements[]
+  receiptLink        receiptLink[]
 
   @@index([created_at], map: "idx_orders_created_at")
   @@index([order_date], map: "idx_orders_order_date")
@@ -98,6 +106,13 @@ model order_payments {
   order_id         Int
   received_amount  Decimal  @db.Decimal(10, 2)
   transaction_id   String?  @db.VarChar(255)
+  payment_method   String?  @db.VarChar(50)
+  received_usd     Decimal? @default(0) @db.Decimal(10, 2)
+  received_khr     Decimal? @default(0) @db.Decimal(12, 2)
+  change_usd       Decimal? @default(0) @db.Decimal(10, 2)
+  change_khr       Decimal? @default(0) @db.Decimal(12, 2)
+  slip_url         String?  @db.VarChar(500)
+  notes            String?
   created_at       DateTime @default(now()) @db.Timestamp(6)
   orders           orders   @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -567,6 +582,24 @@ model customer_payments {
   @@index([customer_id], map: "idx_customer_payments_customer_id")
   @@index([order_id], map: "idx_customer_payments_order_id")
   @@index([payment_date], map: "idx_customer_payments_payment_date")
+}
+
+model receiptLink {
+  receiptLinkId    Int       @id @default(autoincrement()) @map("receipt_link_id")
+  orderId          Int       @map("order_id")
+  code             String    @unique @db.VarChar(100)
+  linkStatus       String    @default("PENDING") @map("link_status") @db.VarChar(20)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamp(6)
+  usedAt           DateTime? @map("used_at") @db.Timestamp(6)
+  telegramUserId   BigInt?   @map("telegram_user_id")
+  telegramChatId   BigInt?   @map("telegram_chat_id")
+  telegramUsername String?   @map("telegram_username") @db.VarChar(255)
+  createdBy        Int       @map("created_by")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  order            orders    @relation(fields: [orderId], references: [orderId], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("receipt_links")
 }
 
 

@@ -4,7 +4,10 @@ export class DataGenerator {
   /**
    * Generate a unique product code
    */
-  static generateProductCode(prefix: string = 'PROD', index: number = 0): string {
+  /**
+   * Generate a unique product code
+   */
+  static generateProductCode(prefix: string = 'MED', index: number = 0): string {
     return `${prefix}-${String(index + 1).padStart(4, '0')}`;
   }
 
@@ -76,10 +79,8 @@ export class DataGenerator {
    * Generate random product name
    */
   static generateProductName(category: string, index: number): string {
-    const adjectives = ['Premium', 'Deluxe', 'Standard', 'Classic', 'Modern', 'Elegant', 'Luxury'];
-    const nouns = ['Item', 'Product', 'Goods', 'Merchandise', 'Article'];
-    const adj = SeederHelper.randomElement(adjectives);
-    const noun = SeederHelper.randomElement(nouns);
-    return `${adj} ${category} ${noun} ${index + 1}`;
+    const medForms = ['500mg (100 Tablets)', '400mg (50 Softgels)', '250mg (20 Capsules)', 'Syrup 100ml', 'Gel 20g', 'Oral Drops 15ml'];
+    const form = SeederHelper.randomElement(medForms);
+    return `Pharma ${category} Formula ${index + 1} ${form}`;
   }
 }

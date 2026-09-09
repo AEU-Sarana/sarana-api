@@ -25,6 +25,8 @@ export enum Permission {
   ORDER_VIEW_OWN = 'ORDER_VIEW_OWN',
   ORDER_VIEW_ALL = 'ORDER_VIEW_ALL',
   ORDER_SYNC = 'ORDER_SYNC',
+  ORDER_CANCEL_REQUEST = 'ORDER_CANCEL_REQUEST',
+  ORDER_CANCEL_APPROVE = 'ORDER_CANCEL_APPROVE',
 
   // Report
   REPORT_VIEW_DAILY = 'REPORT_VIEW_DAILY',
@@ -86,6 +88,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.ORDER_VIEW_OWN,
     Permission.ORDER_VIEW_ALL,
     Permission.ORDER_SYNC,
+    Permission.ORDER_CANCEL_REQUEST,
+    Permission.ORDER_CANCEL_APPROVE,
 
     // Report - All
     Permission.REPORT_VIEW_DAILY,
@@ -126,10 +130,11 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.STOCK_VIEW,
     Permission.STOCK_PULL,
 
-    // Order - Create, view own, sync
+    // Order - Create, view own, sync, cancellation request
     Permission.ORDER_CREATE,
     Permission.ORDER_VIEW_OWN,
     Permission.ORDER_SYNC,
+    Permission.ORDER_CANCEL_REQUEST,
 
     // Dashboard - View
     Permission.DASHBOARD_VIEW,

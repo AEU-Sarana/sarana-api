@@ -250,6 +250,16 @@ export function requirePermission(featureKey: string, requiredAction: string = '
         return;
       }
 
+      // Default grant for CASHIER role accessing POS, Sales history, & Cancellation requests
+      if (
+        userRoleUpper === 'CASHIER' &&
+        (categoryPrefix === 'pos' || categoryPrefix === 'sales' || categoryPrefix === 'catalog' || featureKey === 'sales.view_history') &&
+        requiredAction !== 'delete'
+      ) {
+        next();
+        return;
+      }
+
       res.status(403).json({
         message: `Access denied. Action '${requiredAction}' on feature '${featureKey}' is not permitted for role '${req.user.role}'.`,
         code: 'ACTION_ACCESS_DENIED',

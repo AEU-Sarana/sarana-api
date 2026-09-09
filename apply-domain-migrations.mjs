@@ -86,6 +86,8 @@ const migrationOrder = [
   'purchasing/20260816000004_create_goods_received_table',
   'purchasing/20260816000005_create_goods_received_items_table',
   'purchasing/20260823000001_add_supplier_debt_and_payments',
+  'order/20260906000001_add_payment_reference_fields',
+  'order/20260906000002_add_order_cancellation_fields',
 ];
 
 /* ================================

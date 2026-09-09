@@ -1,0 +1,10 @@
+ALTER TABLE orders 
+ADD COLUMN IF NOT EXISTS order_status VARCHAR(30) DEFAULT 'COMPLETED',
+ADD COLUMN IF NOT EXISTS cancel_reason TEXT,
+ADD COLUMN IF NOT EXISTS cancel_requested_at TIMESTAMP,
+ADD COLUMN IF NOT EXISTS cancel_requested_by INTEGER REFERENCES users(user_id),
+ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP,
+ADD COLUMN IF NOT EXISTS cancelled_by INTEGER REFERENCES users(user_id),
+ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(order_status);

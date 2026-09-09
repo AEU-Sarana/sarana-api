@@ -89,4 +89,38 @@ export class BackupController {
       throw error;
     }
   }
+
+  /**
+   * GET /api/v1/backup/download/:id
+   */
+  static async downloadBackup(req: Request, res: Response): Promise<void> {
+    try {
+      const rawParam = req.params.id;
+      const paramStr = Array.isArray(rawParam) ? rawParam[0] : rawParam;
+      const rawQuery = req.query.id;
+      const queryStr = Array.isArray(rawQuery) ? String(rawQuery[0]) : (rawQuery ? String(rawQuery) : '');
+      const backupId = parseInt(paramStr || queryStr, 10);
+      if (!backupId || isNaN(backupId)) {
+        res.status(400).json({ success: false, message: 'Invalid backup ID' });
+        return;
+      }
+
+      const { filePath, fileName } = await BackupService.downloadBackup(backupId);
+
+      res.download(filePath, fileName, (err) => {
+        if (err) {
+          logger.error('Error sending download backup file', { error: err.message });
+        }
+        try {
+          const fs = require('fs');
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        } catch {}
+      });
+    } catch (error: any) {
+      logger.error('Download backup error', { error: error.message });
+      res.status(400).json({ success: false, message: error.message || 'Download backup failed' });
+    }
+  }
 }

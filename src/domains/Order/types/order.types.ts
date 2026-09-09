@@ -26,6 +26,13 @@ export interface OrderResponse {
   service_fee: number;
   exchange_rate: number;
   payment_method: string;
+  order_status: string;
+  cancel_reason?: string | null;
+  cancel_requested_at?: Date | null;
+  cancel_requested_by?: number | null;
+  cancelled_at?: Date | null;
+  cancelled_by?: number | null;
+  rejection_reason?: string | null;
   has_receipt_link: boolean;
   receipt_link_status: string | null;
   created_at: Date;
@@ -43,6 +50,14 @@ export interface ListOrdersResponse {
 
 export interface GetOrderResponse extends OrderResponse {
   received_amount: number;
+  reference_number?: string | null;
+  transaction_id?: string | null;
+  received_usd?: number | null;
+  received_khr?: number | null;
+  change_usd?: number | null;
+  change_khr?: number | null;
+  slip_url?: string | null;
+  notes?: string | null;
   items: Array<{
     order_item_id: number;
     product_id: number;
@@ -61,6 +76,14 @@ export interface CreateOrderRequest {
   initial_paid_amount?: number;
   payment_due_date?: string;
   received_amount?: number;
+  reference_number?: string;
+  transaction_id?: string;
+  received_usd?: number;
+  received_khr?: number;
+  change_usd?: number;
+  change_khr?: number;
+  slip_url?: string;
+  notes?: string;
   discount_amount?: number;
   tax_amount?: number;
   service_fee?: number;

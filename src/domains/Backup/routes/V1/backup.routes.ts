@@ -52,4 +52,12 @@ router.get(
   BackupController.exportData
 );
 
+// Download backup point - Admin only
+router.get(
+  '/download/:id',
+  requireAdmin,
+  requirePermission(Permission.BACKUP_EXPORT),
+  BackupController.downloadBackup
+);
+
 export default router;
