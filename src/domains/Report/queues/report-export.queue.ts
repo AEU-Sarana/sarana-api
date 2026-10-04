@@ -41,6 +41,15 @@ let reportExportQueue: Queue<ReportExportJobData> | null = null;
  * Get or create the report export queue instance
  */
 export function getReportExportQueue(): Queue<ReportExportJobData> {
+  if (process.env.VERCEL) {
+    return {
+      add: async () => { throw new Error('Queues are disabled in Vercel serverless environment'); },
+      process: () => {},
+      close: async () => {},
+      on: () => {},
+    } as unknown as Queue<ReportExportJobData>;
+  }
+
   if (!reportExportQueue) {
     reportExportQueue = QueueUtil.createQueue<ReportExportJobData>('report-export', {
       limiter: {
