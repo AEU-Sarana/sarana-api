@@ -2,37 +2,49 @@ let createCanvas: any, registerFont: any, loadImage: any;
 let isCanvasSupported = false;
 
 try {
-  const canvasPkg = require('canvas');
-  createCanvas = canvasPkg.createCanvas;
-  registerFont = canvasPkg.registerFont;
-  loadImage = canvasPkg.loadImage;
-  isCanvasSupported = true;
+  if (!process.env.VERCEL) {
+    const req = eval('require');
+    const canvasPkg = req('canvas');
+    createCanvas = canvasPkg.createCanvas;
+    registerFont = canvasPkg.registerFont;
+    loadImage = canvasPkg.loadImage;
+    isCanvasSupported = true;
 
-  // Register Khmer font
-  const FONT_PATHS = [
+    // Register Khmer font
+    const FONT_PATHS = [
       '/usr/share/fonts/noto/NotoSansKhmer-Regular.ttf',
       '/usr/share/fonts/truetype/custom/NotoSansKhmer-Regular.ttf',
       '/home/techey/techey/stock-pos/stock-pos-server/fonts/NotoSansKhmer-Regular.ttf',
-  ];
+    ];
 
-  const BOLD_FONT_PATHS = [
+    const BOLD_FONT_PATHS = [
       '/usr/share/fonts/noto/NotoSansKhmer-Bold.ttf',
       '/usr/share/fonts/truetype/custom/NotoSansKhmer-Bold.ttf',
       '/home/techey/techey/stock-pos/stock-pos-server/fonts/NotoSansKhmer-Bold.ttf',
-  ];
+    ];
 
-  const LATIN_FONT_PATH = '/usr/share/fonts/dejavu/DejaVuSans.ttf';
-  const LATIN_FONT_BOLD_PATH = '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf';
+    const LATIN_FONT_PATH = '/usr/share/fonts/dejavu/DejaVuSans.ttf';
+    const LATIN_FONT_BOLD_PATH = '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf';
 
-  FONT_PATHS.forEach(p => {
-      try { registerFont(p, { family: 'NotoSansKhmer' }); } catch (e) { }
-  });
-  BOLD_FONT_PATHS.forEach(p => {
-      try { registerFont(p, { family: 'NotoSansKhmer', weight: 'bold' }); } catch (e) { }
-  });
-  try { registerFont(LATIN_FONT_PATH, { family: 'DejaVuSans' }); } catch (e) { }
-  try { registerFont(LATIN_FONT_BOLD_PATH, { family: 'DejaVuSans', weight: 'bold' }); } catch (e) { }
+    FONT_PATHS.forEach((p) => {
+      try {
+        registerFont(p, { family: 'NotoSansKhmer' });
+      } catch (e) {}
+    });
+    BOLD_FONT_PATHS.forEach((p) => {
+      try {
+        registerFont(p, { family: 'NotoSansKhmer', weight: 'bold' });
+      } catch (e) {}
+    });
+    try {
+      registerFont(LATIN_FONT_PATH, { family: 'DejaVuSans' });
+    } catch (e) {}
+    try {
+      registerFont(LATIN_FONT_BOLD_PATH, { family: 'DejaVuSans', weight: 'bold' });
+    } catch (e) {}
+  }
 } catch (e) {
+  isCanvasSupported = false;
   console.warn('Canvas not available in this environment. Falling back to SVG/text receipts.');
 }
 
