@@ -27,32 +27,34 @@ process.on('uncaughtException', (error) => {
         process.exit(1);
     }
 });
-app_1.default.listen(PORT, HOST, () => {
-    const networkIP = (0, helpers_1.getLocalNetworkIP)();
-    console.log('\n🚀 Server is running!\n');
-    console.log(`📌 Environment: ${env_1.env.NODE_ENV}`);
-    console.log(`📌 Listening on: ${HOST}:${PORT}\n`);
-    console.log('📍 Local access:');
-    console.log(`   http://localhost:${PORT}`);
-    console.log(`   Health: http://localhost:${PORT}/health`);
-    console.log(`   API v1: http://localhost:${PORT}/api/v1`);
-    if (networkIP && env_1.env.NODE_ENV !== 'production') {
-        console.log('\n🌐 Network access (Wi-Fi):');
-        console.log(`   http://${networkIP}:${PORT}`);
-        console.log(`   Health: http://${networkIP}:${PORT}/health`);
-        console.log(`   API v1: http://${networkIP}:${PORT}/api/v1`);
-        console.log(`\n💡 Other devices on your network can access the API using: http://${networkIP}:${PORT}`);
-    }
-    else if (env_1.env.NODE_ENV === 'production') {
-        console.log('\n🌐 Production mode:');
-        console.log(`   Server is listening on all interfaces (0.0.0.0:${PORT})`);
-        console.log(`   Access via reverse proxy (Nginx)`);
-    }
-    else {
-        console.log('\n⚠️  Could not detect network IP address. Server is listening on all interfaces.');
-    }
-    console.log('');
-});
+if (!process.env.VERCEL) {
+    app_1.default.listen(PORT, HOST, () => {
+        const networkIP = (0, helpers_1.getLocalNetworkIP)();
+        console.log('\n🚀 Server is running!\n');
+        console.log(`📌 Environment: ${env_1.env.NODE_ENV}`);
+        console.log(`📌 Listening on: ${HOST}:${PORT}\n`);
+        console.log('📍 Local access:');
+        console.log(`   http://localhost:${PORT}`);
+        console.log(`   Health: http://localhost:${PORT}/health`);
+        console.log(`   API v1: http://localhost:${PORT}/api/v1`);
+        if (networkIP && env_1.env.NODE_ENV !== 'production') {
+            console.log('\n🌐 Network access (Wi-Fi):');
+            console.log(`   http://${networkIP}:${PORT}`);
+            console.log(`   Health: http://${networkIP}:${PORT}/health`);
+            console.log(`   API v1: http://${networkIP}:${PORT}/api/v1`);
+            console.log(`\n💡 Other devices on your network can access the API using: http://${networkIP}:${PORT}`);
+        }
+        else if (env_1.env.NODE_ENV === 'production') {
+            console.log('\n🌐 Production mode:');
+            console.log(`   Server is listening on all interfaces (0.0.0.0:${PORT})`);
+            console.log(`   Access via reverse proxy (Nginx)`);
+        }
+        else {
+            console.log('\n⚠️  Could not detect network IP address. Server is listening on all interfaces.');
+        }
+        console.log('');
+    });
+}
 // // Register module aliases FIRST (before any @src imports)
 // import 'module-alias/register';
 // import dotenv from 'dotenv';

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Stock POS System Backend API",
   "type": "commonjs",
-  "main": "dist/index.js",
+  "main": "api/index.js",
   "prisma": {
     "schema": "src/database/generated/schema.prisma"
   },
