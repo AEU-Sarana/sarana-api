@@ -470,4 +470,10 @@ const modelsBarrel =
 
 fs.writeFileSync(modelsBarrelPath, modelsBarrel);
 
+// Also mirror to dist/database/generated for compiled production build runtime
+const distDatabaseDir = path.join(rootDir, 'dist', 'database');
+const distGeneratedDir = path.join(distDatabaseDir, 'generated');
+fs.mkdirSync(distDatabaseDir, { recursive: true });
+fs.cpSync(generatedDir, distGeneratedDir, { recursive: true });
+
 process.exit(0);

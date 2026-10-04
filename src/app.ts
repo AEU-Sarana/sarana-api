@@ -48,9 +48,6 @@ if (!process.env.VERCEL) {
 
 const app: Application = express();
 
-// Handle CORS Preflight OPTIONS requests
-app.options('*', cors());
-
 // Security middleware
 app.use(
   helmet({
