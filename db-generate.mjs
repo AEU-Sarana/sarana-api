@@ -41,7 +41,8 @@ function ensureGeneratorAndDatasource(schemaText) {
 
   const generatorBlock =
 `generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 `;
@@ -66,8 +67,7 @@ function injectGeneratorOutput(schemaText) {
   const match = schemaText.match(generatorRegex);
   if (!match) throw new Error('Could not find "generator client" block');
 
-  const outputLine = '  output   = "../generated"';
-  const lines = match[0].split('\n');
+  const lines = match[0].split('\n').filter((l) => !/^\s*binaryTargets\s*=/.test(l));
 
   let hasOutput = false;
   let providerIndex = -1;
@@ -75,15 +75,18 @@ function injectGeneratorOutput(schemaText) {
   for (let i = 0; i < lines.length; i += 1) {
     if (/^\s*provider\s*=/.test(lines[i])) providerIndex = i;
     if (/^\s*output\s*=/.test(lines[i])) {
-      lines[i] = outputLine;
+      lines[i] = '  output        = "../generated"';
       hasOutput = true;
     }
   }
 
   if (!hasOutput) {
     const insertAt = providerIndex >= 0 ? providerIndex + 1 : 1;
-    lines.splice(insertAt, 0, outputLine);
+    lines.splice(insertAt, 0, '  output        = "../generated"');
   }
+
+  const binaryTargetLine = '  binaryTargets = ["native", "rhel-openssl-3.0.x"]';
+  lines.splice(lines.length - 1, 0, binaryTargetLine);
 
   return schemaText.replace(generatorRegex, lines.join('\n'));
 }

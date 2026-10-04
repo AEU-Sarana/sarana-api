@@ -2,7 +2,7 @@ import prisma from '../client';
 
 async function main() {
   // Example: create default admin (uncomment when User model exists and you have bcrypt)
-  // import bcrypt from 'bcrypt';
+  // import bcrypt from 'bcryptjs';
   // await prisma.user.upsert({
   //   where: { username: 'admin' },
   //   update: {},
