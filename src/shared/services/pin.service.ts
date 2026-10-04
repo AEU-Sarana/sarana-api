@@ -1,5 +1,5 @@
 // File: src/shared/services/pin.service.ts
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 export async function verifyPIN(pin: string, pinHash: string): Promise<boolean> {
   return await bcrypt.compare(pin, pinHash);

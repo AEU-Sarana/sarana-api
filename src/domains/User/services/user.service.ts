@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { env } from '@src/shared/config/env';
 import prisma from '@src/database/client';
 import { UserRole, UserStatus } from '@src/domains/User/enums';

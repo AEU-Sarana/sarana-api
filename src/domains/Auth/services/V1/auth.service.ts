@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import type { Prisma } from '@src/database/generated';
 import prisma from '@src/database/client';

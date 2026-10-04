@@ -1,32 +1,39 @@
-import { createCanvas, registerFont, loadImage } from 'canvas';
-
-// Register Khmer font
-const FONT_PATHS = [
-    '/usr/share/fonts/noto/NotoSansKhmer-Regular.ttf',
-    '/usr/share/fonts/truetype/custom/NotoSansKhmer-Regular.ttf',
-    '/home/techey/techey/stock-pos/stock-pos-server/fonts/NotoSansKhmer-Regular.ttf',
-];
-
-const BOLD_FONT_PATHS = [
-    '/usr/share/fonts/noto/NotoSansKhmer-Bold.ttf',
-    '/usr/share/fonts/truetype/custom/NotoSansKhmer-Bold.ttf',
-    '/home/techey/techey/stock-pos/stock-pos-server/fonts/NotoSansKhmer-Bold.ttf',
-];
-
-const LATIN_FONT_PATH = '/usr/share/fonts/dejavu/DejaVuSans.ttf';
-const LATIN_FONT_BOLD_PATH = '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf';
+let createCanvas: any, registerFont: any, loadImage: any;
+let isCanvasSupported = false;
 
 try {
-    FONT_PATHS.forEach(p => {
-        try { registerFont(p, { family: 'NotoSansKhmer' }); } catch (e) { }
-    });
-    BOLD_FONT_PATHS.forEach(p => {
-        try { registerFont(p, { family: 'NotoSansKhmer', weight: 'bold' }); } catch (e) { }
-    });
-    registerFont(LATIN_FONT_PATH, { family: 'DejaVuSans' });
-    registerFont(LATIN_FONT_BOLD_PATH, { family: 'DejaVuSans', weight: 'bold' });
+  const canvasPkg = require('canvas');
+  createCanvas = canvasPkg.createCanvas;
+  registerFont = canvasPkg.registerFont;
+  loadImage = canvasPkg.loadImage;
+  isCanvasSupported = true;
+
+  // Register Khmer font
+  const FONT_PATHS = [
+      '/usr/share/fonts/noto/NotoSansKhmer-Regular.ttf',
+      '/usr/share/fonts/truetype/custom/NotoSansKhmer-Regular.ttf',
+      '/home/techey/techey/stock-pos/stock-pos-server/fonts/NotoSansKhmer-Regular.ttf',
+  ];
+
+  const BOLD_FONT_PATHS = [
+      '/usr/share/fonts/noto/NotoSansKhmer-Bold.ttf',
+      '/usr/share/fonts/truetype/custom/NotoSansKhmer-Bold.ttf',
+      '/home/techey/techey/stock-pos/stock-pos-server/fonts/NotoSansKhmer-Bold.ttf',
+  ];
+
+  const LATIN_FONT_PATH = '/usr/share/fonts/dejavu/DejaVuSans.ttf';
+  const LATIN_FONT_BOLD_PATH = '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf';
+
+  FONT_PATHS.forEach(p => {
+      try { registerFont(p, { family: 'NotoSansKhmer' }); } catch (e) { }
+  });
+  BOLD_FONT_PATHS.forEach(p => {
+      try { registerFont(p, { family: 'NotoSansKhmer', weight: 'bold' }); } catch (e) { }
+  });
+  try { registerFont(LATIN_FONT_PATH, { family: 'DejaVuSans' }); } catch (e) { }
+  try { registerFont(LATIN_FONT_BOLD_PATH, { family: 'DejaVuSans', weight: 'bold' }); } catch (e) { }
 } catch (e) {
-    console.warn('Font registration issue:', e);
+  console.warn('Canvas not available in this environment. Falling back to SVG/text receipts.');
 }
 
 const FONT_STACK = '"NotoSansKhmer", "DejaVuSans", sans-serif';
@@ -54,6 +61,10 @@ export interface ReceiptData {
 }
 
 export async function renderReceiptToPng(data: ReceiptData): Promise<Buffer> {
+    if (!isCanvasSupported) {
+        return Buffer.from('');
+    }
+
     /**
      * ULTRA-SHARP 4K CONFIGURATION
      */
