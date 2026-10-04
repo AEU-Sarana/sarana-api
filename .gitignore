@@ -14,6 +14,10 @@ dist/
 *.tsbuildinfo
 api/*.js
 api/*.js.map
+
+# Logs
+logs/
+*.log
 # Sensitive Files
 .env.production
 .env.staging
