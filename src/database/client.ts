@@ -5,8 +5,8 @@ import { Pool } from 'pg';
 import { PrismaClient } from './generated/index.js';
 import { logger } from '@src/shared/utils/logger';
 
-// Create a single pool instance (reused across requests)
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const neonFallbackUrl = 'postgresql://neondb_owner:npg_OhqXfG59lLMR@ep-cool-block-b5hbfurd-pooler.c-7.us-east-2.aws.neon.tech/neondb?sslmode=require';
+const pool = new Pool({ connectionString: process.env.DATABASE_URL || neonFallbackUrl });
 
 // Create the adapter
 const adapter = new PrismaPg(pool);

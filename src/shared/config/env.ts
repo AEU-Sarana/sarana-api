@@ -33,7 +33,7 @@ export const env = {
   DB_PASSWORD: process.env.DB_PASSWORD || 'postgres',
   DATABASE_URL:
     process.env.DATABASE_URL ||
-    `postgresql://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'postgres'}@${process.env.DB_HOST || 'db'}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME || 'stock_pos'}`,
+    'postgresql://neondb_owner:npg_OhqXfG59lLMR@ep-cool-block-b5hbfurd-pooler.c-7.us-east-2.aws.neon.tech/neondb?sslmode=require',
 
   // Redis (✅ internal defaults for Docker)
   REDIS_HOST: process.env.REDIS_HOST || 'redis',
@@ -57,9 +57,9 @@ export const env = {
   JWT_AUDIENCE: process.env.JWT_AUDIENCE || 'stock-pos-mobile',
 
   // Encryption
-  ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
+  ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || '12345678901234567890123456789012',
 
-  RECEIPT_QR_HMAC_SECRET: process.env.RECEIPT_QR_HMAC_SECRET,
+  RECEIPT_QR_HMAC_SECRET: process.env.RECEIPT_QR_HMAC_SECRET || 'secret-receipt-qr-hmac-key',
 
   // Password
   BCRYPT_SALT_ROUNDS: int('BCRYPT_SALT_ROUNDS', 12),
@@ -68,7 +68,7 @@ export const env = {
   REDIS_TOKEN_BLACKLIST_TTL: int('REDIS_TOKEN_BLACKLIST_TTL', 86400),
 
   // CORS
-  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
+  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || '*',
 
   // Email
   SMTP_HOST: process.env.SMTP_HOST,
@@ -84,7 +84,7 @@ export const env = {
   API_BASE_URL: process.env.API_BASE_URL,
 
   // Storage
-  STORAGE_PROVIDER: process.env.STORAGE_PROVIDER || (process.env.R2_ENDPOINT ? 'r2' : 'minio'),
+  STORAGE_PROVIDER: process.env.STORAGE_PROVIDER || 'cloudinary',
   STORAGE_ENDPOINT: process.env.STORAGE_ENDPOINT || process.env.R2_ENDPOINT,
   STORAGE_ACCESS_KEY: process.env.STORAGE_ACCESS_KEY || process.env.R2_ACCESS_KEY_ID,
   STORAGE_SECRET_KEY: process.env.STORAGE_SECRET_KEY || process.env.R2_SECRET_ACCESS_KEY,
@@ -94,10 +94,10 @@ export const env = {
   STORAGE_PUBLIC_URL: process.env.STORAGE_PUBLIC_URL,
 
   // Cloudinary
-  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
-  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
-  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
-  CLOUDINARY_URL: process.env.CLOUDINARY_URL,
+  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || 'nq7d2bv5',
+  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || '689254353846747',
+  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || 'BOpVa0dhus_2rlsjFLQnrmxBY6o',
+  CLOUDINARY_URL: process.env.CLOUDINARY_URL || 'cloudinary://689254353846747:BOpVa0dhus_2rlsjFLQnrmxBY6o@nq7d2bv5',
 
   // MinIO
   MINIO_ROOT_USER: process.env.MINIO_ROOT_USER || 'minioadmin',
