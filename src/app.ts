@@ -19,34 +19,37 @@ import { startBackupExportCleanupJob } from '@src/domains/Backup/jobs/backup-exp
 registerStockEventListeners();
 registerReportEventListeners();
 
-// Register queue processors (with error handling)
-try {
-  registerReportExportProcessor();
-} catch (error) {
-  console.error('Failed to register report export processor:', error);
-}
+// Background queue processors and cron schedulers (Disable on Vercel Serverless)
+if (!process.env.VERCEL) {
+  try {
+    registerReportExportProcessor();
+  } catch (error) {
+    console.error('Failed to register report export processor:', error);
+  }
 
-// Start Backup background jobs
-try {
-  startBackupSchedulerJob();
-} catch (error) {
-  console.error('Failed to start backup scheduler job:', error);
-}
+  try {
+    startBackupSchedulerJob();
+  } catch (error) {
+    console.error('Failed to start backup scheduler job:', error);
+  }
 
-try {
-  startBackupRetentionCleanupJob();
-} catch (error) {
-  console.error('Failed to start backup retention cleanup job:', error);
-}
+  try {
+    startBackupRetentionCleanupJob();
+  } catch (error) {
+    console.error('Failed to start backup retention cleanup job:', error);
+  }
 
-try {
-  startBackupExportCleanupJob();
-} catch (error) {
-  console.error('Failed to start backup export cleanup job:', error);
+  try {
+    startBackupExportCleanupJob();
+  } catch (error) {
+    console.error('Failed to start backup export cleanup job:', error);
+  }
 }
-
 
 const app: Application = express();
+
+// Handle CORS Preflight OPTIONS requests
+app.options('*', cors());
 
 // Security middleware
 app.use(
