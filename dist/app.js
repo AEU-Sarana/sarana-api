@@ -103,7 +103,7 @@ app.use('/', storage_routes_1.default);
 app.use('/api', audit_mutation_middleware_1.auditMutationMiddleware);
 app.use('/api', api_1.default);
 // Root endpoint
-app.get('/', (req, res) => {
+app.get(['/', '/api', '/api/index.js', '/index.js'], (req, res) => {
     res.json({
         success: true,
         message: 'Stock POS System API',
