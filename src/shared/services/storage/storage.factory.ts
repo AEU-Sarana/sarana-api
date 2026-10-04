@@ -2,6 +2,7 @@ import { env } from '@src/shared/config/env';
 import { logger } from '@src/shared/utils/logger';
 import type { IStorageProvider } from './storage-provider.interface';
 import { S3StorageProvider } from './s3-storage.provider';
+import { CloudinaryStorageProvider } from './cloudinary-storage.provider';
 
 /**
  * Storage Factory
@@ -13,7 +14,7 @@ import { S3StorageProvider } from './s3-storage.provider';
  * - r2: Cloudflare R2
  * - wasabi: Wasabi Cloud Storage
  * - s3: AWS S3
- * - Any S3-compatible service
+ * - cloudinary: Cloudinary Cloud Storage
  */
 export class StorageFactory {
   private static instance: IStorageProvider | null = null;
@@ -29,6 +30,10 @@ export class StorageFactory {
     const provider = env.STORAGE_PROVIDER.toLowerCase();
 
     switch (provider) {
+      case 'cloudinary':
+        this.instance = new CloudinaryStorageProvider();
+        break;
+
       case 'minio':
       case 'r2':
       case 'wasabi':

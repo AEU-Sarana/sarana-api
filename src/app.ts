@@ -69,11 +69,16 @@ app.use(
         return callback(null, true);
       }
 
-      // Automatically allow ngrok or Cloudflare tunnel origins
+      // Automatically allow ngrok, Cloudflare tunnels, Vercel deployments, custom domain, or local network IPs
       if (
         normalizedOrigin.includes('ngrok-free.dev') ||
         normalizedOrigin.includes('ngrok.io') ||
-        normalizedOrigin.includes('trycloudflare.com')
+        normalizedOrigin.includes('trycloudflare.com') ||
+        normalizedOrigin.includes('vercel.app') ||
+        normalizedOrigin.includes('pichchamrouen.com') ||
+        normalizedOrigin.includes('localhost') ||
+        normalizedOrigin.includes('127.0.0.1') ||
+        /^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(normalizedOrigin)
       ) {
         return callback(null, true);
       }

@@ -93,6 +93,12 @@ export const env = {
   STORAGE_USE_SSL: process.env.STORAGE_USE_SSL === 'true' || !!process.env.R2_ENDPOINT,
   STORAGE_PUBLIC_URL: process.env.STORAGE_PUBLIC_URL,
 
+  // Cloudinary
+  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
+  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
+  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
+  CLOUDINARY_URL: process.env.CLOUDINARY_URL,
+
   // MinIO
   MINIO_ROOT_USER: process.env.MINIO_ROOT_USER || 'minioadmin',
   MINIO_ROOT_PASSWORD: process.env.MINIO_ROOT_PASSWORD || 'minioadmin',
