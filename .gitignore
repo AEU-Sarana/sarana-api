@@ -12,15 +12,8 @@ node_modules/
 # Build
 dist/
 *.tsbuildinfo
-
-# Logs
-logs/
-*.log
-
-# IDE
-.idea/
-.vscode/
-/src/database/generated
+api/*.js
+api/*.js.map
 # Sensitive Files
 .env.production
 .env.staging
