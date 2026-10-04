@@ -1,0 +1,1 @@
+{"version":3,"file":"get-order-details.validator.js","sourceRoot":"","sources":["../../../../../src/domains/Order/validators/V1/get-order-details.validator.ts"],"names":[],"mappings":";;;AAAA,yDAA0C;AAE7B,QAAA,iBAAiB,GAAG;IAC/B,IAAA,yBAAK,EAAC,IAAI,CAAC,CAAC,KAAK,EAAE,CAAC,WAAW,CAAC,kBAAkB,CAAC;CACpD,CAAC"}

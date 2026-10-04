@@ -1,0 +1,1 @@
+{"version":3,"file":"scan-receipt.validator.js","sourceRoot":"","sources":["../../../../../src/domains/Receipt/validators/V1/scan-receipt.validator.ts"],"names":[],"mappings":";;;AAAA,yDAAyC;AAE5B,QAAA,oBAAoB,GAAG;IAChC,IAAA,wBAAI,EAAC,cAAc,CAAC,CAAC,IAAI,EAAE,CAAC,QAAQ,EAAE,CAAC,WAAW,CAAC,0BAA0B,CAAC;CACjF,CAAC"}

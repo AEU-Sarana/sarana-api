@@ -1,0 +1,1 @@
+{"version":3,"file":"create-receipt-link.validator.js","sourceRoot":"","sources":["../../../../../src/domains/Receipt/validators/V1/create-receipt-link.validator.ts"],"names":[],"mappings":";;;AAAA,yDAA0C;AAE7B,QAAA,0BAA0B,GAAG;IACxC,IAAA,yBAAK,EAAC,UAAU,CAAC,CAAC,KAAK,CAAC,EAAE,GAAG,EAAE,CAAC,EAAE,CAAC,CAAC,WAAW,CAAC,qCAAqC,CAAC;CACvF,CAAC"}

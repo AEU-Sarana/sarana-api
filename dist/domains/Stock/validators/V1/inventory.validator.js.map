@@ -1,0 +1,1 @@
+{"version":3,"file":"inventory.validator.js","sourceRoot":"","sources":["../../../../../src/domains/Stock/validators/V1/inventory.validator.ts"],"names":[],"mappings":";;;AAAA,yDAA0C;AAE7B,QAAA,mBAAmB,GAAG;IACjC,IAAA,yBAAK,EAAC,MAAM,CAAC;SACV,QAAQ,EAAE;SACV,KAAK,CAAC,EAAE,GAAG,EAAE,CAAC,EAAE,GAAG,EAAE,GAAG,EAAE,CAAC;SAC3B,WAAW,CAAC,2CAA2C,CAAC;CAC5D,CAAC"}

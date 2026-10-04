@@ -1,0 +1,1 @@
+{"version":3,"file":"delete-product.validator.js","sourceRoot":"","sources":["../../../../../src/domains/Product/validators/V1/delete-product.validator.ts"],"names":[],"mappings":";;;AAAA,yDAA0C;AAE7B,QAAA,sBAAsB,GAAG;IACpC,IAAA,yBAAK,EAAC,IAAI,CAAC,CAAC,KAAK,CAAC,EAAE,GAAG,EAAE,CAAC,EAAE,CAAC,CAAC,WAAW,CAAC,oBAAoB,CAAC;CAChE,CAAC"}

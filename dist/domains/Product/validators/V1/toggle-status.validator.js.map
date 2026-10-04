@@ -1,0 +1,1 @@
+{"version":3,"file":"toggle-status.validator.js","sourceRoot":"","sources":["../../../../../src/domains/Product/validators/V1/toggle-status.validator.ts"],"names":[],"mappings":";;;AAAA,yDAA0C;AAE7B,QAAA,qBAAqB,GAAG;IACjC,IAAA,yBAAK,EAAC,IAAI,CAAC;SACN,KAAK,CAAC,EAAE,GAAG,EAAE,CAAC,EAAE,CAAC;SACjB,WAAW,CAAC,uCAAuC,CAAC;SACpD,KAAK,EAAE;CACf,CAAC"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"get-product.validator.js","sourceRoot":"","sources":["../../../../../src/domains/Product/validators/V1/get-product.validator.ts"],"names":[],"mappings":";;;AAAA,yDAA0C;AAE7B,QAAA,mBAAmB,GAAG;IACjC,IAAA,yBAAK,EAAC,IAAI,CAAC,CAAC,KAAK,CAAC,EAAE,GAAG,EAAE,CAAC,EAAE,CAAC,CAAC,WAAW,CAAC,oBAAoB,CAAC;CAChE,CAAC"}

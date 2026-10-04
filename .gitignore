@@ -10,10 +10,7 @@
 node_modules/
 
 # Build
-dist/
 *.tsbuildinfo
-api/*.js
-api/*.js.map
 
 # Logs
 logs/

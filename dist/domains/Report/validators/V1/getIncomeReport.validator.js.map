@@ -1,0 +1,1 @@
+{"version":3,"file":"getIncomeReport.validator.js","sourceRoot":"","sources":["../../../../../src/domains/Report/validators/V1/getIncomeReport.validator.ts"],"names":[],"mappings":";;;AAAA,yDAA0C;AAE7B,QAAA,wBAAwB,GAAG;IACtC,IAAA,yBAAK,EAAC,QAAQ,CAAC;SACZ,QAAQ,EAAE;SACV,IAAI,CAAC,CAAC,OAAO,EAAE,OAAO,EAAE,QAAQ,EAAE,SAAS,EAAE,QAAQ,CAAC,CAAC;SACvD,WAAW,CAAC,yDAAyD,CAAC;CAC1E,CAAC"}
