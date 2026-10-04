@@ -45,7 +45,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@10.15.1",
   "_moduleAliases": {
     "@src": "dist"
   },
