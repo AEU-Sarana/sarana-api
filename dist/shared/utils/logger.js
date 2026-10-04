@@ -37,20 +37,25 @@ exports.logger = void 0;
 const winston = __importStar(require("winston"));
 const env_1 = require("../../shared/config/env");
 const logLevel = env_1.env.NODE_ENV === 'production' ? 'info' : 'debug';
+const transports = [
+    new winston.transports.Console({
+        format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
+    }),
+];
+if (!process.env.VERCEL) {
+    try {
+        transports.push(new winston.transports.File({ filename: 'logs/error.log', level: 'error' }));
+        transports.push(new winston.transports.File({ filename: 'logs/combined.log' }));
+    }
+    catch (err) {
+        // Ignore file logger errors if read-only
+    }
+}
 exports.logger = winston.createLogger({
     level: logLevel,
     format: winston.format.combine(winston.format.timestamp(), winston.format.errors({ stack: true }), winston.format.json()),
     defaultMeta: { service: 'stock-pos-backend' },
-    transports: [
-        new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-        new winston.transports.File({ filename: 'logs/combined.log' }),
-    ],
+    transports,
 });
-// Console transport for development
-if (env_1.env.NODE_ENV !== 'production') {
-    exports.logger.add(new winston.transports.Console({
-        format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
-    }));
-}
 exports.default = exports.logger;
 //# sourceMappingURL=logger.js.map
