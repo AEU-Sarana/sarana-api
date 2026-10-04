@@ -5,7 +5,9 @@
       "src": "api/index.ts",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["src/database/generated/**"]
+        "includeFiles": [
+          "src/**"
+        ]
       }
     }
   ],
