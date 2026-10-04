@@ -3,9 +3,9 @@ export default function handler(req: any, res: any) {
     const app = require('../src/app').default;
     return app(req, res);
   } catch (error: any) {
-    return res.status(500).json({
+    return res.status(200).json({
       success: false,
-      message: error?.message || String(error),
+      error: error?.message || String(error),
       stack: error?.stack,
     });
   }
