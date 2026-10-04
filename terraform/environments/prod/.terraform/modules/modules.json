@@ -1,1 +1,0 @@
-{"Modules":[{"Key":"","Source":"","Dir":"."},{"Key":"cloudflare","Source":"../../modules/cloudflare-proxy","Dir":"../../modules/cloudflare-proxy"},{"Key":"firewall","Source":"../../modules/firewall","Dir":"../../modules/firewall"},{"Key":"server","Source":"../../modules/server/hetzner_cloud","Dir":"../../modules/server/hetzner_cloud"}]}
