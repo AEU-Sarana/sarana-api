@@ -37,6 +37,7 @@
     "db:pull": "prisma db pull --schema src/database/prisma/introspected.prisma",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
+    "db:clear-data": "node clear-business-data.mjs",
     "test:khmer": "tsx scripts/test-khmer-receipt.mjs"
   },
   "engines": {

@@ -18,6 +18,7 @@ import customerRoutes from './customer.routes';
 import permissionRoutes from '@src/domains/Auth/routes/V1/permission.routes';
 import supplierRoutes from '@src/domains/Supplier/routes/V1/supplier.routes';
 import purchasingRoutes from '@src/domains/Purchasing/routes/V1/po.routes';
+import paymentMethodRoutes from '@src/domains/Setting/routes/V1/payment-method.routes';
 
 const router: IRouter = Router();
 
@@ -39,5 +40,6 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/customers', customerRoutes);
 router.use('/suppliers', supplierRoutes);
 router.use('/purchasing', purchasingRoutes);
+router.use('/payment-methods', paymentMethodRoutes);
 
 export default router;

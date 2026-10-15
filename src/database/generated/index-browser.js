@@ -522,6 +522,22 @@ exports.Prisma.ReceiptLinkScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.PaymentMethodScalarFieldEnum = {
+  paymentMethodId: 'paymentMethodId',
+  name: 'name',
+  code: 'code',
+  type: 'type',
+  accountName: 'accountName',
+  accountNumber: 'accountNumber',
+  qrCodeUrl: 'qrCodeUrl',
+  note: 'note',
+  isActive: 'isActive',
+  isSystem: 'isSystem',
+  displayOrder: 'displayOrder',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -578,7 +594,8 @@ exports.Prisma.ModelName = {
   RolePermission: 'RolePermission',
   SupplierPayment: 'SupplierPayment',
   CustomerPayment: 'CustomerPayment',
-  ReceiptLink: 'ReceiptLink'
+  ReceiptLink: 'ReceiptLink',
+  PaymentMethod: 'PaymentMethod'
 };
 
 /**

@@ -630,3 +630,24 @@ model ReceiptLink {
 
   @@map("receipt_links")
 }
+
+model PaymentMethod {
+  paymentMethodId Int      @id @default(autoincrement()) @map("payment_method_id")
+  name            String   @db.VarChar(100)
+  code            String   @unique(map: "payment_methods_code_key") @db.VarChar(50)
+  type            String   @default("BANK_TRANSFER") @db.VarChar(50)
+  accountName     String?  @map("account_name") @db.VarChar(150)
+  accountNumber   String?  @map("account_number") @db.VarChar(100)
+  qrCodeUrl       String?  @map("qr_code_url") @db.Text
+  note            String?  @db.VarChar(255)
+  isActive        Boolean  @default(true) @map("is_active")
+  isSystem        Boolean  @default(false) @map("is_system")
+  displayOrder    Int      @default(0) @map("display_order")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@index([isActive], map: "idx_payment_methods_is_active")
+  @@index([code], map: "idx_payment_methods_code")
+  @@index([displayOrder], map: "idx_payment_methods_display_order")
+  @@map("payment_methods")
+}

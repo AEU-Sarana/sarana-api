@@ -29,7 +29,7 @@ const domainConfig = {
     tables: ['stock_movements', 'stock_lots', 'stocks'],
   },
   setting: {
-    tables: ['app_settings', 'receipt_settings'],
+    tables: ['app_settings', 'receipt_settings', 'payment_methods'],
   },
   shared: {
     tables: ['audit_logs'],
@@ -88,6 +88,7 @@ const migrationOrder = [
   'purchasing/20260823000001_add_supplier_debt_and_payments',
   'order/20260906000001_add_payment_reference_fields',
   'order/20260906000002_add_order_cancellation_fields',
+  'setting/20261015000001_create_payment_methods_table',
 ];
 
 /* ================================
