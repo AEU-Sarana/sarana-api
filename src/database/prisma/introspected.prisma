@@ -551,6 +551,7 @@ model supplier_payments {
   amount           Decimal          @default(0.00) @db.Decimal(12, 2)
   payment_method   String           @db.VarChar(50)
   reference_number String?          @db.VarChar(100)
+  attachment_url   String?
   payment_date     DateTime         @default(now()) @db.Timestamp(6)
   notes            String?
   created_by       Int
@@ -572,6 +573,7 @@ model customer_payments {
   amount           Decimal     @default(0.00) @db.Decimal(12, 2)
   payment_method   String      @db.VarChar(50)
   reference_number String?     @db.VarChar(100)
+  attachment_url   String?
   payment_date     DateTime    @default(now()) @db.Timestamp(6)
   notes            String?
   created_by       Int

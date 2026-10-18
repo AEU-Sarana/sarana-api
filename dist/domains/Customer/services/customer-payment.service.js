@@ -17,7 +17,7 @@ class CustomerPaymentService {
      * Record a debt repayment made by a customer
      */
     static async recordPayment(input, userId) {
-        const { customerId, orderId, amount, paymentMethod, referenceNumber, notes, paymentDate } = input;
+        const { customerId, orderId, amount, paymentMethod, referenceNumber, attachmentUrl, notes, paymentDate } = input;
         if (!customerId) {
             throw new exceptions_1.ValidationException('Customer ID is required');
         }
@@ -43,6 +43,7 @@ class CustomerPaymentService {
                     amount,
                     paymentMethod: paymentMethod,
                     referenceNumber: referenceNumber || null,
+                    attachmentUrl: attachmentUrl || null,
                     paymentDate: pDate,
                     notes: notes || null,
                     createdBy: userId,
@@ -211,6 +212,7 @@ class CustomerPaymentService {
                 amount: Number(p.amount),
                 paymentMethod: p.paymentMethod,
                 referenceNumber: p.referenceNumber,
+                attachmentUrl: p.attachmentUrl,
                 paymentDate: p.paymentDate,
                 notes: p.notes,
                 createdBy: p.createdBy,

@@ -26,13 +26,14 @@ class CustomerPaymentController {
     static async recordPayment(req, res) {
         try {
             const user = req.user;
-            const { customer_id, order_id, amount, payment_method, reference_number, notes, payment_date } = req.body;
+            const { customer_id, order_id, amount, payment_method, reference_number, attachment_url, attachmentUrl, notes, payment_date } = req.body;
             const payment = await customer_payment_service_1.CustomerPaymentService.recordPayment({
                 customerId: Number(customer_id),
                 orderId: order_id ? Number(order_id) : undefined,
                 amount: Number(amount),
                 paymentMethod: payment_method,
                 referenceNumber: reference_number,
+                attachmentUrl: attachment_url || attachmentUrl,
                 notes,
                 paymentDate: payment_date,
             }, user.userId);

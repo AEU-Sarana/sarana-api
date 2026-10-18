@@ -25,7 +25,7 @@ export class CustomerPaymentController {
   static async recordPayment(req: Request, res: Response) {
     try {
       const user = (req as any).user;
-      const { customer_id, order_id, amount, payment_method, reference_number, notes, payment_date } = req.body;
+      const { customer_id, order_id, amount, payment_method, reference_number, attachment_url, attachmentUrl, notes, payment_date } = req.body;
 
       const payment = await CustomerPaymentService.recordPayment(
         {
@@ -34,6 +34,7 @@ export class CustomerPaymentController {
           amount: Number(amount),
           paymentMethod: payment_method,
           referenceNumber: reference_number,
+          attachmentUrl: attachment_url || attachmentUrl,
           notes,
           paymentDate: payment_date,
         },

@@ -8,6 +8,7 @@ export interface RecordSupplierPaymentInput {
   amount: number;
   paymentMethod: string;
   referenceNumber?: string;
+  attachmentUrl?: string;
   notes?: string;
   paymentDate?: string;
 }
@@ -23,7 +24,7 @@ export class SupplierPaymentService {
    * Record a payment made to a supplier (paying down debt)
    */
   static async recordPayment(input: RecordSupplierPaymentInput, userId: number) {
-    const { supplierId, poId, amount, paymentMethod, referenceNumber, notes, paymentDate } = input;
+    const { supplierId, poId, amount, paymentMethod, referenceNumber, attachmentUrl, notes, paymentDate } = input;
 
     if (!supplierId) {
       throw new ValidationException('Supplier ID is required');
@@ -53,6 +54,7 @@ export class SupplierPaymentService {
           amount,
           paymentMethod: paymentMethod,
           referenceNumber: referenceNumber || null,
+          attachmentUrl: attachmentUrl || null,
           paymentDate: pDate,
           notes: notes || null,
           createdBy: userId,
@@ -243,6 +245,7 @@ export class SupplierPaymentService {
         amount: Number(p.amount),
         paymentMethod: p.paymentMethod,
         referenceNumber: p.referenceNumber,
+        attachmentUrl: p.attachmentUrl,
         paymentDate: p.paymentDate,
         notes: p.notes,
         createdBy: p.createdBy,

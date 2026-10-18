@@ -577,6 +577,7 @@ model SupplierPayment {
   amount          Decimal        @default(0.00) @db.Decimal(12, 2)
   paymentMethod   String         @map("payment_method") @db.VarChar(50)
   referenceNumber String?        @map("reference_number") @db.VarChar(100)
+  attachmentUrl   String?        @map("attachment_url")
   paymentDate     DateTime       @default(now()) @map("payment_date") @db.Timestamp(6)
   notes           String?
   createdBy       Int            @map("created_by")
@@ -599,6 +600,7 @@ model CustomerPayment {
   amount          Decimal  @default(0.00) @db.Decimal(12, 2)
   paymentMethod   String   @map("payment_method") @db.VarChar(50)
   referenceNumber String?  @map("reference_number") @db.VarChar(100)
+  attachmentUrl   String?  @map("attachment_url")
   paymentDate     DateTime @default(now()) @map("payment_date") @db.Timestamp(6)
   notes           String?
   createdBy       Int      @map("created_by")

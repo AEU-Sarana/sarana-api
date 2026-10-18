@@ -36327,6 +36327,7 @@ export namespace Prisma {
     amount: Decimal | null
     paymentMethod: string | null
     referenceNumber: string | null
+    attachmentUrl: string | null
     paymentDate: Date | null
     notes: string | null
     createdBy: number | null
@@ -36341,6 +36342,7 @@ export namespace Prisma {
     amount: Decimal | null
     paymentMethod: string | null
     referenceNumber: string | null
+    attachmentUrl: string | null
     paymentDate: Date | null
     notes: string | null
     createdBy: number | null
@@ -36355,6 +36357,7 @@ export namespace Prisma {
     amount: number
     paymentMethod: number
     referenceNumber: number
+    attachmentUrl: number
     paymentDate: number
     notes: number
     createdBy: number
@@ -36387,6 +36390,7 @@ export namespace Prisma {
     amount?: true
     paymentMethod?: true
     referenceNumber?: true
+    attachmentUrl?: true
     paymentDate?: true
     notes?: true
     createdBy?: true
@@ -36401,6 +36405,7 @@ export namespace Prisma {
     amount?: true
     paymentMethod?: true
     referenceNumber?: true
+    attachmentUrl?: true
     paymentDate?: true
     notes?: true
     createdBy?: true
@@ -36415,6 +36420,7 @@ export namespace Prisma {
     amount?: true
     paymentMethod?: true
     referenceNumber?: true
+    attachmentUrl?: true
     paymentDate?: true
     notes?: true
     createdBy?: true
@@ -36516,6 +36522,7 @@ export namespace Prisma {
     amount: Decimal
     paymentMethod: string
     referenceNumber: string | null
+    attachmentUrl: string | null
     paymentDate: Date
     notes: string | null
     createdBy: number
@@ -36549,6 +36556,7 @@ export namespace Prisma {
     amount?: boolean
     paymentMethod?: boolean
     referenceNumber?: boolean
+    attachmentUrl?: boolean
     paymentDate?: boolean
     notes?: boolean
     createdBy?: boolean
@@ -36566,6 +36574,7 @@ export namespace Prisma {
     amount?: boolean
     paymentMethod?: boolean
     referenceNumber?: boolean
+    attachmentUrl?: boolean
     paymentDate?: boolean
     notes?: boolean
     createdBy?: boolean
@@ -36583,6 +36592,7 @@ export namespace Prisma {
     amount?: boolean
     paymentMethod?: boolean
     referenceNumber?: boolean
+    attachmentUrl?: boolean
     paymentDate?: boolean
     notes?: boolean
     createdBy?: boolean
@@ -36600,13 +36610,14 @@ export namespace Prisma {
     amount?: boolean
     paymentMethod?: boolean
     referenceNumber?: boolean
+    attachmentUrl?: boolean
     paymentDate?: boolean
     notes?: boolean
     createdBy?: boolean
     createdAt?: boolean
   }
 
-  export type SupplierPaymentOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"paymentId" | "paymentNumber" | "supplierId" | "poId" | "amount" | "paymentMethod" | "referenceNumber" | "paymentDate" | "notes" | "createdBy" | "createdAt", ExtArgs["result"]["supplierPayment"]>
+  export type SupplierPaymentOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"paymentId" | "paymentNumber" | "supplierId" | "poId" | "amount" | "paymentMethod" | "referenceNumber" | "attachmentUrl" | "paymentDate" | "notes" | "createdBy" | "createdAt", ExtArgs["result"]["supplierPayment"]>
   export type SupplierPaymentInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
     supplier?: boolean | SupplierDefaultArgs<ExtArgs>
@@ -36638,6 +36649,7 @@ export namespace Prisma {
       amount: Prisma.Decimal
       paymentMethod: string
       referenceNumber: string | null
+      attachmentUrl: string | null
       paymentDate: Date
       notes: string | null
       createdBy: number
@@ -37075,6 +37087,7 @@ export namespace Prisma {
     readonly amount: FieldRef<"SupplierPayment", 'Decimal'>
     readonly paymentMethod: FieldRef<"SupplierPayment", 'String'>
     readonly referenceNumber: FieldRef<"SupplierPayment", 'String'>
+    readonly attachmentUrl: FieldRef<"SupplierPayment", 'String'>
     readonly paymentDate: FieldRef<"SupplierPayment", 'DateTime'>
     readonly notes: FieldRef<"SupplierPayment", 'String'>
     readonly createdBy: FieldRef<"SupplierPayment", 'Int'>
@@ -37548,6 +37561,7 @@ export namespace Prisma {
     amount: Decimal | null
     paymentMethod: string | null
     referenceNumber: string | null
+    attachmentUrl: string | null
     paymentDate: Date | null
     notes: string | null
     createdBy: number | null
@@ -37562,6 +37576,7 @@ export namespace Prisma {
     amount: Decimal | null
     paymentMethod: string | null
     referenceNumber: string | null
+    attachmentUrl: string | null
     paymentDate: Date | null
     notes: string | null
     createdBy: number | null
@@ -37576,6 +37591,7 @@ export namespace Prisma {
     amount: number
     paymentMethod: number
     referenceNumber: number
+    attachmentUrl: number
     paymentDate: number
     notes: number
     createdBy: number
@@ -37608,6 +37624,7 @@ export namespace Prisma {
     amount?: true
     paymentMethod?: true
     referenceNumber?: true
+    attachmentUrl?: true
     paymentDate?: true
     notes?: true
     createdBy?: true
@@ -37622,6 +37639,7 @@ export namespace Prisma {
     amount?: true
     paymentMethod?: true
     referenceNumber?: true
+    attachmentUrl?: true
     paymentDate?: true
     notes?: true
     createdBy?: true
@@ -37636,6 +37654,7 @@ export namespace Prisma {
     amount?: true
     paymentMethod?: true
     referenceNumber?: true
+    attachmentUrl?: true
     paymentDate?: true
     notes?: true
     createdBy?: true
@@ -37737,6 +37756,7 @@ export namespace Prisma {
     amount: Decimal
     paymentMethod: string
     referenceNumber: string | null
+    attachmentUrl: string | null
     paymentDate: Date
     notes: string | null
     createdBy: number
@@ -37770,6 +37790,7 @@ export namespace Prisma {
     amount?: boolean
     paymentMethod?: boolean
     referenceNumber?: boolean
+    attachmentUrl?: boolean
     paymentDate?: boolean
     notes?: boolean
     createdBy?: boolean
@@ -37787,6 +37808,7 @@ export namespace Prisma {
     amount?: boolean
     paymentMethod?: boolean
     referenceNumber?: boolean
+    attachmentUrl?: boolean
     paymentDate?: boolean
     notes?: boolean
     createdBy?: boolean
@@ -37804,6 +37826,7 @@ export namespace Prisma {
     amount?: boolean
     paymentMethod?: boolean
     referenceNumber?: boolean
+    attachmentUrl?: boolean
     paymentDate?: boolean
     notes?: boolean
     createdBy?: boolean
@@ -37821,13 +37844,14 @@ export namespace Prisma {
     amount?: boolean
     paymentMethod?: boolean
     referenceNumber?: boolean
+    attachmentUrl?: boolean
     paymentDate?: boolean
     notes?: boolean
     createdBy?: boolean
     createdAt?: boolean
   }
 
-  export type CustomerPaymentOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"paymentId" | "paymentNumber" | "customerId" | "orderId" | "amount" | "paymentMethod" | "referenceNumber" | "paymentDate" | "notes" | "createdBy" | "createdAt", ExtArgs["result"]["customerPayment"]>
+  export type CustomerPaymentOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"paymentId" | "paymentNumber" | "customerId" | "orderId" | "amount" | "paymentMethod" | "referenceNumber" | "attachmentUrl" | "paymentDate" | "notes" | "createdBy" | "createdAt", ExtArgs["result"]["customerPayment"]>
   export type CustomerPaymentInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
     customer?: boolean | CustomerDefaultArgs<ExtArgs>
@@ -37859,6 +37883,7 @@ export namespace Prisma {
       amount: Prisma.Decimal
       paymentMethod: string
       referenceNumber: string | null
+      attachmentUrl: string | null
       paymentDate: Date
       notes: string | null
       createdBy: number
@@ -38296,6 +38321,7 @@ export namespace Prisma {
     readonly amount: FieldRef<"CustomerPayment", 'Decimal'>
     readonly paymentMethod: FieldRef<"CustomerPayment", 'String'>
     readonly referenceNumber: FieldRef<"CustomerPayment", 'String'>
+    readonly attachmentUrl: FieldRef<"CustomerPayment", 'String'>
     readonly paymentDate: FieldRef<"CustomerPayment", 'DateTime'>
     readonly notes: FieldRef<"CustomerPayment", 'String'>
     readonly createdBy: FieldRef<"CustomerPayment", 'Int'>
@@ -41516,6 +41542,7 @@ export namespace Prisma {
     amount: 'amount',
     paymentMethod: 'paymentMethod',
     referenceNumber: 'referenceNumber',
+    attachmentUrl: 'attachmentUrl',
     paymentDate: 'paymentDate',
     notes: 'notes',
     createdBy: 'createdBy',
@@ -41533,6 +41560,7 @@ export namespace Prisma {
     amount: 'amount',
     paymentMethod: 'paymentMethod',
     referenceNumber: 'referenceNumber',
+    attachmentUrl: 'attachmentUrl',
     paymentDate: 'paymentDate',
     notes: 'notes',
     createdBy: 'createdBy',
@@ -44153,6 +44181,7 @@ export namespace Prisma {
     amount?: DecimalFilter<"SupplierPayment"> | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFilter<"SupplierPayment"> | string
     referenceNumber?: StringNullableFilter<"SupplierPayment"> | string | null
+    attachmentUrl?: StringNullableFilter<"SupplierPayment"> | string | null
     paymentDate?: DateTimeFilter<"SupplierPayment"> | Date | string
     notes?: StringNullableFilter<"SupplierPayment"> | string | null
     createdBy?: IntFilter<"SupplierPayment"> | number
@@ -44170,6 +44199,7 @@ export namespace Prisma {
     amount?: SortOrder
     paymentMethod?: SortOrder
     referenceNumber?: SortOrderInput | SortOrder
+    attachmentUrl?: SortOrderInput | SortOrder
     paymentDate?: SortOrder
     notes?: SortOrderInput | SortOrder
     createdBy?: SortOrder
@@ -44190,6 +44220,7 @@ export namespace Prisma {
     amount?: DecimalFilter<"SupplierPayment"> | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFilter<"SupplierPayment"> | string
     referenceNumber?: StringNullableFilter<"SupplierPayment"> | string | null
+    attachmentUrl?: StringNullableFilter<"SupplierPayment"> | string | null
     paymentDate?: DateTimeFilter<"SupplierPayment"> | Date | string
     notes?: StringNullableFilter<"SupplierPayment"> | string | null
     createdBy?: IntFilter<"SupplierPayment"> | number
@@ -44207,6 +44238,7 @@ export namespace Prisma {
     amount?: SortOrder
     paymentMethod?: SortOrder
     referenceNumber?: SortOrderInput | SortOrder
+    attachmentUrl?: SortOrderInput | SortOrder
     paymentDate?: SortOrder
     notes?: SortOrderInput | SortOrder
     createdBy?: SortOrder
@@ -44229,6 +44261,7 @@ export namespace Prisma {
     amount?: DecimalWithAggregatesFilter<"SupplierPayment"> | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringWithAggregatesFilter<"SupplierPayment"> | string
     referenceNumber?: StringNullableWithAggregatesFilter<"SupplierPayment"> | string | null
+    attachmentUrl?: StringNullableWithAggregatesFilter<"SupplierPayment"> | string | null
     paymentDate?: DateTimeWithAggregatesFilter<"SupplierPayment"> | Date | string
     notes?: StringNullableWithAggregatesFilter<"SupplierPayment"> | string | null
     createdBy?: IntWithAggregatesFilter<"SupplierPayment"> | number
@@ -44246,6 +44279,7 @@ export namespace Prisma {
     amount?: DecimalFilter<"CustomerPayment"> | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFilter<"CustomerPayment"> | string
     referenceNumber?: StringNullableFilter<"CustomerPayment"> | string | null
+    attachmentUrl?: StringNullableFilter<"CustomerPayment"> | string | null
     paymentDate?: DateTimeFilter<"CustomerPayment"> | Date | string
     notes?: StringNullableFilter<"CustomerPayment"> | string | null
     createdBy?: IntFilter<"CustomerPayment"> | number
@@ -44263,6 +44297,7 @@ export namespace Prisma {
     amount?: SortOrder
     paymentMethod?: SortOrder
     referenceNumber?: SortOrderInput | SortOrder
+    attachmentUrl?: SortOrderInput | SortOrder
     paymentDate?: SortOrder
     notes?: SortOrderInput | SortOrder
     createdBy?: SortOrder
@@ -44283,6 +44318,7 @@ export namespace Prisma {
     amount?: DecimalFilter<"CustomerPayment"> | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFilter<"CustomerPayment"> | string
     referenceNumber?: StringNullableFilter<"CustomerPayment"> | string | null
+    attachmentUrl?: StringNullableFilter<"CustomerPayment"> | string | null
     paymentDate?: DateTimeFilter<"CustomerPayment"> | Date | string
     notes?: StringNullableFilter<"CustomerPayment"> | string | null
     createdBy?: IntFilter<"CustomerPayment"> | number
@@ -44300,6 +44336,7 @@ export namespace Prisma {
     amount?: SortOrder
     paymentMethod?: SortOrder
     referenceNumber?: SortOrderInput | SortOrder
+    attachmentUrl?: SortOrderInput | SortOrder
     paymentDate?: SortOrder
     notes?: SortOrderInput | SortOrder
     createdBy?: SortOrder
@@ -44322,6 +44359,7 @@ export namespace Prisma {
     amount?: DecimalWithAggregatesFilter<"CustomerPayment"> | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringWithAggregatesFilter<"CustomerPayment"> | string
     referenceNumber?: StringNullableWithAggregatesFilter<"CustomerPayment"> | string | null
+    attachmentUrl?: StringNullableWithAggregatesFilter<"CustomerPayment"> | string | null
     paymentDate?: DateTimeWithAggregatesFilter<"CustomerPayment"> | Date | string
     notes?: StringNullableWithAggregatesFilter<"CustomerPayment"> | string | null
     createdBy?: IntWithAggregatesFilter<"CustomerPayment"> | number
@@ -47098,6 +47136,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdAt?: Date | string
@@ -47114,6 +47153,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdBy: number
@@ -47125,6 +47165,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -47141,6 +47182,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdBy?: IntFieldUpdateOperationsInput | number
@@ -47155,6 +47197,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdBy: number
@@ -47166,6 +47209,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -47179,6 +47223,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdBy?: IntFieldUpdateOperationsInput | number
@@ -47190,6 +47235,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdAt?: Date | string
@@ -47206,6 +47252,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdBy: number
@@ -47217,6 +47264,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -47233,6 +47281,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdBy?: IntFieldUpdateOperationsInput | number
@@ -47247,6 +47296,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdBy: number
@@ -47258,6 +47308,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -47271,6 +47322,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdBy?: IntFieldUpdateOperationsInput | number
@@ -49609,6 +49661,7 @@ export namespace Prisma {
     amount?: SortOrder
     paymentMethod?: SortOrder
     referenceNumber?: SortOrder
+    attachmentUrl?: SortOrder
     paymentDate?: SortOrder
     notes?: SortOrder
     createdBy?: SortOrder
@@ -49631,6 +49684,7 @@ export namespace Prisma {
     amount?: SortOrder
     paymentMethod?: SortOrder
     referenceNumber?: SortOrder
+    attachmentUrl?: SortOrder
     paymentDate?: SortOrder
     notes?: SortOrder
     createdBy?: SortOrder
@@ -49645,6 +49699,7 @@ export namespace Prisma {
     amount?: SortOrder
     paymentMethod?: SortOrder
     referenceNumber?: SortOrder
+    attachmentUrl?: SortOrder
     paymentDate?: SortOrder
     notes?: SortOrder
     createdBy?: SortOrder
@@ -49667,6 +49722,7 @@ export namespace Prisma {
     amount?: SortOrder
     paymentMethod?: SortOrder
     referenceNumber?: SortOrder
+    attachmentUrl?: SortOrder
     paymentDate?: SortOrder
     notes?: SortOrder
     createdBy?: SortOrder
@@ -49689,6 +49745,7 @@ export namespace Prisma {
     amount?: SortOrder
     paymentMethod?: SortOrder
     referenceNumber?: SortOrder
+    attachmentUrl?: SortOrder
     paymentDate?: SortOrder
     notes?: SortOrder
     createdBy?: SortOrder
@@ -49703,6 +49760,7 @@ export namespace Prisma {
     amount?: SortOrder
     paymentMethod?: SortOrder
     referenceNumber?: SortOrder
+    attachmentUrl?: SortOrder
     paymentDate?: SortOrder
     notes?: SortOrder
     createdBy?: SortOrder
@@ -53454,6 +53512,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdAt?: Date | string
@@ -53468,6 +53527,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdBy: number
@@ -53764,6 +53824,7 @@ export namespace Prisma {
     amount?: DecimalFilter<"CustomerPayment"> | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFilter<"CustomerPayment"> | string
     referenceNumber?: StringNullableFilter<"CustomerPayment"> | string | null
+    attachmentUrl?: StringNullableFilter<"CustomerPayment"> | string | null
     paymentDate?: DateTimeFilter<"CustomerPayment"> | Date | string
     notes?: StringNullableFilter<"CustomerPayment"> | string | null
     createdBy?: IntFilter<"CustomerPayment"> | number
@@ -56615,6 +56676,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdAt?: Date | string
@@ -56630,6 +56692,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdAt?: Date | string
@@ -56650,6 +56713,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdAt?: Date | string
@@ -56665,6 +56729,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdAt?: Date | string
@@ -57449,6 +57514,7 @@ export namespace Prisma {
     amount?: DecimalFilter<"SupplierPayment"> | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFilter<"SupplierPayment"> | string
     referenceNumber?: StringNullableFilter<"SupplierPayment"> | string | null
+    attachmentUrl?: StringNullableFilter<"SupplierPayment"> | string | null
     paymentDate?: DateTimeFilter<"SupplierPayment"> | Date | string
     notes?: StringNullableFilter<"SupplierPayment"> | string | null
     createdBy?: IntFilter<"SupplierPayment"> | number
@@ -58279,6 +58345,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdAt?: Date | string
@@ -58293,6 +58360,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdBy: number
@@ -58786,6 +58854,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdAt?: Date | string
@@ -58800,6 +58869,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdBy: number
@@ -58935,6 +59005,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdAt?: Date | string
@@ -58949,6 +59020,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdBy: number
@@ -61413,6 +61485,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdBy: number
@@ -61530,6 +61603,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -61544,6 +61618,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdBy?: IntFieldUpdateOperationsInput | number
@@ -61557,6 +61632,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdBy?: IntFieldUpdateOperationsInput | number
@@ -62213,6 +62289,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdAt?: Date | string
@@ -62226,6 +62303,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdAt?: Date | string
@@ -62964,6 +63042,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -62979,6 +63058,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -62992,6 +63072,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -63002,6 +63083,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -63017,6 +63099,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -63030,6 +63113,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -63277,6 +63361,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdBy: number
@@ -63396,6 +63481,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -63410,6 +63496,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdBy?: IntFieldUpdateOperationsInput | number
@@ -63423,6 +63510,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdBy?: IntFieldUpdateOperationsInput | number
@@ -63565,6 +63653,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdBy: number
@@ -63684,6 +63773,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -63698,6 +63788,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdBy?: IntFieldUpdateOperationsInput | number
@@ -63711,6 +63802,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdBy?: IntFieldUpdateOperationsInput | number
@@ -63746,6 +63838,7 @@ export namespace Prisma {
     amount?: Decimal | DecimalJsLike | number | string
     paymentMethod: string
     referenceNumber?: string | null
+    attachmentUrl?: string | null
     paymentDate?: Date | string
     notes?: string | null
     createdBy: number
@@ -63825,6 +63918,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -63839,6 +63933,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdBy?: IntFieldUpdateOperationsInput | number
@@ -63852,6 +63947,7 @@ export namespace Prisma {
     amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     paymentMethod?: StringFieldUpdateOperationsInput | string
     referenceNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentUrl?: NullableStringFieldUpdateOperationsInput | string | null
     paymentDate?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdBy?: IntFieldUpdateOperationsInput | number

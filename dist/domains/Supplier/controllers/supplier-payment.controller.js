@@ -26,13 +26,14 @@ class SupplierPaymentController {
     static async recordPayment(req, res) {
         try {
             const user = req.user;
-            const { supplier_id, po_id, amount, payment_method, reference_number, notes, payment_date } = req.body;
+            const { supplier_id, po_id, amount, payment_method, reference_number, attachment_url, attachmentUrl, notes, payment_date } = req.body;
             const payment = await supplier_payment_service_1.SupplierPaymentService.recordPayment({
                 supplierId: Number(supplier_id),
                 poId: po_id ? Number(po_id) : undefined,
                 amount: Number(amount),
                 paymentMethod: payment_method,
                 referenceNumber: reference_number,
+                attachmentUrl: attachment_url || attachmentUrl,
                 notes,
                 paymentDate: payment_date,
             }, user.userId);

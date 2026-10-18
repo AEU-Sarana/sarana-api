@@ -8,6 +8,7 @@ export interface RecordCustomerPaymentInput {
   amount: number;
   paymentMethod: string;
   referenceNumber?: string;
+  attachmentUrl?: string;
   notes?: string;
   paymentDate?: string;
 }
@@ -23,7 +24,7 @@ export class CustomerPaymentService {
    * Record a debt repayment made by a customer
    */
   static async recordPayment(input: RecordCustomerPaymentInput, userId: number) {
-    const { customerId, orderId, amount, paymentMethod, referenceNumber, notes, paymentDate } = input;
+    const { customerId, orderId, amount, paymentMethod, referenceNumber, attachmentUrl, notes, paymentDate } = input;
 
     if (!customerId) {
       throw new ValidationException('Customer ID is required');
@@ -53,6 +54,7 @@ export class CustomerPaymentService {
           amount,
           paymentMethod: paymentMethod,
           referenceNumber: referenceNumber || null,
+          attachmentUrl: attachmentUrl || null,
           paymentDate: pDate,
           notes: notes || null,
           createdBy: userId,
@@ -241,6 +243,7 @@ export class CustomerPaymentService {
         amount: Number(p.amount),
         paymentMethod: p.paymentMethod,
         referenceNumber: p.referenceNumber,
+        attachmentUrl: p.attachmentUrl,
         paymentDate: p.paymentDate,
         notes: p.notes,
         createdBy: p.createdBy,

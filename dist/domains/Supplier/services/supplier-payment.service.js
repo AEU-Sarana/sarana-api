@@ -17,7 +17,7 @@ class SupplierPaymentService {
      * Record a payment made to a supplier (paying down debt)
      */
     static async recordPayment(input, userId) {
-        const { supplierId, poId, amount, paymentMethod, referenceNumber, notes, paymentDate } = input;
+        const { supplierId, poId, amount, paymentMethod, referenceNumber, attachmentUrl, notes, paymentDate } = input;
         if (!supplierId) {
             throw new exceptions_1.ValidationException('Supplier ID is required');
         }
@@ -43,6 +43,7 @@ class SupplierPaymentService {
                     amount,
                     paymentMethod: paymentMethod,
                     referenceNumber: referenceNumber || null,
+                    attachmentUrl: attachmentUrl || null,
                     paymentDate: pDate,
                     notes: notes || null,
                     createdBy: userId,
@@ -213,6 +214,7 @@ class SupplierPaymentService {
                 amount: Number(p.amount),
                 paymentMethod: p.paymentMethod,
                 referenceNumber: p.referenceNumber,
+                attachmentUrl: p.attachmentUrl,
                 paymentDate: p.paymentDate,
                 notes: p.notes,
                 createdBy: p.createdBy,
