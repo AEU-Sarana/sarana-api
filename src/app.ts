@@ -110,14 +110,6 @@ if (env.NODE_ENV !== 'production') {
 // Add local datetime fields in API responses
 app.use(responseTimezoneMiddleware);
 
-// Storage routes (for serving files) - must be before API routes
-app.use('/', storageRoutes);
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
-
-// API routes
-app.use('/api', auditMutationMiddleware);
-app.use('/api', apiRoutes);
-
 // Root endpoint
 app.get(['/', '/api', '/api/index.js', '/index.js'], (req, res) => {
   res.json({
@@ -127,6 +119,14 @@ app.get(['/', '/api', '/api/index.js', '/index.js'], (req, res) => {
     docs: '/api/docs',
   });
 });
+
+// Storage routes (for serving files) - must be before API routes
+app.use('/', storageRoutes);
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
+// API routes
+app.use('/api', auditMutationMiddleware);
+app.use('/api', apiRoutes);
 
 // 404 handler
 app.use((req, res) => {
