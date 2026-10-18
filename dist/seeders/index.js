@@ -16,6 +16,7 @@ const audit_log_seeder_1 = require("./domains/shared/audit-log.seeder");
 const customer_seeder_1 = require("./domains/customer/customer.seeder");
 const supplier_seeder_1 = require("./domains/purchasing/supplier.seeder");
 const po_seeder_1 = require("./domains/purchasing/po.seeder");
+const debt_seeder_1 = require("./domains/debt/debt.seeder");
 /**
  * Main seeder function
  * Runs all seeders in the correct order based on dependencies
@@ -45,7 +46,9 @@ async function main() {
         // 9. Settings (depends on users)
         new app_settings_seeder_1.AppSettingsSeeder(), 
         // 10. Audit Logs
-        new audit_log_seeder_1.AuditLogSeeder());
+        new audit_log_seeder_1.AuditLogSeeder(), 
+        // 11. Customer & Supplier Debts with Ledger Proofs
+        new debt_seeder_1.DebtSeeder());
     }
     try {
         for (const seeder of seeders) {

@@ -21,6 +21,7 @@
     "db:seed": "tsx src/seeders/index.ts",
     "seed": "tsx src/seeders/index.ts",
     "seed:all": "tsx src/seeders/index.ts",
+    "seed:debt": "tsx src/seeders/domains/debt/debt.seeder.ts",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:status": "prisma migrate status",

@@ -11,6 +11,7 @@ import { AuditLogSeeder } from './domains/shared/audit-log.seeder';
 import { CustomerSeeder } from './domains/customer/customer.seeder';
 import { SupplierSeeder } from './domains/purchasing/supplier.seeder';
 import { PurchaseOrderSeeder } from './domains/purchasing/po.seeder';
+import { DebtSeeder } from './domains/debt/debt.seeder';
 
 /**
  * Main seeder function
@@ -55,6 +56,9 @@ async function main() {
 
       // 10. Audit Logs
       new AuditLogSeeder(),
+
+      // 11. Customer & Supplier Debts with Ledger Proofs
+      new DebtSeeder(),
     );
   }
 
