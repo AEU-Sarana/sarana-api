@@ -5,12 +5,14 @@ const env_1 = require("../../../shared/config/env");
 const logger_1 = require("../../../shared/utils/logger");
 const s3_storage_provider_1 = require("./s3-storage.provider");
 const cloudinary_storage_provider_1 = require("./cloudinary-storage.provider");
+const local_storage_provider_1 = require("./local-storage.provider");
 /**
  * Storage Factory
  *
  * Creates and returns the appropriate storage provider based on configuration.
  *
  * Supported providers:
+ * - local: Local disk storage (uploads/ folder)
  * - minio: MinIO (S3-compatible local development)
  * - r2: Cloudflare R2
  * - wasabi: Wasabi Cloud Storage
@@ -25,8 +27,11 @@ class StorageFactory {
         if (this.instance) {
             return this.instance;
         }
-        const provider = env_1.env.STORAGE_PROVIDER.toLowerCase();
+        const provider = (env_1.env.STORAGE_PROVIDER || 'local').toLowerCase();
         switch (provider) {
+            case 'local':
+                this.instance = new local_storage_provider_1.LocalStorageProvider();
+                break;
             case 'cloudinary':
                 this.instance = new cloudinary_storage_provider_1.CloudinaryStorageProvider();
                 break;
@@ -39,8 +44,8 @@ class StorageFactory {
                 this.instance = new s3_storage_provider_1.S3StorageProvider();
                 break;
             default:
-                logger_1.logger.warn(`Unknown storage provider: ${provider}. Falling back to S3-compatible provider (MinIO).`);
-                this.instance = new s3_storage_provider_1.S3StorageProvider();
+                logger_1.logger.warn(`Unknown storage provider: ${provider}. Falling back to local storage.`);
+                this.instance = new local_storage_provider_1.LocalStorageProvider();
         }
         return this.instance;
     }

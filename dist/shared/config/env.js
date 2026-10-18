@@ -83,9 +83,9 @@ exports.env = {
     STORAGE_PUBLIC_URL: process.env.STORAGE_PUBLIC_URL,
     // Cloudinary
     CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || 'nq7d2bv5',
-    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || '689254353846747',
+    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || '986924586229517',
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || 'BOpVa0dhus_2rlsjFLQnrmxBY6o',
-    CLOUDINARY_URL: process.env.CLOUDINARY_URL || 'cloudinary://689254353846747:BOpVa0dhus_2rlsjFLQnrmxBY6o@nq7d2bv5',
+    CLOUDINARY_URL: process.env.CLOUDINARY_URL || 'cloudinary://986924586229517:BOpVa0dhus_2rlsjFLQnrmxBY6o@nq7d2bv5',
     // MinIO
     MINIO_ROOT_USER: process.env.MINIO_ROOT_USER || 'minioadmin',
     MINIO_ROOT_PASSWORD: process.env.MINIO_ROOT_PASSWORD || 'minioadmin',

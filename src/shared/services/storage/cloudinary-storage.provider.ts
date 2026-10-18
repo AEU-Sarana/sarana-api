@@ -1,6 +1,7 @@
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import { env } from '@src/shared/config/env';
 import { logger } from '@src/shared/utils/logger';
+import { LocalStorageProvider } from './local-storage.provider';
 import type {
   IStorageProvider,
   FileUploadResult,
@@ -13,27 +14,41 @@ import type {
  * Cloudinary Storage Provider
  * 
  * Uploads and manages files using Cloudinary CDN.
+ * Includes graceful fallback to LocalStorageProvider if credentials are invalid or missing.
  */
 export class CloudinaryStorageProvider implements IStorageProvider {
+  private isConfigured = false;
+  private localFallback = new LocalStorageProvider();
+
   constructor() {
+    let cloudName = env.CLOUDINARY_CLOUD_NAME;
+    let apiKey = env.CLOUDINARY_API_KEY;
+    let apiSecret = env.CLOUDINARY_API_SECRET;
+
     if (env.CLOUDINARY_URL) {
+      try {
+        const parsed = new URL(env.CLOUDINARY_URL);
+        cloudName = parsed.hostname || cloudName;
+        apiKey = parsed.username || apiKey;
+        apiSecret = parsed.password || apiSecret;
+      } catch (err) {
+        logger.warn('Failed to parse CLOUDINARY_URL', { error: err });
+      }
+    }
+
+    if (cloudName && apiKey && apiSecret) {
       cloudinary.config({
-        cloudinary_url: env.CLOUDINARY_URL,
+        cloud_name: cloudName,
+        api_key: apiKey,
+        api_secret: apiSecret,
         secure: true,
       });
-      logger.info(`Storage provider initialized: Cloudinary (via CLOUDINARY_URL)`);
-    } else if (env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET) {
+      this.isConfigured = true;
+      logger.info(`Storage provider initialized: Cloudinary (${cloudName})`);
+    } else if (cloudName && apiSecret) {
       cloudinary.config({
-        cloud_name: env.CLOUDINARY_CLOUD_NAME,
-        api_key: env.CLOUDINARY_API_KEY,
-        api_secret: env.CLOUDINARY_API_SECRET,
-        secure: true,
-      });
-      logger.info(`Storage provider initialized: Cloudinary (${env.CLOUDINARY_CLOUD_NAME})`);
-    } else if (env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_SECRET) {
-      cloudinary.config({
-        cloud_name: env.CLOUDINARY_CLOUD_NAME,
-        api_secret: env.CLOUDINARY_API_SECRET,
+        cloud_name: cloudName,
+        api_secret: apiSecret,
         secure: true,
       });
       logger.warn(`Storage provider initialized with partial Cloudinary config (waiting for CLOUDINARY_API_KEY)`);
@@ -52,14 +67,14 @@ export class CloudinaryStorageProvider implements IStorageProvider {
   ): Promise<FileUploadResult> {
     return this.uploadBuffer(
       file.buffer,
-      file.originalname,
+      options?.filename || file.originalname,
       options?.contentType || file.mimetype,
       folder
     );
   }
 
   /**
-   * Upload buffer to Cloudinary
+   * Upload buffer to Cloudinary with fallback to local storage
    */
   async uploadBuffer(
     buffer: Buffer,
@@ -67,59 +82,74 @@ export class CloudinaryStorageProvider implements IStorageProvider {
     contentType: string,
     folder?: string
   ): Promise<FileUploadResult> {
-    return new Promise((resolve, reject) => {
-      // Remove extension for public_id
-      const publicIdName = filename.replace(/\.[^/.]+$/, '');
-      const timestamp = Date.now();
-      const publicId = `${publicIdName}_${timestamp}`;
+    if (!this.isConfigured) {
+      logger.warn('Cloudinary not fully configured, falling back to local storage');
+      return this.localFallback.uploadBuffer(buffer, filename, contentType, folder);
+    }
 
-      const uploadOptions: Record<string, any> = {
-        public_id: publicId,
-        resource_type: 'auto',
-      };
+    try {
+      return await new Promise<FileUploadResult>((resolve, reject) => {
+        // Remove extension for public_id
+        const publicIdName = filename.replace(/\.[^/.]+$/, '');
+        const timestamp = Date.now();
+        const publicId = `${publicIdName}_${timestamp}`;
 
-      if (folder) {
-        uploadOptions.folder = folder;
-      }
+        const uploadOptions: Record<string, any> = {
+          public_id: publicId,
+          resource_type: 'auto',
+        };
 
-      const stream = cloudinary.uploader.upload_stream(
-        uploadOptions,
-        (error, result: UploadApiResponse | undefined) => {
-          if (error || !result) {
-            logger.error('Cloudinary upload error:', error);
-            return reject(new Error(`Cloudinary upload failed: ${error?.message || 'Unknown error'}`));
-          }
-
-          const key = result.public_id;
-          const url = result.secure_url;
-
-          logger.info(`File uploaded to Cloudinary successfully: ${key}`);
-
-          resolve({
-            filename: `${result.public_id}.${result.format || 'jpg'}`,
-            key: key,
-            url: url,
-            size: result.bytes || buffer.length,
-            mimetype: contentType,
-            bucket: env.CLOUDINARY_CLOUD_NAME || 'cloudinary',
-          });
+        if (folder) {
+          uploadOptions.folder = folder;
         }
-      );
 
-      stream.end(buffer);
-    });
+        const stream = cloudinary.uploader.upload_stream(
+          uploadOptions,
+          (error, result: UploadApiResponse | undefined) => {
+            if (error || !result) {
+              logger.error('Cloudinary upload error:', error);
+              return reject(new Error(`Cloudinary upload failed: ${error?.message || 'Unknown error'}`));
+            }
+
+            const key = result.public_id;
+            const url = result.secure_url;
+
+            logger.info(`File uploaded to Cloudinary successfully: ${key}`);
+
+            resolve({
+              filename: `${result.public_id}.${result.format || 'jpg'}`,
+              key: key,
+              url: url,
+              size: result.bytes || buffer.length,
+              mimetype: contentType,
+              bucket: env.CLOUDINARY_CLOUD_NAME || 'cloudinary',
+            });
+          }
+        );
+
+        stream.end(buffer);
+      });
+    } catch (error: any) {
+      logger.warn(`Cloudinary upload failed (${error?.message}). Falling back to local storage...`);
+      return this.localFallback.uploadBuffer(buffer, filename, contentType, folder);
+    }
   }
 
   /**
-   * Delete file from Cloudinary
+   * Delete file from Cloudinary or local storage
    */
   async delete(key: string): Promise<void> {
     try {
+      if (await this.localFallback.exists(key)) {
+        await this.localFallback.delete(key);
+        return;
+      }
       await cloudinary.uploader.destroy(key);
       logger.info(`File deleted from Cloudinary: ${key}`);
     } catch (error: any) {
       logger.error(`Failed to delete file ${key} from Cloudinary:`, error);
-      throw new Error(`Cloudinary deletion failed: ${error?.message || 'Unknown error'}`);
+      // Fallback: try deleting locally if exists
+      await this.localFallback.delete(key);
     }
   }
 
@@ -135,12 +165,12 @@ export class CloudinaryStorageProvider implements IStorageProvider {
    */
   async exists(key: string): Promise<boolean> {
     try {
+      if (await this.localFallback.exists(key)) {
+        return true;
+      }
       await cloudinary.api.resource(key);
       return true;
     } catch (error: any) {
-      if (error?.http_code === 404) {
-        return false;
-      }
       return false;
     }
   }
@@ -150,6 +180,9 @@ export class CloudinaryStorageProvider implements IStorageProvider {
    */
   async getMetadata(key: string): Promise<FileMetadata | null> {
     try {
+      if (await this.localFallback.exists(key)) {
+        return this.localFallback.getMetadata(key);
+      }
       const resource = await cloudinary.api.resource(key);
       return {
         key: resource.public_id,
@@ -180,7 +213,7 @@ export class CloudinaryStorageProvider implements IStorageProvider {
       }));
     } catch (error) {
       logger.error('Failed to list Cloudinary files:', error);
-      return [];
+      return this.localFallback.listFiles(prefix);
     }
   }
 
@@ -188,6 +221,9 @@ export class CloudinaryStorageProvider implements IStorageProvider {
    * Download file buffer
    */
   async downloadFileBuffer(key: string): Promise<Buffer> {
+    if (await this.localFallback.exists(key)) {
+      return this.localFallback.downloadFileBuffer(key);
+    }
     const url = this.getPublicUrl(key);
     const response = await fetch(url);
     const arrayBuffer = await response.arrayBuffer();

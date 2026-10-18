@@ -19,6 +19,27 @@ class ProductService {
     static normalizeImageUrl(imagePath) {
         if (!imagePath)
             return null;
+        // 1. If it's a Cloudinary URL or external image from cloudinary.com, keep it intact
+        if (imagePath.includes('cloudinary.com') || imagePath.includes('res.cloudinary.com')) {
+            return imagePath;
+        }
+        // 2. Local uploads folder
+        if (imagePath.startsWith('/uploads/')) {
+            let baseUrl = env_1.env.API_BASE_URL || env_1.env.APP_URL;
+            if (!baseUrl) {
+                const protocol = env_1.env.STORAGE_USE_SSL ? 'https' : 'http';
+                const networkIP = (0, helpers_1.getLocalNetworkIP)();
+                const host = process.env.API_HOST || networkIP || 'localhost';
+                const port = env_1.env.PORT || 3001;
+                baseUrl = `${protocol}://${host}:${port}`;
+            }
+            baseUrl = baseUrl.replace(/\/$/, '');
+            return `${baseUrl}${imagePath}`;
+        }
+        if (imagePath.includes('/uploads/')) {
+            return imagePath;
+        }
+        // 3. MinIO /storage/ path
         if (imagePath.startsWith('/storage/')) {
             let baseUrl = env_1.env.API_BASE_URL || env_1.env.APP_URL;
             if (!baseUrl) {
@@ -49,45 +70,31 @@ class ProductService {
             }
             return imagePath;
         }
-        try {
-            const url = new URL(imagePath);
-            const pathParts = url.pathname.split('/').filter(Boolean);
-            // Find bucket (usually first part after domain)
-            if (pathParts.length >= 2) {
-                const bucket = pathParts[0];
-                const key = pathParts.slice(1).join('/');
-                // Get base URL
-                let baseUrl = env_1.env.API_BASE_URL || env_1.env.APP_URL || env_1.env.FRONTEND_URL;
-                if (!baseUrl) {
-                    const protocol = env_1.env.STORAGE_USE_SSL ? 'https' : 'http';
-                    const networkIP = (0, helpers_1.getLocalNetworkIP)();
-                    const host = process.env.API_HOST || networkIP || 'localhost';
-                    const port = env_1.env.NGINX_HTTP_PORT || 8080;
-                    baseUrl = `${protocol}://${host}:${port}`;
+        // 4. Legacy MinIO URLs with :9000 or minio in hostname
+        if (imagePath.includes(':9000') || imagePath.includes('minio')) {
+            try {
+                const url = new URL(imagePath);
+                const pathParts = url.pathname.split('/').filter(Boolean);
+                if (pathParts.length >= 2) {
+                    const bucket = pathParts[0];
+                    const key = pathParts.slice(1).join('/');
+                    let baseUrl = env_1.env.API_BASE_URL || env_1.env.APP_URL || env_1.env.FRONTEND_URL;
+                    if (!baseUrl) {
+                        const protocol = env_1.env.STORAGE_USE_SSL ? 'https' : 'http';
+                        const networkIP = (0, helpers_1.getLocalNetworkIP)();
+                        const host = process.env.API_HOST || networkIP || 'localhost';
+                        const port = env_1.env.NGINX_HTTP_PORT || 8080;
+                        baseUrl = `${protocol}://${host}:${port}`;
+                    }
+                    baseUrl = baseUrl.replace(/\/$/, '');
+                    return `${baseUrl}/storage/${bucket}/${key}`;
                 }
-                baseUrl = baseUrl.replace(/\/$/, '');
-                // Return new format URL
-                return `${baseUrl}/storage/${bucket}/${key}`;
+            }
+            catch (error) {
+                // Fall through
             }
         }
-        catch (error) {
-            const match = imagePath.match(/\/([^\/]+)\/(.+)$/);
-            if (match) {
-                const bucket = match[1];
-                const key = match[2];
-                let baseUrl = env_1.env.API_BASE_URL || env_1.env.APP_URL || env_1.env.FRONTEND_URL;
-                if (!baseUrl) {
-                    const protocol = env_1.env.STORAGE_USE_SSL ? 'https' : 'http';
-                    const networkIP = (0, helpers_1.getLocalNetworkIP)();
-                    const host = process.env.API_HOST || networkIP || 'localhost';
-                    const port = env_1.env.NGINX_HTTP_PORT || 8080;
-                    baseUrl = `${protocol}://${host}:${port}`;
-                }
-                baseUrl = baseUrl.replace(/\/$/, '');
-                return `${baseUrl}/storage/${bucket}/${key}`;
-            }
-        }
-        // If we can't parse it, return as is (might be external URL)
+        // Otherwise return as is (external URL)
         return imagePath;
     }
     /**

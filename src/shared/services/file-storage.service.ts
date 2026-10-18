@@ -167,6 +167,28 @@ export class FileStorageService {
    */
   extractKeyFromUrl(url: string): string | null {
     try {
+      // 1. Local uploads URL
+      if (url.includes('/uploads/')) {
+        const idx = url.indexOf('/uploads/');
+        return url.substring(idx + '/uploads/'.length);
+      }
+
+      // 2. Cloudinary URL
+      if (url.includes('cloudinary.com')) {
+        const urlObj = new URL(url);
+        const parts = urlObj.pathname.split('/').filter(Boolean);
+        const uploadIdx = parts.indexOf('upload');
+        if (uploadIdx !== -1 && uploadIdx < parts.length - 1) {
+          let keyParts = parts.slice(uploadIdx + 1);
+          if (keyParts[0] && keyParts[0].startsWith('v') && /^\d+$/.test(keyParts[0].slice(1))) {
+            keyParts = keyParts.slice(1);
+          }
+          const fullKey = keyParts.join('/');
+          return fullKey.replace(/\.[^/.]+$/, '');
+        }
+      }
+
+      // 3. MinIO / S3 URL
       const urlObj = new URL(url);
       const pathParts = urlObj.pathname.split('/').filter(Boolean);
       
@@ -191,6 +213,11 @@ export class FileStorageService {
       return null;
     } catch {
       // If URL parsing fails, try simple string extraction
+      if (url.includes('/uploads/')) {
+        const idx = url.indexOf('/uploads/');
+        return url.substring(idx + '/uploads/'.length);
+      }
+
       const urlParts = url.split('/').filter(Boolean);
       const bucketNames = ['stock-pos-storage', env.STORAGE_BUCKET].filter(Boolean);
       

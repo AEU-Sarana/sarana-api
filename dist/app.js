@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const path_1 = __importDefault(require("path"));
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
@@ -99,6 +100,7 @@ if (env_1.env.NODE_ENV !== 'production') {
 app.use(response_timezone_middleware_1.responseTimezoneMiddleware);
 // Storage routes (for serving files) - must be before API routes
 app.use('/', storage_routes_1.default);
+app.use('/uploads', express_1.default.static(path_1.default.join(process.cwd(), 'uploads')));
 // API routes
 app.use('/api', audit_mutation_middleware_1.auditMutationMiddleware);
 app.use('/api', api_1.default);

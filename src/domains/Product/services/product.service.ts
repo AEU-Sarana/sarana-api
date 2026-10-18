@@ -26,9 +26,31 @@ export class ProductService {
   static normalizeImageUrl(imagePath: string | null): string | null {
     if (!imagePath) return null;
 
+    // 1. If it's a Cloudinary URL or external image from cloudinary.com, keep it intact
+    if (imagePath.includes('cloudinary.com') || imagePath.includes('res.cloudinary.com')) {
+      return imagePath;
+    }
 
+    // 2. Local uploads folder
+    if (imagePath.startsWith('/uploads/')) {
+      let baseUrl = env.API_BASE_URL || env.APP_URL;
+      if (!baseUrl) {
+        const protocol = env.STORAGE_USE_SSL ? 'https' : 'http';
+        const networkIP = getLocalNetworkIP();
+        const host = process.env.API_HOST || networkIP || 'localhost';
+        const port = env.PORT || 3001;
+        baseUrl = `${protocol}://${host}:${port}`;
+      }
+      baseUrl = baseUrl.replace(/\/$/, '');
+      return `${baseUrl}${imagePath}`;
+    }
+
+    if (imagePath.includes('/uploads/')) {
+      return imagePath;
+    }
+
+    // 3. MinIO /storage/ path
     if (imagePath.startsWith('/storage/')) {
-
       let baseUrl = env.API_BASE_URL || env.APP_URL;
       if (!baseUrl) {
         const protocol = env.STORAGE_USE_SSL ? 'https' : 'http';
@@ -40,7 +62,6 @@ export class ProductService {
       baseUrl = baseUrl.replace(/\/$/, '');
       return imagePath.startsWith('http') ? imagePath : `${baseUrl}${imagePath}`;
     }
-
 
     if (imagePath.includes('/storage/')) {
       try {
@@ -61,51 +82,34 @@ export class ProductService {
       return imagePath;
     }
 
+    // 4. Legacy MinIO URLs with :9000 or minio in hostname
+    if (imagePath.includes(':9000') || imagePath.includes('minio')) {
+      try {
+        const url = new URL(imagePath);
+        const pathParts = url.pathname.split('/').filter(Boolean);
 
-    try {
-      const url = new URL(imagePath);
-      const pathParts = url.pathname.split('/').filter(Boolean);
+        if (pathParts.length >= 2) {
+          const bucket = pathParts[0];
+          const key = pathParts.slice(1).join('/');
 
-      // Find bucket (usually first part after domain)
-      if (pathParts.length >= 2) {
-        const bucket = pathParts[0];
-        const key = pathParts.slice(1).join('/');
+          let baseUrl = env.API_BASE_URL || env.APP_URL || env.FRONTEND_URL;
+          if (!baseUrl) {
+            const protocol = env.STORAGE_USE_SSL ? 'https' : 'http';
+            const networkIP = getLocalNetworkIP();
+            const host = process.env.API_HOST || networkIP || 'localhost';
+            const port = env.NGINX_HTTP_PORT || 8080;
+            baseUrl = `${protocol}://${host}:${port}`;
+          }
+          baseUrl = baseUrl.replace(/\/$/, '');
 
-        // Get base URL
-        let baseUrl = env.API_BASE_URL || env.APP_URL || env.FRONTEND_URL;
-        if (!baseUrl) {
-          const protocol = env.STORAGE_USE_SSL ? 'https' : 'http';
-          const networkIP = getLocalNetworkIP();
-          const host = process.env.API_HOST || networkIP || 'localhost';
-          const port = env.NGINX_HTTP_PORT || 8080;
-          baseUrl = `${protocol}://${host}:${port}`;
+          return `${baseUrl}/storage/${bucket}/${key}`;
         }
-        baseUrl = baseUrl.replace(/\/$/, '');
-
-        // Return new format URL
-        return `${baseUrl}/storage/${bucket}/${key}`;
-      }
-    } catch (error) {
-      const match = imagePath.match(/\/([^\/]+)\/(.+)$/);
-      if (match) {
-        const bucket = match[1];
-        const key = match[2];
-
-        let baseUrl = env.API_BASE_URL || env.APP_URL || env.FRONTEND_URL;
-        if (!baseUrl) {
-          const protocol = env.STORAGE_USE_SSL ? 'https' : 'http';
-          const networkIP = getLocalNetworkIP();
-          const host = process.env.API_HOST || networkIP || 'localhost';
-          const port = env.NGINX_HTTP_PORT || 8080;
-          baseUrl = `${protocol}://${host}:${port}`;
-        }
-        baseUrl = baseUrl.replace(/\/$/, '');
-
-        return `${baseUrl}/storage/${bucket}/${key}`;
+      } catch (error) {
+        // Fall through
       }
     }
 
-    // If we can't parse it, return as is (might be external URL)
+    // Otherwise return as is (external URL)
     return imagePath;
   }
   /**

@@ -1,3 +1,4 @@
+import path from 'path';
 import express, { type Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -111,6 +112,7 @@ app.use(responseTimezoneMiddleware);
 
 // Storage routes (for serving files) - must be before API routes
 app.use('/', storageRoutes);
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // API routes
 app.use('/api', auditMutationMiddleware);
