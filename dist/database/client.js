@@ -44,6 +44,9 @@ const closePool = async () => {
     }
 };
 exports.closeDatabase = closePool;
-process.on('beforeExit', closePool);
+if (!process.env.VERCEL) {
+    process.once('SIGINT', closePool);
+    process.once('SIGTERM', closePool);
+}
 exports.default = prisma;
 //# sourceMappingURL=client.js.map

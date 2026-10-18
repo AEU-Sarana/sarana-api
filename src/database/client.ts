@@ -52,7 +52,10 @@ const closePool = async () => {
   }
 };
 
-process.on('beforeExit', closePool);
+if (!process.env.VERCEL) {
+  process.once('SIGINT', closePool);
+  process.once('SIGTERM', closePool);
+}
 
 export { closePool as closeDatabase };
 
