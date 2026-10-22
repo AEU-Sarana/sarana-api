@@ -50,6 +50,9 @@ var Permission;
     Permission["SETTINGS_UPDATE"] = "SETTINGS_UPDATE";
     // Dashboard
     Permission["DASHBOARD_VIEW"] = "DASHBOARD_VIEW";
+    // Audit
+    Permission["AUDIT_VIEW"] = "AUDIT_VIEW";
+    Permission["AUDIT_EXPORT"] = "AUDIT_EXPORT";
 })(Permission || (exports.Permission = Permission = {}));
 var Role;
 (function (Role) {
@@ -104,6 +107,9 @@ exports.ROLE_PERMISSIONS = {
         Permission.SETTINGS_UPDATE,
         // Dashboard - All
         Permission.DASHBOARD_VIEW,
+        // Audit - All
+        Permission.AUDIT_VIEW,
+        Permission.AUDIT_EXPORT,
     ],
     [Role.CASHIER]: [
         // Auth - Limited

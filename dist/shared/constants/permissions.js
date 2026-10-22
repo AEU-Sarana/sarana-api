@@ -185,6 +185,15 @@ exports.SYSTEM_FEATURES = [
         defaultCashier: false,
         supportedActions: ['read', 'create', 'all'],
     },
+    // Security & Audit
+    {
+        key: 'security.audit_logs',
+        name: 'View Security Audit Logs',
+        category: 'Customers & Users',
+        description: 'Inspect full audit trail, staff actions, diffs, and security activities',
+        defaultCashier: false,
+        supportedActions: ['read', 'all'],
+    },
 ];
 exports.DEFAULT_CASHIER_PERMISSIONS = exports.SYSTEM_FEATURES
     .filter((f) => f.defaultCashier)

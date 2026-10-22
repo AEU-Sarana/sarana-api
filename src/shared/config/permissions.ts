@@ -52,6 +52,10 @@ export enum Permission {
 
   // Dashboard
   DASHBOARD_VIEW = 'DASHBOARD_VIEW',
+
+  // Audit
+  AUDIT_VIEW = 'AUDIT_VIEW',
+  AUDIT_EXPORT = 'AUDIT_EXPORT',
 }
 
 export enum Role {
@@ -115,6 +119,10 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
 
     // Dashboard - All
     Permission.DASHBOARD_VIEW,
+
+    // Audit - All
+    Permission.AUDIT_VIEW,
+    Permission.AUDIT_EXPORT,
   ],
 
   [Role.CASHIER]: [

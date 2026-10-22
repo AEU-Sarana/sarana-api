@@ -23,6 +23,7 @@ const permission_routes_1 = __importDefault(require("../../domains/Auth/routes/V
 const supplier_routes_1 = __importDefault(require("../../domains/Supplier/routes/V1/supplier.routes"));
 const po_routes_1 = __importDefault(require("../../domains/Purchasing/routes/V1/po.routes"));
 const payment_method_routes_1 = __importDefault(require("../../domains/Setting/routes/V1/payment-method.routes"));
+const audit_routes_1 = __importDefault(require("./audit.routes"));
 const router = (0, express_1.Router)();
 // Mount route modules
 router.use('/', permission_routes_1.default);
@@ -43,5 +44,6 @@ router.use('/customers', customer_routes_1.default);
 router.use('/suppliers', supplier_routes_1.default);
 router.use('/purchasing', po_routes_1.default);
 router.use('/payment-methods', payment_method_routes_1.default);
+router.use('/audit-logs', audit_routes_1.default);
 exports.default = router;
 //# sourceMappingURL=index.js.map
