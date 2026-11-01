@@ -6,7 +6,7 @@ export interface UserSeedData {
   passwordHash: string;
   pinHash?: string;
   fullName: string;
-  role: 'ADMIN' | 'CASHIER';
+  role: 'ADMINISTRATOR' | 'ADMIN' | 'CASHIER';
   phone?: string;
   status: 'active' | 'inactive';
   deviceId?: string;
@@ -16,12 +16,22 @@ export interface UserSeedData {
 
 export const userSeedData: UserSeedData[] = [
   {
+    username: 'administrator',
+    email: 'administrator@gmail.com',
+    passwordHash: bcrypt.hashSync('Admin123!', 10),
+    fullName: 'System Administrator',
+    role: 'ADMINISTRATOR',
+    phone: '012345678',
+    status: 'active',
+    tenantId: 1,
+  },
+  {
     username: 'admin',
     email: 'admin@gmail.com',
     passwordHash: bcrypt.hashSync('Admin123!', 10),
-    fullName: 'System Administrator',
+    fullName: 'Store Admin',
     role: 'ADMIN',
-    phone: '012345678',
+    phone: '012345677',
     status: 'active',
     tenantId: 1,
   },

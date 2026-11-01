@@ -9,14 +9,14 @@ const router = (0, express_1.Router)();
 // All audit routes require authentication and manage permission (Admin automatically has full access)
 router.use(auth_middleware_1.authenticateToken);
 // 1. Get filter dropdown options
-router.get('/filters', (0, auth_middleware_1.requirePermission)('users.manage', 'read'), audit_controller_1.AuditController.getFilterOptions);
+router.get('/filters', (0, auth_middleware_1.requirePermission)('security.audit_logs', 'read'), audit_controller_1.AuditController.getFilterOptions);
 // 2. Get summary statistics and trends
-router.get('/stats', (0, auth_middleware_1.requirePermission)('users.manage', 'read'), audit_controller_1.AuditController.getStats);
+router.get('/stats', (0, auth_middleware_1.requirePermission)('security.audit_logs', 'read'), audit_controller_1.AuditController.getStats);
 // 3. Export audit logs to CSV
-router.get('/export', (0, auth_middleware_1.requirePermission)('users.manage', 'read'), audit_controller_1.AuditController.exportLogs);
+router.get('/export', (0, auth_middleware_1.requirePermission)('security.audit_logs', 'read'), audit_controller_1.AuditController.exportLogs);
 // 4. List audit logs with pagination and filters
-router.get('/', (0, auth_middleware_1.requirePermission)('users.manage', 'read'), ...(0, validation_middleware_1.validateRequest)(audit_validator_1.listAuditLogsValidator), audit_controller_1.AuditController.listLogs);
+router.get('/', (0, auth_middleware_1.requirePermission)('security.audit_logs', 'read'), ...(0, validation_middleware_1.validateRequest)(audit_validator_1.listAuditLogsValidator), audit_controller_1.AuditController.listLogs);
 // 5. Get audit log by ID
-router.get('/:id', (0, auth_middleware_1.requirePermission)('users.manage', 'read'), ...(0, validation_middleware_1.validateRequest)(audit_validator_1.getAuditLogValidator), audit_controller_1.AuditController.getLogDetails);
+router.get('/:id', (0, auth_middleware_1.requirePermission)('security.audit_logs', 'read'), ...(0, validation_middleware_1.validateRequest)(audit_validator_1.getAuditLogValidator), audit_controller_1.AuditController.getLogDetails);
 exports.default = router;
 //# sourceMappingURL=audit.routes.js.map

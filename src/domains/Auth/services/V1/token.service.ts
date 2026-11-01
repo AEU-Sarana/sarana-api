@@ -7,7 +7,7 @@ import { AccessTokenPayload } from '../../types/V2/auth.types';
 export class TokenService {
   static generateAccessToken(payload: {
     userId: number;
-    role: 'ADMIN' | 'CASHIER';
+    role: 'ADMINISTRATOR' | 'ADMIN' | 'CASHIER' | string;
     deviceId?: string;
   }): string {
     const claims: AccessTokenPayload = {

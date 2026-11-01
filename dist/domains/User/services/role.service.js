@@ -13,6 +13,44 @@ class RoleService {
      * List all roles with permission details and user count
      */
     static async listRoles() {
+        // Ensure default system roles exist
+        const systemRoles = [
+            {
+                key: 'ADMINISTRATOR',
+                name: 'Administrator',
+                description: 'Full system administration: users, roles, settings, backups & audit logs',
+                isSystem: true,
+            },
+            {
+                key: 'ADMIN',
+                name: 'Admin (Store Manager)',
+                description: 'Store operations: products, stock, purchasing, sales, reports & customers',
+                isSystem: true,
+            },
+            {
+                key: 'CASHIER',
+                name: 'Cashier',
+                description: 'POS sales checkout, receipt printing & limited catalog view',
+                isSystem: true,
+            },
+        ];
+        try {
+            for (const sr of systemRoles) {
+                await client_1.default.role.upsert({
+                    where: { key: sr.key },
+                    update: { isSystem: true },
+                    create: {
+                        key: sr.key,
+                        name: sr.name,
+                        description: sr.description,
+                        isSystem: true,
+                    },
+                });
+            }
+        }
+        catch (e) {
+            // Ignore if concurrent seed or DB lock
+        }
         const roles = await client_1.default.role.findMany({
             include: {
                 role_permissions: true,

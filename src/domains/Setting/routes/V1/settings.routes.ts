@@ -1,6 +1,6 @@
 import { Router, type IRouter } from 'express';
 import { authenticateToken } from '@src/shared/middleware/auth.middleware';
-import { requireAdmin, requirePermission } from '@src/shared/middleware/authorization.middleware';
+import { requireAdministrator, requirePermission } from '@src/shared/middleware/authorization.middleware';
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
 import { Permission } from '@src/shared/config/permissions';
 import { SettingsController } from '@src/domains/Setting/controllers/V1/settings.controller';
@@ -11,18 +11,18 @@ const router: IRouter = Router();
 // All routes require authentication
 router.use(authenticateToken);
 
-// Get settings - Admin only
+// Get settings - Administrator only
 router.get(
   '/',
-  requireAdmin,
+  requireAdministrator,
   requirePermission(Permission.SETTINGS_VIEW),
   SettingsController.getSettings
 );
 
-// Update settings - Admin only
+// Update settings - Administrator only
 router.put(
   '/',
-  requireAdmin,
+  requireAdministrator,
   requirePermission(Permission.SETTINGS_UPDATE),
   ...validateRequest(updateSettingsValidator),
   SettingsController.updateSettings

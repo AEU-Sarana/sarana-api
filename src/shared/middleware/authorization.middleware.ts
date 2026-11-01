@@ -67,14 +67,34 @@ export function requirePermission(...permissions: Permission[]) {
 
 
 /**
- * Middleware to require admin role
+ * Middleware to require administrator role (Super Admin)
+ */
+export function requireAdministrator(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  const roleUpper = (req.user?.role || '').toUpperCase();
+  if (roleUpper === 'ADMINISTRATOR' || roleUpper === 'SUPER_ADMIN') {
+    next();
+    return;
+  }
+  res.status(403).json({
+    success: false,
+    message: 'Administrator clearance required',
+    code: 'FORBIDDEN_ADMINISTRATOR_ONLY',
+  });
+}
+
+/**
+ * Middleware to require admin role (Administrator or Admin)
  */
 export function requireAdmin(
   req: Request,
   res: Response,
   next: NextFunction
 ): void {
-  requireRole(Role.ADMIN)(req, res, next);
+  requireRole(Role.ADMINISTRATOR, Role.ADMIN, 'SUPER_ADMIN')(req, res, next);
 }
 
 /**
@@ -85,7 +105,7 @@ export function requireAdminOrCashier(
   res: Response,
   next: NextFunction
 ): void {
-  requireRole(Role.ADMIN, Role.CASHIER)(req, res, next);
+  requireRole(Role.ADMINISTRATOR, Role.ADMIN, Role.CASHIER, 'SUPER_ADMIN')(req, res, next);
 }
 
 export const requireAdminOrSeller = requireAdminOrCashier;

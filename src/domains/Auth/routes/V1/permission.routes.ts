@@ -1,6 +1,6 @@
 import { Router, type IRouter } from 'express';
 import { PermissionController } from '../../controllers/V1/permission.controller';
-import { authenticateToken, requireAdmin } from '@src/shared/middleware/auth.middleware';
+import { authenticateToken, requireAdministrator } from '@src/shared/middleware/auth.middleware';
 
 const router: IRouter = Router();
 
@@ -15,7 +15,7 @@ router.get(
 router.get(
   '/users/:id/permissions',
   authenticateToken,
-  requireAdmin,
+  requireAdministrator,
   PermissionController.getUserPermissions
 );
 
@@ -23,7 +23,7 @@ router.get(
 router.put(
   '/users/:id/permissions',
   authenticateToken,
-  requireAdmin,
+  requireAdministrator,
   PermissionController.updateUserPermissions
 );
 

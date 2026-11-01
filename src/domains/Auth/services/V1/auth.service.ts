@@ -166,8 +166,8 @@ export class AuthService {
       throw new Error('User account is not active');
     }
 
-    // Restriction: Only Admin accounts can reset password via OTP
-    if (otp.role !== 'ADMIN') {
+    // Restriction: Only Admin/Administrator accounts can reset password via OTP
+    if (otp.role !== 'ADMIN' && otp.role !== 'ADMINISTRATOR' && otp.role !== 'SUPER_ADMIN') {
       throw new Error('This account is not eligible for OTP password reset. Please contact admin.');
     }
 
@@ -207,8 +207,8 @@ export class AuthService {
       return;
     }
 
-    // Restriction: Only Admin accounts can reset password via OTP
-    if (user.role !== 'ADMIN') {
+    // Restriction: Only Admin/Administrator accounts can reset password via OTP
+    if (user.role !== 'ADMIN' && user.role !== 'ADMINISTRATOR' && user.role !== 'SUPER_ADMIN') {
       throw new Error('This account is not eligible for OTP password reset. Please contact admin.');
     }
 
@@ -351,7 +351,7 @@ export class AuthService {
 
     const accessToken = TokenService.generateAccessToken({
       userId: user.userId,
-      role: user.role as 'ADMIN' | 'CASHIER',
+      role: user.role as any,
     });
 
     const permissions = await permissionService.getUserPermissions(user.userId, user.role);
@@ -430,7 +430,7 @@ export class AuthService {
 
     const accessToken = TokenService.generateAccessToken({
       userId: session.userId,
-      role: session.user.role as 'ADMIN' | 'CASHIER',
+      role: session.user.role as any,
       deviceId: session.deviceId ?? undefined,
     });
 

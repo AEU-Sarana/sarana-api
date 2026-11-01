@@ -12,9 +12,26 @@ export class PermissionService {
    * Get feature permissions for a user
    */
   async getUserPermissions(userId: number, role: string): Promise<UserPermissionItem[]> {
-    // ADMIN has 100% full feature access automatically
-    if (role === 'ADMIN') {
+    const roleUpper = (role || '').toUpperCase();
+
+    // 1. ADMINISTRATOR has 100% full feature access automatically
+    if (roleUpper === 'ADMINISTRATOR' || roleUpper === 'SUPER_ADMIN') {
       return SYSTEM_FEATURES.map((f) => ({
+        featureKey: f.key,
+        actions: ['all', 'read', 'create', 'update', 'delete'] as PermissionAction[],
+      }));
+    }
+
+    // 2. ADMIN has full operational access EXCEPT the 5 restricted permissions
+    if (roleUpper === 'ADMIN') {
+      const restrictedFeatures = [
+        'users.manage',
+        'roles.manage',
+        'settings.manage',
+        'backup.manage',
+        'security.audit_logs',
+      ];
+      return SYSTEM_FEATURES.filter((f) => !restrictedFeatures.includes(f.key)).map((f) => ({
         featureKey: f.key,
         actions: ['all', 'read', 'create', 'update', 'delete'] as PermissionAction[],
       }));
@@ -37,7 +54,7 @@ export class PermissionService {
   }
 
   /**
-   * Update feature permissions for a user (Admin only)
+   * Update feature permissions for a user (Administrator only)
    */
   async updateUserPermissions(
     targetUserId: number,
@@ -53,7 +70,8 @@ export class PermissionService {
       throw new Error('User not found');
     }
 
-    if (targetUser.role === 'ADMIN') {
+    const targetRoleUpper = (targetUser.role || '').toUpperCase();
+    if (targetRoleUpper === 'ADMINISTRATOR' || targetRoleUpper === 'SUPER_ADMIN') {
       return SYSTEM_FEATURES.map((f) => ({
         featureKey: f.key,
         actions: ['all', 'read', 'create', 'update', 'delete'] as PermissionAction[],

@@ -9,7 +9,7 @@ import {
   updateReceiptSettingsValidator,
   uploadReceiptLogoValidator,
 } from '@src/domains/Receipt/validators/V1';
-import { requireAdmin } from '@src/shared/middleware/authorization.middleware';
+import { requireAdministrator } from '@src/shared/middleware/authorization.middleware';
 
 const router: IRouter = Router();
 
@@ -32,7 +32,7 @@ router.get(
 router.put(
   '/admin/receipt-settings',
   ...validateRequest(updateReceiptSettingsValidator),
-  requireAdmin,
+  requireAdministrator,
   ReceiptSettingsController.updateSettings
 );
 
@@ -42,7 +42,7 @@ import { productImageUploadAny } from '@src/shared/utils/multer.config';
 router.post(
   '/admin/receipt-settings/logo',
   authenticateToken,
-  requireAdmin,
+  requireAdministrator,
   productImageUploadAny,
   ...validateRequest(uploadReceiptLogoValidator),
   ReceiptSettingsController.uploadLogo

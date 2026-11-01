@@ -1,6 +1,6 @@
 import { Router, type IRouter } from 'express';
 import { authenticateToken } from '@src/shared/middleware/auth.middleware';
-import { requireAdmin, requirePermission } from '@src/shared/middleware/authorization.middleware';
+import { requireAdministrator, requirePermission } from '@src/shared/middleware/authorization.middleware';
 import { validateRequest } from '@src/shared/middleware/validation.middleware';
 import { Permission } from '@src/shared/config/permissions';
 import { BackupController } from '@src/domains/Backup/controllers/V1/backup.controller';
@@ -16,46 +16,46 @@ const router: IRouter = Router();
 // All routes require authentication
 router.use(authenticateToken);
 
-// List backups - Admin only
+// List backups - Administrator only
 router.get(
   '/list',
-  requireAdmin,
+  requireAdministrator,
   requirePermission(Permission.BACKUP_LIST),
   ...validateRequest(listBackupsValidator),
   BackupController.listBackups
 );
 
-// Create backup - Admin only
+// Create backup - Administrator only
 router.post(
   '/create',
-  requireAdmin,
+  requireAdministrator,
   requirePermission(Permission.BACKUP_CREATE),
   ...validateRequest(createBackupValidator),
   BackupController.createBackup
 );
 
-// Restore backup - Admin only
+// Restore backup - Administrator only
 router.post(
   '/restore',
-  requireAdmin,
+  requireAdministrator,
   requirePermission(Permission.BACKUP_RESTORE),
   ...validateRequest(restoreBackupValidator),
   BackupController.restoreBackup
 );
 
-// Export data - Admin only
+// Export data - Administrator only
 router.get(
   '/export',
-  requireAdmin,
+  requireAdministrator,
   requirePermission(Permission.BACKUP_EXPORT),
   ...validateRequest(exportDataValidator),
   BackupController.exportData
 );
 
-// Download backup point - Admin only
+// Download backup point - Administrator only
 router.get(
   '/download/:id',
-  requireAdmin,
+  requireAdministrator,
   requirePermission(Permission.BACKUP_EXPORT),
   BackupController.downloadBackup
 );

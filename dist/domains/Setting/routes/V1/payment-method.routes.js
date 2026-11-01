@@ -11,10 +11,10 @@ router.use(auth_middleware_1.authenticateToken);
 router.get('/', payment_method_controller_1.PaymentMethodController.listPaymentMethods);
 // Get single payment method
 router.get('/:id', payment_method_controller_1.PaymentMethodController.getPaymentMethod);
-// Admin-only management endpoints
-router.post('/', authorization_middleware_1.requireAdmin, payment_method_controller_1.PaymentMethodController.createPaymentMethod);
-router.put('/:id', authorization_middleware_1.requireAdmin, payment_method_controller_1.PaymentMethodController.updatePaymentMethod);
-router.patch('/:id/toggle', authorization_middleware_1.requireAdmin, payment_method_controller_1.PaymentMethodController.toggleStatus);
-router.delete('/:id', authorization_middleware_1.requireAdmin, payment_method_controller_1.PaymentMethodController.deletePaymentMethod);
+// Administrator-only management endpoints
+router.post('/', authorization_middleware_1.requireAdministrator, payment_method_controller_1.PaymentMethodController.createPaymentMethod);
+router.put('/:id', authorization_middleware_1.requireAdministrator, payment_method_controller_1.PaymentMethodController.updatePaymentMethod);
+router.patch('/:id/toggle', authorization_middleware_1.requireAdministrator, payment_method_controller_1.PaymentMethodController.toggleStatus);
+router.delete('/:id', authorization_middleware_1.requireAdministrator, payment_method_controller_1.PaymentMethodController.deletePaymentMethod);
 exports.default = router;
 //# sourceMappingURL=payment-method.routes.js.map

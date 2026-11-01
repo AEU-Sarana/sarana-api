@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.authenticateToken = authenticateToken;
 exports.requireAdmin = requireAdmin;
+exports.requireAdministrator = requireAdministrator;
 exports.requirePermission = requirePermission;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const env_1 = require("../../shared/config/env");
@@ -129,11 +130,24 @@ async function authenticateToken(req, res, next) {
     next();
 }
 function requireAdmin(req, res, next) {
-    if (req.user?.role !== 'ADMIN') {
+    const userRoleUpper = (req.user?.role || '').toUpperCase();
+    if (userRoleUpper !== 'ADMIN' && userRoleUpper !== 'ADMINISTRATOR' && userRoleUpper !== 'SUPER_ADMIN') {
         res.status(403).json({
             success: false,
             message: 'Admin access required',
             code: 'FORBIDDEN_ADMIN_ONLY',
+        });
+        return;
+    }
+    next();
+}
+function requireAdministrator(req, res, next) {
+    const userRoleUpper = (req.user?.role || '').toUpperCase();
+    if (userRoleUpper !== 'ADMINISTRATOR' && userRoleUpper !== 'SUPER_ADMIN') {
+        res.status(403).json({
+            success: false,
+            message: 'Administrator clearance required',
+            code: 'FORBIDDEN_ADMINISTRATOR_ONLY',
         });
         return;
     }
@@ -145,9 +159,38 @@ function requirePermission(featureKey, requiredAction = 'read') {
             res.status(401).json({ success: false, message: 'Authentication required', code: 'UNAUTHORIZED' });
             return;
         }
-        // ADMIN has 100% full feature access automatically
         const userRoleUpper = (req.user.role || '').toUpperCase();
+        // 1. ADMINISTRATOR has 100% full feature access automatically
+        if (userRoleUpper === 'ADMINISTRATOR' || userRoleUpper === 'SUPER_ADMIN') {
+            next();
+            return;
+        }
+        // 2. System administration features that ADMIN is forbidden from accessing
+        const restrictedForAdmin = [
+            'users.manage',
+            'roles.manage',
+            'settings.manage',
+            'settings.view',
+            'settings.update',
+            'backup.manage',
+            'backup.list',
+            'backup.create',
+            'backup.restore',
+            'backup.export',
+            'security.audit_logs',
+            'audit.view',
+            'audit.export',
+        ];
         if (userRoleUpper === 'ADMIN') {
+            if (restrictedForAdmin.includes(featureKey)) {
+                res.status(403).json({
+                    success: false,
+                    message: `Access denied. Action '${requiredAction}' on feature '${featureKey}' is not permitted for role 'ADMIN'. Administrator clearance required.`,
+                    code: 'FORBIDDEN_ADMINISTRATOR_ONLY',
+                });
+                return;
+            }
+            // ADMIN has access to all operational features (products, stock, orders, reports, etc.)
             next();
             return;
         }

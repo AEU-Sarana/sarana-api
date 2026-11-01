@@ -14,7 +14,7 @@ export interface LoginResponse {
   user: {
     user_id: number;
     username: string;
-    role: 'ADMIN' | 'CASHIER';
+    role: 'ADMINISTRATOR' | 'ADMIN' | 'CASHIER' | string;
   };
 }
 
@@ -39,13 +39,13 @@ export interface LogoutRequest {
 export interface MeResponse {
   user_id: number;
   username: string;
-  role: 'ADMIN' | 'CASHIER';
+  role: 'ADMINISTRATOR' | 'ADMIN' | 'CASHIER' | string;
   status: string;
 }
 
 export interface AccessTokenPayload {
   userId: number;
-  role: 'ADMIN' | 'CASHIER';
+  role: 'ADMINISTRATOR' | 'ADMIN' | 'CASHIER' | string;
   deviceId?: string;
   jti: string;
   iat?: number;

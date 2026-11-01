@@ -8,18 +8,18 @@ const router: IRouter = Router();
 router.use(authenticateToken);
 
 // List roles
-router.get('/', requirePermission('users.manage', 'read'), RoleController.listRoles);
+router.get('/', requirePermission('roles.manage', 'read'), RoleController.listRoles);
 
 // Get role details
-router.get('/:id', requirePermission('users.manage', 'read'), RoleController.getRole);
+router.get('/:id', requirePermission('roles.manage', 'read'), RoleController.getRole);
 
 // Create custom role
-router.post('/', requirePermission('users.manage', 'create'), RoleController.createRole);
+router.post('/', requirePermission('roles.manage', 'create'), RoleController.createRole);
 
 // Update custom role
-router.put('/:id', requirePermission('users.manage', 'update'), RoleController.updateRole);
+router.put('/:id', requirePermission('roles.manage', 'update'), RoleController.updateRole);
 
 // Delete custom role
-router.delete('/:id', requirePermission('users.manage', 'delete'), RoleController.deleteRole);
+router.delete('/:id', requirePermission('roles.manage', 'delete'), RoleController.deleteRole);
 
 export default router;

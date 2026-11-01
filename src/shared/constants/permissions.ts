@@ -214,6 +214,30 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     defaultCashier: false,
     supportedActions: ['read', 'all'],
   },
+  {
+    key: 'roles.manage',
+    name: 'Manage Roles & Permissions',
+    category: 'Customers & Users',
+    description: 'Create and configure custom staff roles and permission matrices',
+    defaultCashier: false,
+    supportedActions: ['read', 'create', 'update', 'delete', 'all'],
+  },
+  {
+    key: 'settings.manage',
+    name: 'Application Settings',
+    category: 'Customers & Users',
+    description: 'Configure general system settings, currency, and invoice options',
+    defaultCashier: false,
+    supportedActions: ['read', 'update', 'all'],
+  },
+  {
+    key: 'backup.manage',
+    name: 'Database Backup & Restore',
+    category: 'Customers & Users',
+    description: 'Perform database backup snapshots, downloads, and restore points',
+    defaultCashier: false,
+    supportedActions: ['read', 'create', 'update', 'delete', 'all'],
+  },
 ];
 
 export const DEFAULT_CASHIER_PERMISSIONS: UserPermissionItem[] = SYSTEM_FEATURES

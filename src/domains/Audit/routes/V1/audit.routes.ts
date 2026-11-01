@@ -15,28 +15,28 @@ router.use(authenticateToken);
 // 1. Get filter dropdown options
 router.get(
   '/filters',
-  requirePermission('users.manage', 'read'),
+  requirePermission('security.audit_logs', 'read'),
   AuditController.getFilterOptions
 );
 
 // 2. Get summary statistics and trends
 router.get(
   '/stats',
-  requirePermission('users.manage', 'read'),
+  requirePermission('security.audit_logs', 'read'),
   AuditController.getStats
 );
 
 // 3. Export audit logs to CSV
 router.get(
   '/export',
-  requirePermission('users.manage', 'read'),
+  requirePermission('security.audit_logs', 'read'),
   AuditController.exportLogs
 );
 
 // 4. List audit logs with pagination and filters
 router.get(
   '/',
-  requirePermission('users.manage', 'read'),
+  requirePermission('security.audit_logs', 'read'),
   ...validateRequest(listAuditLogsValidator),
   AuditController.listLogs
 );
@@ -44,7 +44,7 @@ router.get(
 // 5. Get audit log by ID
 router.get(
   '/:id',
-  requirePermission('users.manage', 'read'),
+  requirePermission('security.audit_logs', 'read'),
   ...validateRequest(getAuditLogValidator),
   AuditController.getLogDetails
 );

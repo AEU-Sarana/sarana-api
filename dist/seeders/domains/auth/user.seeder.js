@@ -54,7 +54,7 @@ class UserSeeder extends base_seeder_1.BaseSeeder {
         }
         const adminIdByTenant = new Map();
         for (const user of usersByUsername.values()) {
-            if (user.role === 'ADMIN' && !adminIdByTenant.has(user.tenantId)) {
+            if ((user.role === 'ADMIN' || user.role === 'ADMINISTRATOR') && !adminIdByTenant.has(user.tenantId)) {
                 adminIdByTenant.set(user.tenantId, user.userId);
             }
         }
@@ -71,7 +71,7 @@ class UserSeeder extends base_seeder_1.BaseSeeder {
                 }
                 createdBy = creator.userId;
             }
-            else if (seededUser.role === 'ADMIN') {
+            else if (seededUser.role === 'ADMIN' || seededUser.role === 'ADMINISTRATOR') {
                 createdBy = seededUser.userId;
             }
             else {
@@ -85,7 +85,7 @@ class UserSeeder extends base_seeder_1.BaseSeeder {
             }
         }
         // Seed default permissions for CASHIER users if none assigned
-        const adminUser = Array.from(usersByUsername.values()).find((u) => u.role === 'ADMIN');
+        const adminUser = Array.from(usersByUsername.values()).find((u) => u.role === 'ADMINISTRATOR' || u.role === 'ADMIN');
         const adminId = adminUser ? adminUser.userId : 1;
         for (const user of usersByUsername.values()) {
             if (user.role === 'CASHIER') {

@@ -12,9 +12,24 @@ class PermissionService {
      * Get feature permissions for a user
      */
     async getUserPermissions(userId, role) {
-        // ADMIN has 100% full feature access automatically
-        if (role === 'ADMIN') {
+        const roleUpper = (role || '').toUpperCase();
+        // 1. ADMINISTRATOR has 100% full feature access automatically
+        if (roleUpper === 'ADMINISTRATOR' || roleUpper === 'SUPER_ADMIN') {
             return permissions_1.SYSTEM_FEATURES.map((f) => ({
+                featureKey: f.key,
+                actions: ['all', 'read', 'create', 'update', 'delete'],
+            }));
+        }
+        // 2. ADMIN has full operational access EXCEPT the 5 restricted permissions
+        if (roleUpper === 'ADMIN') {
+            const restrictedFeatures = [
+                'users.manage',
+                'roles.manage',
+                'settings.manage',
+                'backup.manage',
+                'security.audit_logs',
+            ];
+            return permissions_1.SYSTEM_FEATURES.filter((f) => !restrictedFeatures.includes(f.key)).map((f) => ({
                 featureKey: f.key,
                 actions: ['all', 'read', 'create', 'update', 'delete'],
             }));
@@ -33,7 +48,7 @@ class PermissionService {
         return permissions_1.DEFAULT_CASHIER_PERMISSIONS;
     }
     /**
-     * Update feature permissions for a user (Admin only)
+     * Update feature permissions for a user (Administrator only)
      */
     async updateUserPermissions(targetUserId, permissionsInput, grantedBy) {
         const targetUser = await client_1.default.user.findUnique({
@@ -43,7 +58,8 @@ class PermissionService {
         if (!targetUser) {
             throw new Error('User not found');
         }
-        if (targetUser.role === 'ADMIN') {
+        const targetRoleUpper = (targetUser.role || '').toUpperCase();
+        if (targetRoleUpper === 'ADMINISTRATOR' || targetRoleUpper === 'SUPER_ADMIN') {
             return permissions_1.SYSTEM_FEATURES.map((f) => ({
                 featureKey: f.key,
                 actions: ['all', 'read', 'create', 'update', 'delete'],

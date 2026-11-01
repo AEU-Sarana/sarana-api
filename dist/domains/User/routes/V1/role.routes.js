@@ -7,14 +7,14 @@ const router = (0, express_1.Router)();
 // All role routes require authentication
 router.use(auth_middleware_1.authenticateToken);
 // List roles
-router.get('/', (0, auth_middleware_1.requirePermission)('users.manage', 'read'), role_controller_1.RoleController.listRoles);
+router.get('/', (0, auth_middleware_1.requirePermission)('roles.manage', 'read'), role_controller_1.RoleController.listRoles);
 // Get role details
-router.get('/:id', (0, auth_middleware_1.requirePermission)('users.manage', 'read'), role_controller_1.RoleController.getRole);
+router.get('/:id', (0, auth_middleware_1.requirePermission)('roles.manage', 'read'), role_controller_1.RoleController.getRole);
 // Create custom role
-router.post('/', (0, auth_middleware_1.requirePermission)('users.manage', 'create'), role_controller_1.RoleController.createRole);
+router.post('/', (0, auth_middleware_1.requirePermission)('roles.manage', 'create'), role_controller_1.RoleController.createRole);
 // Update custom role
-router.put('/:id', (0, auth_middleware_1.requirePermission)('users.manage', 'update'), role_controller_1.RoleController.updateRole);
+router.put('/:id', (0, auth_middleware_1.requirePermission)('roles.manage', 'update'), role_controller_1.RoleController.updateRole);
 // Delete custom role
-router.delete('/:id', (0, auth_middleware_1.requirePermission)('users.manage', 'delete'), role_controller_1.RoleController.deleteRole);
+router.delete('/:id', (0, auth_middleware_1.requirePermission)('roles.manage', 'delete'), role_controller_1.RoleController.deleteRole);
 exports.default = router;
 //# sourceMappingURL=role.routes.js.map

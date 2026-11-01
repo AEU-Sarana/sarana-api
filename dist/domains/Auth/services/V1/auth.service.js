@@ -123,8 +123,8 @@ class AuthService {
         if (otp.status !== 'active') {
             throw new Error('User account is not active');
         }
-        // Restriction: Only Admin accounts can reset password via OTP
-        if (otp.role !== 'ADMIN') {
+        // Restriction: Only Admin/Administrator accounts can reset password via OTP
+        if (otp.role !== 'ADMIN' && otp.role !== 'ADMINISTRATOR' && otp.role !== 'SUPER_ADMIN') {
             throw new Error('This account is not eligible for OTP password reset. Please contact admin.');
         }
         // Check if OTP is expired
@@ -151,8 +151,8 @@ class AuthService {
             logger_1.logger.warn('Password reset requested for inactive user', { userId: user.userId });
             return;
         }
-        // Restriction: Only Admin accounts can reset password via OTP
-        if (user.role !== 'ADMIN') {
+        // Restriction: Only Admin/Administrator accounts can reset password via OTP
+        if (user.role !== 'ADMIN' && user.role !== 'ADMINISTRATOR' && user.role !== 'SUPER_ADMIN') {
             throw new Error('This account is not eligible for OTP password reset. Please contact admin.');
         }
         // Send password reset email (async job)
