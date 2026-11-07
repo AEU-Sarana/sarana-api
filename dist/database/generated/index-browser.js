@@ -235,6 +235,7 @@ exports.Prisma.ReceiptSettingScalarFieldEnum = {
   footerNote: 'footerNote',
   isLogoEnabled: 'isLogoEnabled',
   isFooterEnabled: 'isFooterEnabled',
+  exchangeRate: 'exchangeRate',
   updatedBy: 'updatedBy',
   updatedAt: 'updatedAt',
   createdAt: 'createdAt'

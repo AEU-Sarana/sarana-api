@@ -26,8 +26,11 @@ const payment_method_routes_1 = __importDefault(require("../../domains/Setting/r
 const audit_routes_1 = __importDefault(require("./audit.routes"));
 const router = (0, express_1.Router)();
 // Mount route modules
-router.use('/', permission_routes_1.default);
 router.use('/auth', auth_routes_1.default);
+router.use('/admin/receipt-settings', receipt_route_1.default);
+router.use('/receipts', receipt_route_1.default);
+router.use('/', receipt_route_1.default);
+router.use('/', permission_routes_1.default);
 router.use('/products', product_routes_1.default);
 router.use('/categories', category_routes_1.default);
 router.use('/stocks', stock_routes_1.default);

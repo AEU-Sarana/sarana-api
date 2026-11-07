@@ -19,4 +19,10 @@ router.get(
   DashboardController.getTopProducts
 );
 
+// Monthly revenue analytics
+router.get(
+  '/monthly-revenue',
+  DashboardController.getMonthlyRevenue
+);
+
 export default router;

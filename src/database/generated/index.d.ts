@@ -11990,11 +11990,13 @@ export namespace Prisma {
 
   export type ReceiptSettingAvgAggregateOutputType = {
     settingId: number | null
+    exchangeRate: Decimal | null
     updatedBy: number | null
   }
 
   export type ReceiptSettingSumAggregateOutputType = {
     settingId: number | null
+    exchangeRate: Decimal | null
     updatedBy: number | null
   }
 
@@ -12008,6 +12010,7 @@ export namespace Prisma {
     footerNote: string | null
     isLogoEnabled: boolean | null
     isFooterEnabled: boolean | null
+    exchangeRate: Decimal | null
     updatedBy: number | null
     updatedAt: Date | null
     createdAt: Date | null
@@ -12023,6 +12026,7 @@ export namespace Prisma {
     footerNote: string | null
     isLogoEnabled: boolean | null
     isFooterEnabled: boolean | null
+    exchangeRate: Decimal | null
     updatedBy: number | null
     updatedAt: Date | null
     createdAt: Date | null
@@ -12038,6 +12042,7 @@ export namespace Prisma {
     footerNote: number
     isLogoEnabled: number
     isFooterEnabled: number
+    exchangeRate: number
     updatedBy: number
     updatedAt: number
     createdAt: number
@@ -12047,11 +12052,13 @@ export namespace Prisma {
 
   export type ReceiptSettingAvgAggregateInputType = {
     settingId?: true
+    exchangeRate?: true
     updatedBy?: true
   }
 
   export type ReceiptSettingSumAggregateInputType = {
     settingId?: true
+    exchangeRate?: true
     updatedBy?: true
   }
 
@@ -12065,6 +12072,7 @@ export namespace Prisma {
     footerNote?: true
     isLogoEnabled?: true
     isFooterEnabled?: true
+    exchangeRate?: true
     updatedBy?: true
     updatedAt?: true
     createdAt?: true
@@ -12080,6 +12088,7 @@ export namespace Prisma {
     footerNote?: true
     isLogoEnabled?: true
     isFooterEnabled?: true
+    exchangeRate?: true
     updatedBy?: true
     updatedAt?: true
     createdAt?: true
@@ -12095,6 +12104,7 @@ export namespace Prisma {
     footerNote?: true
     isLogoEnabled?: true
     isFooterEnabled?: true
+    exchangeRate?: true
     updatedBy?: true
     updatedAt?: true
     createdAt?: true
@@ -12197,6 +12207,7 @@ export namespace Prisma {
     footerNote: string | null
     isLogoEnabled: boolean
     isFooterEnabled: boolean
+    exchangeRate: Decimal | null
     updatedBy: number | null
     updatedAt: Date
     createdAt: Date
@@ -12231,6 +12242,7 @@ export namespace Prisma {
     footerNote?: boolean
     isLogoEnabled?: boolean
     isFooterEnabled?: boolean
+    exchangeRate?: boolean
     updatedBy?: boolean
     updatedAt?: boolean
     createdAt?: boolean
@@ -12247,6 +12259,7 @@ export namespace Prisma {
     footerNote?: boolean
     isLogoEnabled?: boolean
     isFooterEnabled?: boolean
+    exchangeRate?: boolean
     updatedBy?: boolean
     updatedAt?: boolean
     createdAt?: boolean
@@ -12263,6 +12276,7 @@ export namespace Prisma {
     footerNote?: boolean
     isLogoEnabled?: boolean
     isFooterEnabled?: boolean
+    exchangeRate?: boolean
     updatedBy?: boolean
     updatedAt?: boolean
     createdAt?: boolean
@@ -12279,12 +12293,13 @@ export namespace Prisma {
     footerNote?: boolean
     isLogoEnabled?: boolean
     isFooterEnabled?: boolean
+    exchangeRate?: boolean
     updatedBy?: boolean
     updatedAt?: boolean
     createdAt?: boolean
   }
 
-  export type ReceiptSettingOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"settingId" | "storeName" | "logoPath" | "phone" | "address" | "taxId" | "footerNote" | "isLogoEnabled" | "isFooterEnabled" | "updatedBy" | "updatedAt" | "createdAt", ExtArgs["result"]["receiptSetting"]>
+  export type ReceiptSettingOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"settingId" | "storeName" | "logoPath" | "phone" | "address" | "taxId" | "footerNote" | "isLogoEnabled" | "isFooterEnabled" | "exchangeRate" | "updatedBy" | "updatedAt" | "createdAt", ExtArgs["result"]["receiptSetting"]>
   export type ReceiptSettingInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | ReceiptSetting$userArgs<ExtArgs>
   }
@@ -12310,6 +12325,7 @@ export namespace Prisma {
       footerNote: string | null
       isLogoEnabled: boolean
       isFooterEnabled: boolean
+      exchangeRate: Prisma.Decimal | null
       updatedBy: number | null
       updatedAt: Date
       createdAt: Date
@@ -12746,6 +12762,7 @@ export namespace Prisma {
     readonly footerNote: FieldRef<"ReceiptSetting", 'String'>
     readonly isLogoEnabled: FieldRef<"ReceiptSetting", 'Boolean'>
     readonly isFooterEnabled: FieldRef<"ReceiptSetting", 'Boolean'>
+    readonly exchangeRate: FieldRef<"ReceiptSetting", 'Decimal'>
     readonly updatedBy: FieldRef<"ReceiptSetting", 'Int'>
     readonly updatedAt: FieldRef<"ReceiptSetting", 'DateTime'>
     readonly createdAt: FieldRef<"ReceiptSetting", 'DateTime'>
@@ -41229,6 +41246,7 @@ export namespace Prisma {
     footerNote: 'footerNote',
     isLogoEnabled: 'isLogoEnabled',
     isFooterEnabled: 'isFooterEnabled',
+    exchangeRate: 'exchangeRate',
     updatedBy: 'updatedBy',
     updatedAt: 'updatedAt',
     createdAt: 'createdAt'
@@ -42445,6 +42463,7 @@ export namespace Prisma {
     footerNote?: StringNullableFilter<"ReceiptSetting"> | string | null
     isLogoEnabled?: BoolFilter<"ReceiptSetting"> | boolean
     isFooterEnabled?: BoolFilter<"ReceiptSetting"> | boolean
+    exchangeRate?: DecimalNullableFilter<"ReceiptSetting"> | Decimal | DecimalJsLike | number | string | null
     updatedBy?: IntNullableFilter<"ReceiptSetting"> | number | null
     updatedAt?: DateTimeFilter<"ReceiptSetting"> | Date | string
     createdAt?: DateTimeFilter<"ReceiptSetting"> | Date | string
@@ -42461,6 +42480,7 @@ export namespace Prisma {
     footerNote?: SortOrderInput | SortOrder
     isLogoEnabled?: SortOrder
     isFooterEnabled?: SortOrder
+    exchangeRate?: SortOrderInput | SortOrder
     updatedBy?: SortOrderInput | SortOrder
     updatedAt?: SortOrder
     createdAt?: SortOrder
@@ -42480,6 +42500,7 @@ export namespace Prisma {
     footerNote?: StringNullableFilter<"ReceiptSetting"> | string | null
     isLogoEnabled?: BoolFilter<"ReceiptSetting"> | boolean
     isFooterEnabled?: BoolFilter<"ReceiptSetting"> | boolean
+    exchangeRate?: DecimalNullableFilter<"ReceiptSetting"> | Decimal | DecimalJsLike | number | string | null
     updatedBy?: IntNullableFilter<"ReceiptSetting"> | number | null
     updatedAt?: DateTimeFilter<"ReceiptSetting"> | Date | string
     createdAt?: DateTimeFilter<"ReceiptSetting"> | Date | string
@@ -42496,6 +42517,7 @@ export namespace Prisma {
     footerNote?: SortOrderInput | SortOrder
     isLogoEnabled?: SortOrder
     isFooterEnabled?: SortOrder
+    exchangeRate?: SortOrderInput | SortOrder
     updatedBy?: SortOrderInput | SortOrder
     updatedAt?: SortOrder
     createdAt?: SortOrder
@@ -42519,6 +42541,7 @@ export namespace Prisma {
     footerNote?: StringNullableWithAggregatesFilter<"ReceiptSetting"> | string | null
     isLogoEnabled?: BoolWithAggregatesFilter<"ReceiptSetting"> | boolean
     isFooterEnabled?: BoolWithAggregatesFilter<"ReceiptSetting"> | boolean
+    exchangeRate?: DecimalNullableWithAggregatesFilter<"ReceiptSetting"> | Decimal | DecimalJsLike | number | string | null
     updatedBy?: IntNullableWithAggregatesFilter<"ReceiptSetting"> | number | null
     updatedAt?: DateTimeWithAggregatesFilter<"ReceiptSetting"> | Date | string
     createdAt?: DateTimeWithAggregatesFilter<"ReceiptSetting"> | Date | string
@@ -45307,6 +45330,7 @@ export namespace Prisma {
     footerNote?: string | null
     isLogoEnabled?: boolean
     isFooterEnabled?: boolean
+    exchangeRate?: Decimal | DecimalJsLike | number | string | null
     updatedAt?: Date | string
     createdAt?: Date | string
     user?: UserCreateNestedOneWithoutReceipt_settingsInput
@@ -45322,6 +45346,7 @@ export namespace Prisma {
     footerNote?: string | null
     isLogoEnabled?: boolean
     isFooterEnabled?: boolean
+    exchangeRate?: Decimal | DecimalJsLike | number | string | null
     updatedBy?: number | null
     updatedAt?: Date | string
     createdAt?: Date | string
@@ -45336,6 +45361,7 @@ export namespace Prisma {
     footerNote?: NullableStringFieldUpdateOperationsInput | string | null
     isLogoEnabled?: BoolFieldUpdateOperationsInput | boolean
     isFooterEnabled?: BoolFieldUpdateOperationsInput | boolean
+    exchangeRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneWithoutReceipt_settingsNestedInput
@@ -45351,6 +45377,7 @@ export namespace Prisma {
     footerNote?: NullableStringFieldUpdateOperationsInput | string | null
     isLogoEnabled?: BoolFieldUpdateOperationsInput | boolean
     isFooterEnabled?: BoolFieldUpdateOperationsInput | boolean
+    exchangeRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     updatedBy?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -45366,6 +45393,7 @@ export namespace Prisma {
     footerNote?: string | null
     isLogoEnabled?: boolean
     isFooterEnabled?: boolean
+    exchangeRate?: Decimal | DecimalJsLike | number | string | null
     updatedBy?: number | null
     updatedAt?: Date | string
     createdAt?: Date | string
@@ -45380,6 +45408,7 @@ export namespace Prisma {
     footerNote?: NullableStringFieldUpdateOperationsInput | string | null
     isLogoEnabled?: BoolFieldUpdateOperationsInput | boolean
     isFooterEnabled?: BoolFieldUpdateOperationsInput | boolean
+    exchangeRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -45394,6 +45423,7 @@ export namespace Prisma {
     footerNote?: NullableStringFieldUpdateOperationsInput | string | null
     isLogoEnabled?: BoolFieldUpdateOperationsInput | boolean
     isFooterEnabled?: BoolFieldUpdateOperationsInput | boolean
+    exchangeRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     updatedBy?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -48379,6 +48409,7 @@ export namespace Prisma {
     footerNote?: SortOrder
     isLogoEnabled?: SortOrder
     isFooterEnabled?: SortOrder
+    exchangeRate?: SortOrder
     updatedBy?: SortOrder
     updatedAt?: SortOrder
     createdAt?: SortOrder
@@ -48386,6 +48417,7 @@ export namespace Prisma {
 
   export type ReceiptSettingAvgOrderByAggregateInput = {
     settingId?: SortOrder
+    exchangeRate?: SortOrder
     updatedBy?: SortOrder
   }
 
@@ -48399,6 +48431,7 @@ export namespace Prisma {
     footerNote?: SortOrder
     isLogoEnabled?: SortOrder
     isFooterEnabled?: SortOrder
+    exchangeRate?: SortOrder
     updatedBy?: SortOrder
     updatedAt?: SortOrder
     createdAt?: SortOrder
@@ -48414,6 +48447,7 @@ export namespace Prisma {
     footerNote?: SortOrder
     isLogoEnabled?: SortOrder
     isFooterEnabled?: SortOrder
+    exchangeRate?: SortOrder
     updatedBy?: SortOrder
     updatedAt?: SortOrder
     createdAt?: SortOrder
@@ -48421,6 +48455,7 @@ export namespace Prisma {
 
   export type ReceiptSettingSumOrderByAggregateInput = {
     settingId?: SortOrder
+    exchangeRate?: SortOrder
     updatedBy?: SortOrder
   }
 
@@ -56362,6 +56397,7 @@ export namespace Prisma {
     footerNote?: string | null
     isLogoEnabled?: boolean
     isFooterEnabled?: boolean
+    exchangeRate?: Decimal | DecimalJsLike | number | string | null
     updatedAt?: Date | string
     createdAt?: Date | string
   }
@@ -56376,6 +56412,7 @@ export namespace Prisma {
     footerNote?: string | null
     isLogoEnabled?: boolean
     isFooterEnabled?: boolean
+    exchangeRate?: Decimal | DecimalJsLike | number | string | null
     updatedAt?: Date | string
     createdAt?: Date | string
   }
@@ -57316,6 +57353,7 @@ export namespace Prisma {
     footerNote?: StringNullableFilter<"ReceiptSetting"> | string | null
     isLogoEnabled?: BoolFilter<"ReceiptSetting"> | boolean
     isFooterEnabled?: BoolFilter<"ReceiptSetting"> | boolean
+    exchangeRate?: DecimalNullableFilter<"ReceiptSetting"> | Decimal | DecimalJsLike | number | string | null
     updatedBy?: IntNullableFilter<"ReceiptSetting"> | number | null
     updatedAt?: DateTimeFilter<"ReceiptSetting"> | Date | string
     createdAt?: DateTimeFilter<"ReceiptSetting"> | Date | string
@@ -62176,6 +62214,7 @@ export namespace Prisma {
     footerNote?: string | null
     isLogoEnabled?: boolean
     isFooterEnabled?: boolean
+    exchangeRate?: Decimal | DecimalJsLike | number | string | null
     updatedAt?: Date | string
     createdAt?: Date | string
   }
@@ -62693,6 +62732,7 @@ export namespace Prisma {
     footerNote?: NullableStringFieldUpdateOperationsInput | string | null
     isLogoEnabled?: BoolFieldUpdateOperationsInput | boolean
     isFooterEnabled?: BoolFieldUpdateOperationsInput | boolean
+    exchangeRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -62707,6 +62747,7 @@ export namespace Prisma {
     footerNote?: NullableStringFieldUpdateOperationsInput | string | null
     isLogoEnabled?: BoolFieldUpdateOperationsInput | boolean
     isFooterEnabled?: BoolFieldUpdateOperationsInput | boolean
+    exchangeRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -62721,6 +62762,7 @@ export namespace Prisma {
     footerNote?: NullableStringFieldUpdateOperationsInput | string | null
     isLogoEnabled?: BoolFieldUpdateOperationsInput | boolean
     isFooterEnabled?: BoolFieldUpdateOperationsInput | boolean
+    exchangeRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

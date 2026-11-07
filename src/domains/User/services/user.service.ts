@@ -17,6 +17,7 @@ import { logger } from '@src/shared/utils/logger';
 import { paginate } from '@src/shared/utils/helpers';
 import { auditLogService } from '@src/shared/services/audit-log.service';
 import { hashPIN } from '@src/shared/services/pin.service';
+import { SYSTEM_FEATURES, DEFAULT_CASHIER_PERMISSIONS } from '@src/shared/constants/permissions';
 
 export class UserService {
   /**
@@ -72,6 +73,9 @@ export class UserService {
         deviceId: true,
         createdAt: true,
         updatedAt: true,
+        user_permissions: {
+          select: { featureKey: true },
+        },
       },
     });
 
@@ -84,18 +88,29 @@ export class UserService {
     });
 
     return {
-      users: users.map((user) => ({
-        user_id: user.userId,
-        username: user.username,
-        email: user.email,
-        full_name: user.fullName,
-        role: user.role as UserRole,
-        phone: user.phone,
-        status: user.status as UserStatus,
-        device_id: user.deviceId,
-        created_at: user.createdAt,
-        updated_at: user.updatedAt,
-      })),
+      users: users.map((user) => {
+        const uRole = (user.role || '').toUpperCase();
+        const hasCustomPermissions = user.user_permissions && user.user_permissions.length > 0;
+        const allowDashboard =
+          uRole === 'ADMINISTRATOR' ||
+          uRole === 'SUPER_ADMIN' ||
+          (hasCustomPermissions && user.user_permissions.some((p: any) => p.featureKey === 'dashboard.view')) ||
+          (!hasCustomPermissions && uRole === 'ADMIN');
+
+        return {
+          user_id: user.userId,
+          username: user.username,
+          email: user.email,
+          full_name: user.fullName,
+          role: user.role as UserRole,
+          phone: user.phone,
+          status: user.status as UserStatus,
+          device_id: user.deviceId,
+          allow_dashboard: allowDashboard,
+          created_at: user.createdAt,
+          updated_at: user.updatedAt,
+        };
+      }),
       pagination: {
         page,
         limit,
@@ -141,6 +156,9 @@ export class UserService {
         updatedBy: true,
         updatedAt: true,
         deactivatedDate: true,
+        user_permissions: {
+          select: { featureKey: true },
+        },
       },
     });
 
@@ -156,6 +174,14 @@ export class UserService {
       entityId: userId,
     });
 
+    const uRole = (user.role || '').toUpperCase();
+    const hasCustomPermissions = user.user_permissions && user.user_permissions.length > 0;
+    const allowDashboard =
+      uRole === 'ADMINISTRATOR' ||
+      uRole === 'SUPER_ADMIN' ||
+      (hasCustomPermissions && user.user_permissions.some((p: any) => p.featureKey === 'dashboard.view')) ||
+      (!hasCustomPermissions && uRole === 'ADMIN');
+
     return {
       user_id: user.userId,
       username: user.username,
@@ -165,6 +191,7 @@ export class UserService {
       phone: user.phone,
       status: user.status as UserStatus,
       device_id: user.deviceId,
+      allow_dashboard: allowDashboard,
       created_by: user.createdBy,
       created_at: user.createdAt,
       updated_by: user.updatedBy,
@@ -180,7 +207,7 @@ export class UserService {
     request: CreateUserRequest,
     currentUser: { userId: number; tenantId?: number }
   ): Promise<CreateUserResponse> {
-    const { username, email, full_name, password, phone, role } = request;
+    const { username, email, full_name, password, phone, role, allow_dashboard } = request;
     const fullName = full_name; // Map snake_case to camelCase for database
     const { userId: currentUserId, tenantId: currentUserTenantId } = currentUser;
 
@@ -247,6 +274,63 @@ export class UserService {
       },
     });
 
+    // Setup initial granular permissions if role is not Administrator
+    const targetRoleUpper = (role as string || '').toUpperCase();
+    if (targetRoleUpper !== 'ADMINISTRATOR' && targetRoleUpper !== 'SUPER_ADMIN') {
+      const restrictedFeatures = [
+        'users.manage',
+        'roles.manage',
+        'settings.manage',
+        'backup.manage',
+        'security.audit_logs',
+      ];
+
+      let basePermissions: { featureKey: string; actions: string }[] = [];
+
+      // Check if custom role exists in database
+      const roleRecord = await prisma.role.findFirst({
+        where: { key: { equals: role as string, mode: 'insensitive' } },
+        include: { role_permissions: true },
+      });
+
+      if (roleRecord && roleRecord.role_permissions && roleRecord.role_permissions.length > 0) {
+        basePermissions = roleRecord.role_permissions.map((rp: any) => ({
+          featureKey: rp.featureKey,
+          actions: rp.actions || 'read',
+        }));
+      } else if (targetRoleUpper === 'ADMIN') {
+        basePermissions = SYSTEM_FEATURES.filter((f) => !restrictedFeatures.includes(f.key)).map((f) => ({
+          featureKey: f.key,
+          actions: 'all,read,create,update,delete',
+        }));
+      } else {
+        basePermissions = DEFAULT_CASHIER_PERMISSIONS.map((f) => ({
+          featureKey: f.featureKey,
+          actions: f.actions.join(','),
+        }));
+      }
+
+      const shouldAllowDashboard = allow_dashboard !== undefined ? Boolean(allow_dashboard) : (targetRoleUpper === 'ADMIN');
+      const filteredPermissions = basePermissions.filter((p) => p.featureKey !== 'dashboard.view');
+      if (shouldAllowDashboard) {
+        filteredPermissions.push({
+          featureKey: 'dashboard.view',
+          actions: 'all,read',
+        });
+      }
+
+      if (filteredPermissions.length > 0) {
+        await prisma.userPermission.createMany({
+          data: filteredPermissions.map((p) => ({
+            userId: user.userId,
+            featureKey: p.featureKey,
+            actions: p.actions,
+            grantedBy: currentUserId,
+          })),
+        });
+      }
+    }
+
     logger.info('User created', {
       userId: user.userId,
       username: user.username,
@@ -262,6 +346,7 @@ export class UserService {
       role: user.role as UserRole,
       phone: user.phone,
       status: user.status as UserStatus,
+      allow_dashboard: targetRoleUpper === 'ADMINISTRATOR' || Boolean(allow_dashboard),
       created_by: user.createdBy,
       created_at: user.createdAt,
       updated_at: user.updatedAt,
@@ -354,6 +439,96 @@ export class UserService {
         updatedAt: true,
       },
     });
+
+    // Update allow_dashboard if specified
+    const finalRole = (request.role || existingUser.role || '').toUpperCase();
+    if (finalRole !== 'ADMINISTRATOR' && finalRole !== 'SUPER_ADMIN') {
+      if (request.allow_dashboard !== undefined) {
+        const existingPermissions = await prisma.userPermission.findMany({
+          where: { userId },
+        });
+
+        if (existingPermissions.length > 0) {
+          if (request.allow_dashboard) {
+            await prisma.userPermission.upsert({
+              where: {
+                userId_featureKey: {
+                  userId,
+                  featureKey: 'dashboard.view',
+                },
+              },
+              update: {
+                actions: 'all,read',
+                grantedBy: currentUserId,
+              },
+              create: {
+                userId,
+                featureKey: 'dashboard.view',
+                actions: 'all,read',
+                grantedBy: currentUserId,
+              },
+            });
+          } else {
+            await prisma.userPermission.deleteMany({
+              where: {
+                userId,
+                featureKey: 'dashboard.view',
+              },
+            });
+          }
+        } else {
+          const restrictedFeatures = [
+            'users.manage',
+            'roles.manage',
+            'settings.manage',
+            'backup.manage',
+            'security.audit_logs',
+          ];
+
+          let basePermissions: { featureKey: string; actions: string }[] = [];
+          const roleRecord = await prisma.role.findFirst({
+            where: { key: { equals: finalRole, mode: 'insensitive' } },
+            include: { role_permissions: true },
+          });
+
+          if (roleRecord && roleRecord.role_permissions && roleRecord.role_permissions.length > 0) {
+            basePermissions = roleRecord.role_permissions.map((rp: any) => ({
+              featureKey: rp.featureKey,
+              actions: rp.actions || 'read',
+            }));
+          } else if (finalRole === 'ADMIN') {
+            basePermissions = SYSTEM_FEATURES.filter((f) => !restrictedFeatures.includes(f.key)).map((f) => ({
+              featureKey: f.key,
+              actions: 'all,read,create,update,delete',
+            }));
+          } else {
+            basePermissions = DEFAULT_CASHIER_PERMISSIONS.map((f) => ({
+              featureKey: f.featureKey,
+              actions: f.actions.join(','),
+            }));
+          }
+
+          const filteredPermissions = basePermissions.filter((p) => p.featureKey !== 'dashboard.view');
+          if (request.allow_dashboard) {
+            filteredPermissions.push({
+              featureKey: 'dashboard.view',
+              actions: 'all,read',
+            });
+          }
+
+          if (filteredPermissions.length > 0) {
+            await prisma.userPermission.createMany({
+              data: filteredPermissions.map((p) => ({
+                userId,
+                featureKey: p.featureKey,
+                actions: p.actions,
+                grantedBy: currentUserId,
+              })),
+            });
+          }
+        }
+      }
+    }
 
     // Log audit
     await auditLogService.createAuditLog({

@@ -26,6 +26,11 @@ export class POPDFService {
     totalAmount: number;
     notes?: string | null;
     createdByName?: string | null;
+    storeInfo?: {
+      storeName?: string;
+      phone?: string;
+      address?: string;
+    };
   }): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       try {
@@ -45,9 +50,13 @@ export class POPDFService {
         doc.text(`Status: ${poData.status}`, { align: 'right' });
 
         doc.moveDown();
-        doc.fontSize(14).text('MICROSTORE POS', 40, 40);
-        doc.fontSize(9).text('Phnom Penh, Cambodia');
-        doc.text('Tel: +855 12 345 678');
+        const storeName = poData.storeInfo?.storeName || 'Pharmacy Pich Chamroeun';
+        const storeAddress = poData.storeInfo?.address || 'Phnom Penh, Cambodia';
+        const storePhone = poData.storeInfo?.phone || '017 62 26 26';
+
+        doc.fontSize(14).text(storeName, 40, 40);
+        doc.fontSize(9).text(storeAddress);
+        doc.text(`Tel: ${storePhone}`);
 
         doc.moveDown(2);
         doc.lineWidth(1).moveTo(40, 130).lineTo(550, 130).stroke();

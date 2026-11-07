@@ -40,6 +40,7 @@
     "db:studio": "prisma studio",
     "db:clear-data": "node clear-business-data.mjs",
     "db:clear-sales-data": "node clear-supplier-customer-order-data.mjs",
+    "sync:prod": "node scripts/sync-prod-products.js",
     "test:khmer": "tsx scripts/test-khmer-receipt.mjs"
   },
   "engines": {

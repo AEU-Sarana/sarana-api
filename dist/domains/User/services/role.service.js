@@ -3,11 +3,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RoleService = void 0;
+exports.RoleService = exports.ADMIN_RESTRICTED_FEATURES = void 0;
 const client_1 = __importDefault(require("../../../database/client"));
 const exceptions_1 = require("../../../shared/exceptions");
 const audit_log_service_1 = require("../../../shared/services/audit-log.service");
 const logger_1 = require("../../../shared/utils/logger");
+const permissions_1 = require("../../../shared/constants/permissions");
+exports.ADMIN_RESTRICTED_FEATURES = new Set([
+    'users.manage',
+    'roles.manage',
+    'settings.manage',
+    'backup.manage',
+    'security.audit_logs',
+]);
 class RoleService {
     /**
      * List all roles with permission details and user count
@@ -36,16 +44,70 @@ class RoleService {
         ];
         try {
             for (const sr of systemRoles) {
-                await client_1.default.role.upsert({
+                const roleRecord = await client_1.default.role.upsert({
                     where: { key: sr.key },
-                    update: { isSystem: true },
+                    update: { isSystem: true, name: sr.name, description: sr.description },
                     create: {
                         key: sr.key,
                         name: sr.name,
                         description: sr.description,
                         isSystem: true,
                     },
+                    include: { role_permissions: true },
                 });
+                if (sr.key === 'ADMINISTRATOR') {
+                    // Administrator MUST have all 21 system features
+                    const existingKeys = new Set((roleRecord.role_permissions || []).map((p) => p.featureKey));
+                    const missingFeatures = permissions_1.SYSTEM_FEATURES.filter((f) => !existingKeys.has(f.key));
+                    if (missingFeatures.length > 0) {
+                        await client_1.default.rolePermission.createMany({
+                            data: missingFeatures.map((f) => ({
+                                roleId: roleRecord.roleId,
+                                featureKey: f.key,
+                                actions: f.supportedActions.join(','),
+                            })),
+                        });
+                    }
+                }
+                else if (sr.key === 'ADMIN') {
+                    // Store Admin MUST NOT have any restricted administrative permissions:
+                    // User management, Role & Permission, App Setting, Backup, Audit Log
+                    await client_1.default.rolePermission.deleteMany({
+                        where: {
+                            roleId: roleRecord.roleId,
+                            featureKey: {
+                                in: Array.from(exports.ADMIN_RESTRICTED_FEATURES),
+                            },
+                        },
+                    });
+                    // Ensure Store Admin has all operational store features
+                    const currentPermissions = await client_1.default.rolePermission.findMany({
+                        where: { roleId: roleRecord.roleId },
+                    });
+                    const existingKeys = new Set(currentPermissions.map((p) => p.featureKey));
+                    const operationalFeatures = permissions_1.SYSTEM_FEATURES.filter((f) => !exports.ADMIN_RESTRICTED_FEATURES.has(f.key) && !existingKeys.has(f.key));
+                    if (operationalFeatures.length > 0) {
+                        await client_1.default.rolePermission.createMany({
+                            data: operationalFeatures.map((f) => ({
+                                roleId: roleRecord.roleId,
+                                featureKey: f.key,
+                                actions: f.supportedActions.join(','),
+                            })),
+                        });
+                    }
+                }
+                else if (sr.key === 'CASHIER') {
+                    if (!roleRecord.role_permissions || roleRecord.role_permissions.length === 0) {
+                        const cashierFeatures = permissions_1.SYSTEM_FEATURES.filter((f) => f.defaultCashier);
+                        await client_1.default.rolePermission.createMany({
+                            data: cashierFeatures.map((f) => ({
+                                roleId: roleRecord.roleId,
+                                featureKey: f.key,
+                                actions: 'read,create,update',
+                            })),
+                        });
+                    }
+                }
             }
         }
         catch (e) {
@@ -191,7 +253,11 @@ class RoleService {
         if (!existingRole) {
             throw new exceptions_1.ValidationException('Role not found');
         }
-        const { name, description, permissions } = request;
+        let { name, description, permissions } = request;
+        // Strictly forbid assigning administrative features to Store Admin role (ADMIN)
+        if (existingRole.key === 'ADMIN' && permissions !== undefined) {
+            permissions = permissions.filter((p) => !exports.ADMIN_RESTRICTED_FEATURES.has(p.feature_key));
+        }
         const updatedRole = await client_1.default.$transaction(async (tx) => {
             await tx.role.update({
                 where: { roleId: roleId },

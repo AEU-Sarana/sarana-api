@@ -14,8 +14,43 @@ class UserSeeder extends base_seeder_1.BaseSeeder {
         this.name = 'Users';
     }
     async seed() {
-        // Clear existing users (except if you want to keep them)
-        // await this.clearTable('users');
+        // 1. Ensure system roles exist in roles table
+        const systemRoles = [
+            {
+                key: 'ADMINISTRATOR',
+                name: 'System Administrator',
+                description: 'Full system administration: users, roles, settings, backups & audit logs',
+                isSystem: true,
+            },
+            {
+                key: 'ADMIN',
+                name: 'Store Admin',
+                description: 'Store operations: products, stock, purchasing, sales, reports & customers',
+                isSystem: true,
+            },
+            {
+                key: 'CASHIER',
+                name: 'Cashier',
+                description: 'POS sales checkout, receipt printing & limited catalog view',
+                isSystem: true,
+            },
+        ];
+        for (const sr of systemRoles) {
+            await client_1.default.role.upsert({
+                where: { key: sr.key },
+                update: {
+                    name: sr.name,
+                    description: sr.description,
+                    isSystem: true,
+                },
+                create: {
+                    key: sr.key,
+                    name: sr.name,
+                    description: sr.description,
+                    isSystem: true,
+                },
+            });
+        }
         const usersByUsername = new Map();
         for (const userData of user_seed_data_1.userSeedData) {
             const user = await client_1.default.user.upsert({

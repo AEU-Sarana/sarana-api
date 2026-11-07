@@ -118,7 +118,7 @@ export class StockMovementSeeder extends BaseSeeder {
       const maxQty = Math.min(50, selectedLot.qtyOnHand);
       if (maxQty <= 0) continue;
 
-      let quantity = SeederHelper.randomInt(1, maxQty);
+      const quantity = SeederHelper.randomInt(1, maxQty);
       let movementQuantity = quantity;
       let delta = quantity;
 

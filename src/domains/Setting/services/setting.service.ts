@@ -1,4 +1,5 @@
 import prisma from '@src/database/client';
+import { logger } from '@src/shared/utils/logger';
 import { auditLogService } from '@src/shared/services/audit-log.service';
 import { eventBus } from '@src/shared/events/event-bus';
 import { GetSettingsResponse, UpdateSettingsRequest, UpdateSettingsResponse } from '@src/domains/Setting/types';
@@ -58,6 +59,12 @@ export class SettingService {
       entityId: settings.settingId,
     });
 
+    logger.info('SettingService.getSettings returning exchange_rate', {
+      settingId: receipt.settingId,
+      exchangeRate: receipt.exchangeRate,
+      numberVal: Number(receipt.exchangeRate ?? 4000),
+    });
+
     return {
       auto_backup: settings.autoBackup,
       backup_frequency: settings.backupFrequency,
@@ -76,6 +83,7 @@ export class SettingService {
       store_footer_note: receipt.footerNote,
       is_logo_enabled: receipt.isLogoEnabled,
       is_footer_enabled: receipt.isFooterEnabled,
+      exchange_rate: Number(receipt.exchangeRate ?? 4000),
     };
   }
 
@@ -139,10 +147,17 @@ export class SettingService {
       request.store_tax_id !== undefined ||
       request.store_footer_note !== undefined ||
       request.is_logo_enabled !== undefined ||
-      request.is_footer_enabled !== undefined;
+      request.is_footer_enabled !== undefined ||
+      request.exchange_rate !== undefined;
 
     let receipt = await prisma.receiptSetting.findFirst({
       orderBy: { updatedAt: 'desc' },
+    });
+
+    logger.info('SettingService.updateSettings receipt fields update', {
+      hasReceiptFields,
+      exchange_rate_in_request: request.exchange_rate,
+      receiptSettingId: receipt?.settingId,
     });
 
     if (!receipt) {
@@ -155,6 +170,7 @@ export class SettingService {
           footerNote: request.store_footer_note ?? null,
           isLogoEnabled: request.is_logo_enabled ?? true,
           isFooterEnabled: request.is_footer_enabled ?? true,
+          exchangeRate: request.exchange_rate ? Number(request.exchange_rate) : 4000,
           updatedBy: currentUserId,
         } as any,
       });
@@ -169,9 +185,16 @@ export class SettingService {
           ...(request.store_footer_note !== undefined && { footerNote: request.store_footer_note || null }),
           ...(request.is_logo_enabled !== undefined && { isLogoEnabled: request.is_logo_enabled }),
           ...(request.is_footer_enabled !== undefined && { isFooterEnabled: request.is_footer_enabled }),
+          ...(request.exchange_rate !== undefined && { exchangeRate: Number(request.exchange_rate) }),
           updatedBy: currentUserId,
           updatedAt: new Date(),
         } as any,
+      });
+
+      logger.info('SettingService.updateSettings receipt updated successfully', {
+        settingId: receipt.settingId,
+        exchangeRate: receipt.exchangeRate,
+        numberVal: Number(receipt.exchangeRate ?? 4000),
       });
     }
 
@@ -195,6 +218,7 @@ export class SettingService {
           store_footer_note: receipt?.footerNote,
           is_logo_enabled: receipt?.isLogoEnabled,
           is_footer_enabled: receipt?.isFooterEnabled,
+          exchange_rate: Number(receipt?.exchangeRate ?? 4000),
         }),
       },
     });
@@ -230,6 +254,7 @@ export class SettingService {
       store_footer_note: receipt?.footerNote,
       is_logo_enabled: receipt?.isLogoEnabled,
       is_footer_enabled: receipt?.isFooterEnabled,
+      exchange_rate: Number(receipt?.exchangeRate ?? 4000),
     };
   }
 }

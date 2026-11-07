@@ -10,5 +10,7 @@ router.use(auth_middleware_1.authenticateToken);
 router.get('/overview', dashboard_controller_1.DashboardController.getOverview);
 // Top selling products of the month
 router.get('/top-products', dashboard_controller_1.DashboardController.getTopProducts);
+// Monthly revenue analytics
+router.get('/monthly-revenue', dashboard_controller_1.DashboardController.getMonthlyRevenue);
 exports.default = router;
 //# sourceMappingURL=dashboard.routes.js.map

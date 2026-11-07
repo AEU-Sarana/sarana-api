@@ -11,4 +11,5 @@ export const updateReceiptSettingsValidator = [
   body('footer_note').optional({ nullable: true }).trim().isLength({ max: 1000 }),
   body('is_logo_enabled').optional().isBoolean(),
   body('is_footer_enabled').optional().isBoolean(),
+  body('exchange_rate').optional({ nullable: true }).isFloat({ min: 1 }).withMessage('exchange_rate must be a positive number'),
 ];

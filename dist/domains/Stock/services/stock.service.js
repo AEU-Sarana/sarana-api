@@ -185,7 +185,7 @@ class StockService {
             (product_status ? (s.product.status === product_status) : (s.product.status === product_status_enum_1.ProductStatus.ACTIVE)) &&
             (stockVersion === undefined || s.stockVersion === stockVersion));
         // Filter by product conditions (category, search, active products only)
-        let filteredStocks = allStocks.filter((s) => {
+        const filteredStocks = allStocks.filter((s) => {
             if (!s.product || s.product.deactivatedDate) {
                 return false;
             }
@@ -399,6 +399,15 @@ class StockService {
             action: 'STOCK_IN',
             resource: 'Stock',
             entityId: stockId,
+            oldValues: {
+                stockQuantity: stockBefore,
+            },
+            newValues: {
+                stockQuantity: updatedStock.quantity,
+                quantityAdded: quantity,
+                unitCost: cost != null ? `$${Number(cost).toFixed(2)}` : null,
+                supplier: supplier || null,
+            },
             details: {
                 productId: product_id,
                 quantity: quantity,
@@ -500,6 +509,14 @@ class StockService {
             action: 'STOCK_ADJUSTMENT',
             resource: 'Stock',
             entityId: stock.stockId,
+            oldValues: {
+                stockQuantity: stock.quantity,
+            },
+            newValues: {
+                stockQuantity: updatedStock.quantity,
+                quantityAdjusted: quantity,
+                reason: reason || null,
+            },
             details: {
                 productId: product_id,
                 quantity: quantity,
@@ -603,6 +620,15 @@ class StockService {
             action: 'STOCK_RETURN',
             resource: 'Stock',
             entityId: stock.stockId,
+            oldValues: {
+                stockQuantity: stock.quantity,
+            },
+            newValues: {
+                stockQuantity: updatedStock.quantity,
+                quantityReturned: quantity,
+                orderId: order_id,
+                reason: reason || null,
+            },
             details: {
                 productId: product_id,
                 quantity: quantity,

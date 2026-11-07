@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { POService } from '@src/domains/Purchasing/services/po.service';
 import { POPDFService } from '@src/domains/Purchasing/services/po-pdf.service';
 import { UserPayload } from '@src/shared/middleware/auth.middleware';
+import { prisma } from '@src/shared/config/database';
 
 export class POController {
   static async listPOs(req: Request, res: Response): Promise<void> {
@@ -83,7 +84,10 @@ export class POController {
   static async downloadPOPDF(req: Request, res: Response): Promise<void> {
     try {
       const poId = parseInt(String(req.params.id), 10);
-      const po = await POService.getPOById(poId);
+      const [po, receiptSetting] = await Promise.all([
+        POService.getPOById(poId),
+        prisma.receiptSetting.findFirst().catch(() => null),
+      ]);
 
       const pdfBuffer = await POPDFService.generatePOPDF({
         poNumber: po.poNumber,
@@ -110,6 +114,11 @@ export class POController {
         totalAmount: Number(po.totalAmount),
         notes: po.notes,
         createdByName: po.createdByUser?.fullName,
+        storeInfo: {
+          storeName: receiptSetting?.storeName || 'Pharmacy Pich Chamroeun',
+          phone: receiptSetting?.phone || '017 62 26 26',
+          address: receiptSetting?.address || 'Phnom Penh, Cambodia',
+        },
       });
 
       res.setHeader('Content-Type', 'application/pdf');

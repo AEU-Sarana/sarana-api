@@ -13,26 +13,27 @@ import { requireAdministrator } from '@src/shared/middleware/authorization.middl
 
 const router: IRouter = Router();
 
-router.use(authenticateToken);
-
 // Cashier/Admin - generate QR receipt link
 router.post(
-  '/orders/:order_id/receipt-link',
+  ['/orders/:order_id/receipt-link'],
+  authenticateToken,
   ...validateRequest(createReceiptLinkValidator),
   ReceiptLinkController.createReceiptLink
 );
 
 // Admin - get/update receipt settings
 router.get(
-  '/admin/receipt-settings',
+  ['/admin/receipt-settings', '/'],
+  authenticateToken,
   ...validateRequest(getReceiptSettingsValidator),
   ReceiptSettingsController.getSettings
 );
 
 router.put(
-  '/admin/receipt-settings',
-  ...validateRequest(updateReceiptSettingsValidator),
+  ['/admin/receipt-settings', '/'],
+  authenticateToken,
   requireAdministrator,
+  ...validateRequest(updateReceiptSettingsValidator),
   ReceiptSettingsController.updateSettings
 );
 
@@ -40,7 +41,7 @@ import { productImageUploadAny } from '@src/shared/utils/multer.config';
 
 // Optional upload endpoint (if multipart middleware enabled)
 router.post(
-  '/admin/receipt-settings/logo',
+  ['/admin/receipt-settings/logo', '/logo'],
   authenticateToken,
   requireAdministrator,
   productImageUploadAny,

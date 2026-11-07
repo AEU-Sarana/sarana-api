@@ -72,7 +72,7 @@ export class BackupExportService {
       const rows = await client.query(sql, params);
 
       let fileBuffer: Buffer;
-      let extension = format.toLowerCase();
+      const extension = format.toLowerCase();
       let tmpPath: string | null = null;
 
       if (format === 'CSV') {

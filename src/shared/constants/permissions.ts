@@ -137,6 +137,14 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
 
   // Reports
   {
+    key: 'dashboard.view',
+    name: 'View Analytics Dashboard',
+    category: 'Reports',
+    description: 'Access store performance dashboard and key summary metrics',
+    defaultCashier: false,
+    supportedActions: ['read', 'all'],
+  },
+  {
     key: 'reports.daily_shift',
     name: 'View Own Shift Summary',
     category: 'Reports',

@@ -12,6 +12,7 @@ const exceptions_1 = require("../../../shared/exceptions");
 const logger_1 = require("../../../shared/utils/logger");
 const audit_log_service_1 = require("../../../shared/services/audit-log.service");
 const pin_service_1 = require("../../../shared/services/pin.service");
+const permissions_1 = require("../../../shared/constants/permissions");
 class UserService {
     /**
      * List users with filters
@@ -56,6 +57,9 @@ class UserService {
                 deviceId: true,
                 createdAt: true,
                 updatedAt: true,
+                user_permissions: {
+                    select: { featureKey: true },
+                },
             },
         });
         // Log audit
@@ -66,18 +70,27 @@ class UserService {
             oldValues: { filters: { role, status, search } },
         });
         return {
-            users: users.map((user) => ({
-                user_id: user.userId,
-                username: user.username,
-                email: user.email,
-                full_name: user.fullName,
-                role: user.role,
-                phone: user.phone,
-                status: user.status,
-                device_id: user.deviceId,
-                created_at: user.createdAt,
-                updated_at: user.updatedAt,
-            })),
+            users: users.map((user) => {
+                const uRole = (user.role || '').toUpperCase();
+                const hasCustomPermissions = user.user_permissions && user.user_permissions.length > 0;
+                const allowDashboard = uRole === 'ADMINISTRATOR' ||
+                    uRole === 'SUPER_ADMIN' ||
+                    (hasCustomPermissions && user.user_permissions.some((p) => p.featureKey === 'dashboard.view')) ||
+                    (!hasCustomPermissions && uRole === 'ADMIN');
+                return {
+                    user_id: user.userId,
+                    username: user.username,
+                    email: user.email,
+                    full_name: user.fullName,
+                    role: user.role,
+                    phone: user.phone,
+                    status: user.status,
+                    device_id: user.deviceId,
+                    allow_dashboard: allowDashboard,
+                    created_at: user.createdAt,
+                    updated_at: user.updatedAt,
+                };
+            }),
             pagination: {
                 page,
                 limit,
@@ -115,6 +128,9 @@ class UserService {
                 updatedBy: true,
                 updatedAt: true,
                 deactivatedDate: true,
+                user_permissions: {
+                    select: { featureKey: true },
+                },
             },
         });
         if (!user) {
@@ -127,6 +143,12 @@ class UserService {
             entityType: 'User',
             entityId: userId,
         });
+        const uRole = (user.role || '').toUpperCase();
+        const hasCustomPermissions = user.user_permissions && user.user_permissions.length > 0;
+        const allowDashboard = uRole === 'ADMINISTRATOR' ||
+            uRole === 'SUPER_ADMIN' ||
+            (hasCustomPermissions && user.user_permissions.some((p) => p.featureKey === 'dashboard.view')) ||
+            (!hasCustomPermissions && uRole === 'ADMIN');
         return {
             user_id: user.userId,
             username: user.username,
@@ -136,6 +158,7 @@ class UserService {
             phone: user.phone,
             status: user.status,
             device_id: user.deviceId,
+            allow_dashboard: allowDashboard,
             created_by: user.createdBy,
             created_at: user.createdAt,
             updated_by: user.updatedBy,
@@ -147,7 +170,7 @@ class UserService {
      * Create user/cashier
      */
     static async createUser(request, currentUser) {
-        const { username, email, full_name, password, phone, role } = request;
+        const { username, email, full_name, password, phone, role, allow_dashboard } = request;
         const fullName = full_name; // Map snake_case to camelCase for database
         const { userId: currentUserId, tenantId: currentUserTenantId } = currentUser;
         // Check if username already exists
@@ -205,6 +228,59 @@ class UserService {
                 role: user.role,
             },
         });
+        // Setup initial granular permissions if role is not Administrator
+        const targetRoleUpper = (role || '').toUpperCase();
+        if (targetRoleUpper !== 'ADMINISTRATOR' && targetRoleUpper !== 'SUPER_ADMIN') {
+            const restrictedFeatures = [
+                'users.manage',
+                'roles.manage',
+                'settings.manage',
+                'backup.manage',
+                'security.audit_logs',
+            ];
+            let basePermissions = [];
+            // Check if custom role exists in database
+            const roleRecord = await client_1.default.role.findFirst({
+                where: { key: { equals: role, mode: 'insensitive' } },
+                include: { role_permissions: true },
+            });
+            if (roleRecord && roleRecord.role_permissions && roleRecord.role_permissions.length > 0) {
+                basePermissions = roleRecord.role_permissions.map((rp) => ({
+                    featureKey: rp.featureKey,
+                    actions: rp.actions || 'read',
+                }));
+            }
+            else if (targetRoleUpper === 'ADMIN') {
+                basePermissions = permissions_1.SYSTEM_FEATURES.filter((f) => !restrictedFeatures.includes(f.key)).map((f) => ({
+                    featureKey: f.key,
+                    actions: 'all,read,create,update,delete',
+                }));
+            }
+            else {
+                basePermissions = permissions_1.DEFAULT_CASHIER_PERMISSIONS.map((f) => ({
+                    featureKey: f.featureKey,
+                    actions: f.actions.join(','),
+                }));
+            }
+            const shouldAllowDashboard = allow_dashboard !== undefined ? Boolean(allow_dashboard) : (targetRoleUpper === 'ADMIN');
+            const filteredPermissions = basePermissions.filter((p) => p.featureKey !== 'dashboard.view');
+            if (shouldAllowDashboard) {
+                filteredPermissions.push({
+                    featureKey: 'dashboard.view',
+                    actions: 'all,read',
+                });
+            }
+            if (filteredPermissions.length > 0) {
+                await client_1.default.userPermission.createMany({
+                    data: filteredPermissions.map((p) => ({
+                        userId: user.userId,
+                        featureKey: p.featureKey,
+                        actions: p.actions,
+                        grantedBy: currentUserId,
+                    })),
+                });
+            }
+        }
         logger_1.logger.info('User created', {
             userId: user.userId,
             username: user.username,
@@ -219,6 +295,7 @@ class UserService {
             role: user.role,
             phone: user.phone,
             status: user.status,
+            allow_dashboard: targetRoleUpper === 'ADMINISTRATOR' || Boolean(allow_dashboard),
             created_by: user.createdBy,
             created_at: user.createdAt,
             updated_at: user.updatedAt,
@@ -293,6 +370,94 @@ class UserService {
                 updatedAt: true,
             },
         });
+        // Update allow_dashboard if specified
+        const finalRole = (request.role || existingUser.role || '').toUpperCase();
+        if (finalRole !== 'ADMINISTRATOR' && finalRole !== 'SUPER_ADMIN') {
+            if (request.allow_dashboard !== undefined) {
+                const existingPermissions = await client_1.default.userPermission.findMany({
+                    where: { userId },
+                });
+                if (existingPermissions.length > 0) {
+                    if (request.allow_dashboard) {
+                        await client_1.default.userPermission.upsert({
+                            where: {
+                                userId_featureKey: {
+                                    userId,
+                                    featureKey: 'dashboard.view',
+                                },
+                            },
+                            update: {
+                                actions: 'all,read',
+                                grantedBy: currentUserId,
+                            },
+                            create: {
+                                userId,
+                                featureKey: 'dashboard.view',
+                                actions: 'all,read',
+                                grantedBy: currentUserId,
+                            },
+                        });
+                    }
+                    else {
+                        await client_1.default.userPermission.deleteMany({
+                            where: {
+                                userId,
+                                featureKey: 'dashboard.view',
+                            },
+                        });
+                    }
+                }
+                else {
+                    const restrictedFeatures = [
+                        'users.manage',
+                        'roles.manage',
+                        'settings.manage',
+                        'backup.manage',
+                        'security.audit_logs',
+                    ];
+                    let basePermissions = [];
+                    const roleRecord = await client_1.default.role.findFirst({
+                        where: { key: { equals: finalRole, mode: 'insensitive' } },
+                        include: { role_permissions: true },
+                    });
+                    if (roleRecord && roleRecord.role_permissions && roleRecord.role_permissions.length > 0) {
+                        basePermissions = roleRecord.role_permissions.map((rp) => ({
+                            featureKey: rp.featureKey,
+                            actions: rp.actions || 'read',
+                        }));
+                    }
+                    else if (finalRole === 'ADMIN') {
+                        basePermissions = permissions_1.SYSTEM_FEATURES.filter((f) => !restrictedFeatures.includes(f.key)).map((f) => ({
+                            featureKey: f.key,
+                            actions: 'all,read,create,update,delete',
+                        }));
+                    }
+                    else {
+                        basePermissions = permissions_1.DEFAULT_CASHIER_PERMISSIONS.map((f) => ({
+                            featureKey: f.featureKey,
+                            actions: f.actions.join(','),
+                        }));
+                    }
+                    const filteredPermissions = basePermissions.filter((p) => p.featureKey !== 'dashboard.view');
+                    if (request.allow_dashboard) {
+                        filteredPermissions.push({
+                            featureKey: 'dashboard.view',
+                            actions: 'all,read',
+                        });
+                    }
+                    if (filteredPermissions.length > 0) {
+                        await client_1.default.userPermission.createMany({
+                            data: filteredPermissions.map((p) => ({
+                                userId,
+                                featureKey: p.featureKey,
+                                actions: p.actions,
+                                grantedBy: currentUserId,
+                            })),
+                        });
+                    }
+                }
+            }
+        }
         // Log audit
         await audit_log_service_1.auditLogService.createAuditLog({
             userId: currentUserId,

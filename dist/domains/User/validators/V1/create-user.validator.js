@@ -35,5 +35,9 @@ exports.createUserValidator = [
         .trim()
         .notEmpty()
         .withMessage('Role is required'),
+    (0, express_validator_1.body)('allow_dashboard')
+        .optional()
+        .isBoolean()
+        .withMessage('allow_dashboard must be a boolean'),
 ];
 //# sourceMappingURL=create-user.validator.js.map

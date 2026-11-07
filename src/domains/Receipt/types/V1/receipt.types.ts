@@ -16,6 +16,7 @@ export interface ReceiptSettingsResponse {
   footer_note: string | null;
   is_logo_enabled: boolean;
   is_footer_enabled: boolean;
+  exchange_rate?: number;
   updated_at: string;
   created_at: string;
 }
@@ -28,4 +29,5 @@ export interface ReceiptSettingsUpdateRequest {
   footer_note?: string | null;
   is_logo_enabled?: boolean;
   is_footer_enabled?: boolean;
+  exchange_rate?: number | null;
 }

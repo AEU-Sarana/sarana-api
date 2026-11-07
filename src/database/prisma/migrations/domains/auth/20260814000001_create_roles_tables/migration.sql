@@ -21,7 +21,8 @@ CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON role_permissions(role
 
 INSERT INTO roles (key, name, description, is_system) 
 VALUES 
-  ('ADMIN', 'Administrator', 'Full system access superuser', true),
+  ('ADMINISTRATOR', 'System Administrator', 'Full system administration: users, roles, settings, backups & audit logs', true),
+  ('ADMIN', 'Store Admin', 'Store operations: products, stock, purchasing, sales, reports & customers', true),
   ('CASHIER', 'Cashier', 'Standard cashier with POS checkout permissions', true)
 ON CONFLICT (key) DO NOTHING;
 

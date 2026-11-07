@@ -42,8 +42,18 @@ class BackupRestoreService {
             await this.sanitizeSqlDumpForCompatibility(sqlPath);
             await new Promise((resolve, reject) => {
                 let restoreError = '';
+                const cleanDbUrl = (() => {
+                    try {
+                        const parsed = new URL(dbUrl);
+                        parsed.searchParams.delete('schema');
+                        return parsed.toString();
+                    }
+                    catch {
+                        return dbUrl.replace(/[?&]schema=[^&]+/, '').replace(/\?$/, '');
+                    }
+                })();
                 const proc = (0, child_process_1.spawn)('psql', [
-                    `--dbname=${dbUrl}`,
+                    `--dbname=${cleanDbUrl}`,
                     '-v',
                     'ON_ERROR_STOP=1',
                     '--file',

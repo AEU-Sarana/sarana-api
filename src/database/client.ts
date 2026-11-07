@@ -8,6 +8,19 @@ import { logger } from '@src/shared/utils/logger';
 const neonFallbackUrl = 'postgresql://neondb_owner:npg_OhqXfG59lLMR@ep-cool-block-b5hbfurd-pooler.c-7.us-east-2.aws.neon.tech/neondb?sslmode=require';
 const pool = new Pool({ connectionString: process.env.DATABASE_URL || neonFallbackUrl });
 
+// Ensure schema consistency for customer_payments, supplier_payments, and receipt_settings
+pool.query(`
+  ALTER TABLE IF EXISTS "customer_payments" ADD COLUMN IF NOT EXISTS "attachment_url" TEXT;
+  ALTER TABLE IF EXISTS "customer_payments" ADD COLUMN IF NOT EXISTS "reference_number" VARCHAR(100);
+  ALTER TABLE IF EXISTS "supplier_payments" ADD COLUMN IF NOT EXISTS "attachment_url" TEXT;
+  ALTER TABLE IF EXISTS "supplier_payments" ADD COLUMN IF NOT EXISTS "reference_number" VARCHAR(100);
+  ALTER TABLE IF EXISTS "receipt_settings" ADD COLUMN IF NOT EXISTS "exchange_rate" DECIMAL(10, 2) NOT NULL DEFAULT 4000.00;
+`).then(() => {
+  logger.info('✅ Ensured customer_payments, supplier_payments & receipt_settings table columns');
+}).catch((err) => {
+  logger.warn('Failed to ensure database columns:', err.message);
+});
+
 // Create the adapter
 const adapter = new PrismaPg(pool);
 

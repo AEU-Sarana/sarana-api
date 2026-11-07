@@ -44,7 +44,9 @@ class ReportController {
             if (sellerIdStr && Number.isNaN(sellerId)) {
                 throw new exceptions_1.ValidationException('Invalid seller_id');
             }
-            if (user.role !== 'ADMIN') {
+            const roleUpper = (user.role || '').toUpperCase();
+            const isReportAdmin = roleUpper === 'ADMIN' || roleUpper === 'ADMINISTRATOR' || roleUpper === 'SUPER_ADMIN';
+            if (!isReportAdmin) {
                 sellerId = user.userId;
             }
             logger_1.logger.info('Get daily report request', {
@@ -104,7 +106,7 @@ class ReportController {
             const sellerIdStr = getStringValue(req.query.seller_id);
             const productIdStr = getStringValue(req.query.product_id);
             let sellerId = sellerIdStr ? parseInt(sellerIdStr, 10) : undefined;
-            let productId = productIdStr ? parseInt(productIdStr, 10) : undefined;
+            const productId = productIdStr ? parseInt(productIdStr, 10) : undefined;
             if (sellerIdStr && Number.isNaN(sellerId)) {
                 throw new exceptions_1.ValidationException('Invalid seller_id');
             }
@@ -113,7 +115,9 @@ class ReportController {
             }
             // Admin can view all sellers (or a specific seller via query param).
             // Non-admin users are always scoped to their own data.
-            if (user.role !== 'ADMIN') {
+            const roleUpper = (user.role || '').toUpperCase();
+            const isReportAdmin = roleUpper === 'ADMIN' || roleUpper === 'ADMINISTRATOR' || roleUpper === 'SUPER_ADMIN';
+            if (!isReportAdmin) {
                 sellerId = user.userId;
             }
             const request = {

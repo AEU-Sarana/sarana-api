@@ -87,6 +87,7 @@ export interface CreateOrderRequest {
   discount_amount?: number;
   tax_amount?: number;
   service_fee?: number;
+  exchange_rate?: number;
   items: Array<{
     product_id: number;
     quantity: number;

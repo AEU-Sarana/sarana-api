@@ -76,5 +76,10 @@ exports.updateSettingsValidator = [
         .isBoolean()
         .withMessage('is_footer_enabled must be a boolean')
         .toBoolean(),
+    (0, express_validator_1.body)('exchange_rate')
+        .optional({ nullable: true })
+        .isFloat({ min: 1 })
+        .withMessage('exchange_rate must be a positive number')
+        .toFloat(),
 ];
 //# sourceMappingURL=update-settings.validator.js.map

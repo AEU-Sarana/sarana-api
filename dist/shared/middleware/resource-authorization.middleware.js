@@ -4,7 +4,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.authorizeOrderAccess = authorizeOrderAccess;
-const permissions_1 = require("../../shared/config/permissions");
 const client_1 = __importDefault(require("../../database/client"));
 /**
  * Middleware to authorize order access
@@ -42,8 +41,9 @@ async function authorizeOrderAccess(req, res, next) {
             });
             return;
         }
-        // Admin can access all orders
-        if (req.user.role === permissions_1.Role.ADMIN) {
+        // Admin and Administrator can access all orders
+        const userRoleUpper = (req.user.role || '').toUpperCase();
+        if (userRoleUpper === 'ADMIN' || userRoleUpper === 'ADMINISTRATOR' || userRoleUpper === 'SUPER_ADMIN') {
             req.order = order;
             return next();
         }

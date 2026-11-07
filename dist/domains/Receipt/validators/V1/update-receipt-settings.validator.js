@@ -13,5 +13,6 @@ exports.updateReceiptSettingsValidator = [
     (0, express_validator_1.body)('footer_note').optional({ nullable: true }).trim().isLength({ max: 1000 }),
     (0, express_validator_1.body)('is_logo_enabled').optional().isBoolean(),
     (0, express_validator_1.body)('is_footer_enabled').optional().isBoolean(),
+    (0, express_validator_1.body)('exchange_rate').optional({ nullable: true }).isFloat({ min: 1 }).withMessage('exchange_rate must be a positive number'),
 ];
 //# sourceMappingURL=update-receipt-settings.validator.js.map

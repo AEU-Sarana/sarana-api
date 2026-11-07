@@ -65,7 +65,7 @@ class BackupExportService {
             const sql = `SELECT ${safeCols.join(',')} FROM ${table} WHERE ${where} ORDER BY created_at DESC`;
             const rows = await client.query(sql, params);
             let fileBuffer;
-            let extension = format.toLowerCase();
+            const extension = format.toLowerCase();
             let tmpPath = null;
             if (format === 'CSV') {
                 const header = safeCols.join(',');

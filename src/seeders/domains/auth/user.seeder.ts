@@ -7,8 +7,44 @@ export class UserSeeder extends BaseSeeder {
   name = 'Users';
 
   async seed(): Promise<void> {
-    // Clear existing users (except if you want to keep them)
-    // await this.clearTable('users');
+    // 1. Ensure system roles exist in roles table
+    const systemRoles = [
+      {
+        key: 'ADMINISTRATOR',
+        name: 'System Administrator',
+        description: 'Full system administration: users, roles, settings, backups & audit logs',
+        isSystem: true,
+      },
+      {
+        key: 'ADMIN',
+        name: 'Store Admin',
+        description: 'Store operations: products, stock, purchasing, sales, reports & customers',
+        isSystem: true,
+      },
+      {
+        key: 'CASHIER',
+        name: 'Cashier',
+        description: 'POS sales checkout, receipt printing & limited catalog view',
+        isSystem: true,
+      },
+    ];
+
+    for (const sr of systemRoles) {
+      await prisma.role.upsert({
+        where: { key: sr.key },
+        update: {
+          name: sr.name,
+          description: sr.description,
+          isSystem: true,
+        },
+        create: {
+          key: sr.key,
+          name: sr.name,
+          description: sr.description,
+          isSystem: true,
+        },
+      });
+    }
 
     const usersByUsername = new Map<
       string,

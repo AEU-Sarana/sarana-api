@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.POController = void 0;
 const po_service_1 = require("../../../../domains/Purchasing/services/po.service");
 const po_pdf_service_1 = require("../../../../domains/Purchasing/services/po-pdf.service");
+const database_1 = require("../../../../shared/config/database");
 class POController {
     static async listPOs(req, res) {
         try {
@@ -82,7 +83,10 @@ class POController {
     static async downloadPOPDF(req, res) {
         try {
             const poId = parseInt(String(req.params.id), 10);
-            const po = await po_service_1.POService.getPOById(poId);
+            const [po, receiptSetting] = await Promise.all([
+                po_service_1.POService.getPOById(poId),
+                database_1.prisma.receiptSetting.findFirst().catch(() => null),
+            ]);
             const pdfBuffer = await po_pdf_service_1.POPDFService.generatePOPDF({
                 poNumber: po.poNumber,
                 orderDate: po.orderDate,
@@ -108,6 +112,11 @@ class POController {
                 totalAmount: Number(po.totalAmount),
                 notes: po.notes,
                 createdByName: po.createdByUser?.fullName,
+                storeInfo: {
+                    storeName: receiptSetting?.storeName || 'Pharmacy Pich Chamroeun',
+                    phone: receiptSetting?.phone || '017 62 26 26',
+                    address: receiptSetting?.address || 'Phnom Penh, Cambodia',
+                },
             });
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename="${po.poNumber}.pdf"`);

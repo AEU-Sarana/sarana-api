@@ -5,14 +5,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ReceiptSettingService = void 0;
 const client_1 = __importDefault(require("../../../../database/client"));
+const logger_1 = require("../../../../shared/utils/logger");
 const exceptions_1 = require("../../../../shared/exceptions");
 const audit_log_service_1 = require("../../../../shared/services/audit-log.service");
 const file_storage_service_1 = require("../../../../shared/services/file-storage.service");
 class ReceiptSettingService {
     static async getSettings(currentTenantId) {
-        const resolvedTenantId = currentTenantId ?? 1;
         let settings = await client_1.default.receiptSetting.findFirst({
-            where: { tenantId: resolvedTenantId },
             orderBy: { updatedAt: 'desc' },
         });
         if (!settings) {
@@ -20,13 +19,17 @@ class ReceiptSettingService {
                 storeName: 'My Store',
                 isLogoEnabled: true,
                 isFooterEnabled: true,
-                tenantId: resolvedTenantId,
                 updatedBy: 1,
             };
             settings = await client_1.default.receiptSetting.create({
                 data: createData,
             });
         }
+        logger_1.logger.info('ReceiptSettingService.getSettings returning exchange_rate', {
+            settingId: settings.settingId,
+            exchangeRate: settings.exchangeRate,
+            numberVal: Number(settings.exchangeRate ?? 4000),
+        });
         return {
             setting_id: settings.settingId,
             store_name: settings.storeName,
@@ -37,14 +40,13 @@ class ReceiptSettingService {
             footer_note: settings.footerNote,
             is_logo_enabled: settings.isLogoEnabled,
             is_footer_enabled: settings.isFooterEnabled,
+            exchange_rate: Number(settings.exchangeRate ?? 4000),
             updated_at: settings.updatedAt,
             created_at: settings.createdAt,
         };
     }
     static async updateSettings(payload, currentUserId, currentTenantId) {
-        const resolvedTenantId = currentTenantId ?? 1;
         const existing = await client_1.default.receiptSetting.findFirst({
-            where: { tenantId: resolvedTenantId },
             orderBy: { updatedAt: 'desc' },
         });
         if (!existing) {
@@ -58,7 +60,9 @@ class ReceiptSettingService {
             footerNote: payload.footer_note ?? null,
             isLogoEnabled: payload.is_logo_enabled ?? existing.isLogoEnabled,
             isFooterEnabled: payload.is_footer_enabled ?? existing.isFooterEnabled,
-            tenantId: resolvedTenantId,
+            ...(payload.exchange_rate !== undefined && payload.exchange_rate !== null && {
+                exchangeRate: Number(payload.exchange_rate),
+            }),
             updatedBy: currentUserId,
             updatedAt: new Date(),
         };
@@ -81,6 +85,7 @@ class ReceiptSettingService {
                     footer_note: existing.footerNote,
                     is_logo_enabled: existing.isLogoEnabled,
                     is_footer_enabled: existing.isFooterEnabled,
+                    exchange_rate: Number(existing.exchangeRate ?? 4000),
                 },
                 new_values: {
                     store_name: updated.storeName,
@@ -91,6 +96,7 @@ class ReceiptSettingService {
                     footer_note: updated.footerNote,
                     is_logo_enabled: updated.isLogoEnabled,
                     is_footer_enabled: updated.isFooterEnabled,
+                    exchange_rate: Number(updated.exchangeRate ?? 4000),
                 },
             },
         });
@@ -104,13 +110,12 @@ class ReceiptSettingService {
             footer_note: updated.footerNote,
             is_logo_enabled: updated.isLogoEnabled,
             is_footer_enabled: updated.isFooterEnabled,
+            exchange_rate: Number(updated.exchangeRate ?? 4000),
             updated_at: updated.updatedAt,
         };
     }
     static async uploadLogo(file, currentUserId, currentTenantId) {
-        const resolvedTenantId = currentTenantId ?? 1;
         const existing = await client_1.default.receiptSetting.findFirst({
-            where: { tenantId: resolvedTenantId },
             orderBy: { updatedAt: 'desc' },
         });
         if (!existing) {
@@ -126,7 +131,6 @@ class ReceiptSettingService {
         });
         const updateData = {
             logoPath: uploadResult.url,
-            tenantId: resolvedTenantId,
             updatedBy: currentUserId,
             updatedAt: new Date(),
         };

@@ -74,4 +74,9 @@ export const updateSettingsValidator = [
     .isBoolean()
     .withMessage('is_footer_enabled must be a boolean')
     .toBoolean(),
+  body('exchange_rate')
+    .optional({ nullable: true })
+    .isFloat({ min: 1 })
+    .withMessage('exchange_rate must be a positive number')
+    .toFloat(),
 ];

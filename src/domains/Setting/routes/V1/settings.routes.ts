@@ -5,6 +5,8 @@ import { validateRequest } from '@src/shared/middleware/validation.middleware';
 import { Permission } from '@src/shared/config/permissions';
 import { SettingsController } from '@src/domains/Setting/controllers/V1/settings.controller';
 import { updateSettingsValidator } from '@src/domains/Setting/validators/V1';
+import { productImageUploadAny } from '@src/shared/utils/multer.config';
+import { ReceiptSettingsController } from '@src/domains/Receipt/controllers/V1/receipt-settings.controller';
 
 const router: IRouter = Router();
 
@@ -26,6 +28,15 @@ router.put(
   requirePermission(Permission.SETTINGS_UPDATE),
   ...validateRequest(updateSettingsValidator),
   SettingsController.updateSettings
+);
+
+// Upload store logo - Administrator only
+router.post(
+  '/logo',
+  requireAdministrator,
+  requirePermission(Permission.SETTINGS_UPDATE),
+  productImageUploadAny,
+  ReceiptSettingsController.uploadLogo
 );
 
 export default router;

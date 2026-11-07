@@ -39,4 +39,9 @@ export const updateUserValidator = [
     .trim()
     .notEmpty()
     .withMessage('Role cannot be empty'),
+
+  body('allow_dashboard')
+    .optional()
+    .isBoolean()
+    .withMessage('allow_dashboard must be a boolean'),
 ];

@@ -15,6 +15,7 @@ export interface UpdateSettingsRequest {
   store_footer_note?: string;
   is_logo_enabled?: boolean;
   is_footer_enabled?: boolean;
+  exchange_rate?: number;
 }
 
 // Response Types (snake_case for API)
@@ -37,6 +38,7 @@ export interface GetSettingsResponse {
   store_footer_note?: string | null;
   is_logo_enabled?: boolean;
   is_footer_enabled?: boolean;
+  exchange_rate?: number;
 }
 
 export interface UpdateSettingsResponse extends GetSettingsResponse {}

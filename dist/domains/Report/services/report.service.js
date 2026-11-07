@@ -282,7 +282,7 @@ class ReportService {
             const unique_products_sold = uniqueProductsSoldResult[0]?.unique_products_sold;
             // Derive exchange rate (fallback 4000)
             const exchange_rate = 4000;
-            let shifts_breakdown = shiftRows.map(row => ({
+            const shifts_breakdown = shiftRows.map(row => ({
                 seller_id: row.seller_id,
                 seller_name: row.seller_name || 'Unknown',
                 shift_count: Number(row.shift_count || 0),

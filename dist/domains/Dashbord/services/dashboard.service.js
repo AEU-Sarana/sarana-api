@@ -226,6 +226,60 @@ class DashboardService {
             };
         });
     }
+    static async getMonthlyRevenue(targetYear) {
+        const now = new Date();
+        const formatter = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Phnom_Penh',
+            year: 'numeric',
+        });
+        const currentYear = targetYear && !isNaN(targetYear) ? targetYear : Number(formatter.format(now));
+        const startOfYear = new Date(`${currentYear}-01-01T00:00:00+07:00`);
+        const endOfYear = new Date(`${currentYear}-12-31T23:59:59.999+07:00`);
+        const orders = await client_1.default.order.findMany({
+            where: {
+                orderDate: {
+                    gte: startOfYear,
+                    lte: endOfYear,
+                },
+            },
+            select: {
+                orderDate: true,
+                totalAmount: true,
+            },
+        });
+        const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthlyTotals = new Array(12).fill(0);
+        const monthFormatter = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Phnom_Penh',
+            month: 'numeric',
+        });
+        for (const order of orders) {
+            try {
+                const monthNum = Number(monthFormatter.format(new Date(order.orderDate)));
+                const monthIndex = monthNum - 1;
+                if (monthIndex >= 0 && monthIndex < 12) {
+                    monthlyTotals[monthIndex] += Number(order.totalAmount || 0);
+                }
+            }
+            catch {
+                // Skip invalid date
+            }
+        }
+        const monthsData = MONTH_NAMES.map((name, i) => ({
+            month: name,
+            monthIndex: i + 1,
+            revenue: Number(monthlyTotals[i].toFixed(2)),
+        }));
+        const totalRevenue = Number(monthlyTotals.reduce((a, b) => a + b, 0).toFixed(2));
+        const maxRevenue = Math.max(...monthlyTotals, 0);
+        return {
+            year: currentYear,
+            months: monthsData,
+            values: monthlyTotals.map((v) => Number(v.toFixed(2))),
+            total_revenue: totalRevenue,
+            max_revenue: maxRevenue,
+        };
+    }
 }
 exports.DashboardService = DashboardService;
 //# sourceMappingURL=dashboard.service.js.map

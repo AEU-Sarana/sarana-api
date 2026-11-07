@@ -39,13 +39,22 @@ export class BackupCreateService {
       // Run pg_dump (plain SQL for psql restore)
       await new Promise<void>((resolve, reject) => {
         const outStream = fs.createWriteStream(dumpPath);
+        const cleanDbUrl = (() => {
+          try {
+            const parsed = new URL(dbUrl);
+            parsed.searchParams.delete('schema');
+            return parsed.toString();
+          } catch {
+            return dbUrl.replace(/[?&]schema=[^&]+/, '').replace(/\?$/, '');
+          }
+        })();
         const args = [
           '--format=plain',
           '--no-owner',
           '--no-acl',
           '--clean',
           '--if-exists',
-          `--dbname=${dbUrl}`,
+          `--dbname=${cleanDbUrl}`,
         ];
         if (!input.include_data) {
           args.push('--schema-only');

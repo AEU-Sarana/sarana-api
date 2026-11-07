@@ -7,6 +7,15 @@ import {
 import { BusinessLogicException, ValidationException } from '@src/shared/exceptions';
 import { auditLogService } from '@src/shared/services/audit-log.service';
 import { logger } from '@src/shared/utils/logger';
+import { SYSTEM_FEATURES } from '@src/shared/constants/permissions';
+
+export const ADMIN_RESTRICTED_FEATURES = new Set([
+  'users.manage',
+  'roles.manage',
+  'settings.manage',
+  'backup.manage',
+  'security.audit_logs',
+]);
 
 export class RoleService {
   /**
@@ -37,16 +46,72 @@ export class RoleService {
 
     try {
       for (const sr of systemRoles) {
-        await prisma.role.upsert({
+        const roleRecord = await prisma.role.upsert({
           where: { key: sr.key },
-          update: { isSystem: true },
+          update: { isSystem: true, name: sr.name, description: sr.description },
           create: {
             key: sr.key,
             name: sr.name,
             description: sr.description,
             isSystem: true,
           },
+          include: { role_permissions: true },
         });
+
+        if (sr.key === 'ADMINISTRATOR') {
+          // Administrator MUST have all 21 system features
+          const existingKeys = new Set((roleRecord.role_permissions || []).map((p: any) => p.featureKey));
+          const missingFeatures = SYSTEM_FEATURES.filter((f) => !existingKeys.has(f.key));
+          if (missingFeatures.length > 0) {
+            await prisma.rolePermission.createMany({
+              data: missingFeatures.map((f) => ({
+                roleId: roleRecord.roleId,
+                featureKey: f.key,
+                actions: f.supportedActions.join(','),
+              })),
+            });
+          }
+        } else if (sr.key === 'ADMIN') {
+          // Store Admin MUST NOT have any restricted administrative permissions:
+          // User management, Role & Permission, App Setting, Backup, Audit Log
+          await prisma.rolePermission.deleteMany({
+            where: {
+              roleId: roleRecord.roleId,
+              featureKey: {
+                in: Array.from(ADMIN_RESTRICTED_FEATURES),
+              },
+            },
+          });
+
+          // Ensure Store Admin has all operational store features
+          const currentPermissions = await prisma.rolePermission.findMany({
+            where: { roleId: roleRecord.roleId },
+          });
+          const existingKeys = new Set(currentPermissions.map((p) => p.featureKey));
+          const operationalFeatures = SYSTEM_FEATURES.filter(
+            (f) => !ADMIN_RESTRICTED_FEATURES.has(f.key) && !existingKeys.has(f.key)
+          );
+          if (operationalFeatures.length > 0) {
+            await prisma.rolePermission.createMany({
+              data: operationalFeatures.map((f) => ({
+                roleId: roleRecord.roleId,
+                featureKey: f.key,
+                actions: f.supportedActions.join(','),
+              })),
+            });
+          }
+        } else if (sr.key === 'CASHIER') {
+          if (!roleRecord.role_permissions || roleRecord.role_permissions.length === 0) {
+            const cashierFeatures = SYSTEM_FEATURES.filter((f) => f.defaultCashier);
+            await prisma.rolePermission.createMany({
+              data: cashierFeatures.map((f) => ({
+                roleId: roleRecord.roleId,
+                featureKey: f.key,
+                actions: 'read,create,update',
+              })),
+            });
+          }
+        }
       }
     } catch (e) {
       // Ignore if concurrent seed or DB lock
@@ -220,7 +285,14 @@ export class RoleService {
       throw new ValidationException('Role not found');
     }
 
-    const { name, description, permissions } = request;
+    let { name, description, permissions } = request;
+
+    // Strictly forbid assigning administrative features to Store Admin role (ADMIN)
+    if (existingRole.key === 'ADMIN' && permissions !== undefined) {
+      permissions = permissions.filter(
+        (p) => !ADMIN_RESTRICTED_FEATURES.has(p.feature_key)
+      );
+    }
 
     const updatedRole = await prisma.$transaction(async (tx) => {
       await tx.role.update({

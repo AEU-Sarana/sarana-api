@@ -35,5 +35,9 @@ exports.updateUserValidator = [
         .trim()
         .notEmpty()
         .withMessage('Role cannot be empty'),
+    (0, express_validator_1.body)('allow_dashboard')
+        .optional()
+        .isBoolean()
+        .withMessage('allow_dashboard must be a boolean'),
 ];
 //# sourceMappingURL=update-user.validator.js.map

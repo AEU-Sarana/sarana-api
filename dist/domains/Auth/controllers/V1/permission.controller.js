@@ -1,8 +1,12 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PermissionController = void 0;
 const permission_service_1 = require("../../services/V1/permission.service");
 const permissions_1 = require("../../../../shared/constants/permissions");
+const client_1 = __importDefault(require("../../../../database/client"));
 const logger_1 = require("../../../../shared/utils/logger");
 const permissionService = new permission_service_1.PermissionService();
 class PermissionController {
@@ -32,7 +36,18 @@ class PermissionController {
                 });
                 return;
             }
-            const permissions = await permissionService.getUserPermissions(targetUserId, 'CASHIER');
+            const targetUser = await client_1.default.user.findUnique({
+                where: { userId: targetUserId },
+                select: { userId: true, role: true },
+            });
+            if (!targetUser) {
+                res.status(404).json({
+                    success: false,
+                    message: 'User not found',
+                });
+                return;
+            }
+            const permissions = await permissionService.getUserPermissions(targetUserId, targetUser.role);
             res.status(200).json({
                 success: true,
                 data: {
@@ -66,7 +81,8 @@ class PermissionController {
                 return;
             }
             const adminUser = req.user;
-            if (adminUser?.role !== 'ADMIN') {
+            const adminRoleUpper = (adminUser?.role || '').toUpperCase();
+            if (adminRoleUpper !== 'ADMIN' && adminRoleUpper !== 'ADMINISTRATOR' && adminRoleUpper !== 'SUPER_ADMIN') {
                 res.status(403).json({
                     success: false,
                     message: 'Only admins can manage cashier permissions',

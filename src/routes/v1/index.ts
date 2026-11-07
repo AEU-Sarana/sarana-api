@@ -24,8 +24,11 @@ import auditRoutes from './audit.routes';
 const router: IRouter = Router();
 
 // Mount route modules
-router.use('/', permissionRoutes);
 router.use('/auth', authRoutes);
+router.use('/admin/receipt-settings', ReceiptRoutes);
+router.use('/receipts', ReceiptRoutes);
+router.use('/', ReceiptRoutes);
+router.use('/', permissionRoutes);
 router.use('/products', productRoutes);
 router.use('/categories', categoryRoutes);
 router.use('/stocks', stockRoutes);

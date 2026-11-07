@@ -41,6 +41,24 @@ class DashboardController {
             throw error;
         }
     }
+    /**
+     * GET /api/v1/dashboard/monthly-revenue
+     */
+    static async getMonthlyRevenue(req, res) {
+        try {
+            const year = req.query.year ? Number(req.query.year) : undefined;
+            const data = await dashboard_service_1.DashboardService.getMonthlyRevenue(year);
+            res.status(200).json({
+                success: true,
+                data,
+                message: 'Monthly revenue retrieved successfully',
+            });
+        }
+        catch (error) {
+            logger_1.logger.error('Get monthly revenue error', { error: error.message });
+            throw error;
+        }
+    }
 }
 exports.DashboardController = DashboardController;
 //# sourceMappingURL=dashboard.controller.js.map

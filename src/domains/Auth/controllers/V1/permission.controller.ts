@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PermissionService } from '../../services/V1/permission.service';
 import { SYSTEM_FEATURES } from '@src/shared/constants/permissions';
 import { UserPayload } from '@src/shared/middleware/auth.middleware';
+import prisma from '@src/database/client';
 import { logger } from '@src/shared/utils/logger';
 
 const permissionService = new PermissionService();
@@ -35,7 +36,20 @@ export class PermissionController {
         return;
       }
 
-      const permissions = await permissionService.getUserPermissions(targetUserId, 'CASHIER');
+      const targetUser = await prisma.user.findUnique({
+        where: { userId: targetUserId },
+        select: { userId: true, role: true },
+      });
+
+      if (!targetUser) {
+        res.status(404).json({
+          success: false,
+          message: 'User not found',
+        });
+        return;
+      }
+
+      const permissions = await permissionService.getUserPermissions(targetUserId, targetUser.role);
 
       res.status(200).json({
         success: true,
@@ -71,7 +85,8 @@ export class PermissionController {
       }
 
       const adminUser = req.user as UserPayload;
-      if (adminUser?.role !== 'ADMIN') {
+      const adminRoleUpper = (adminUser?.role || '').toUpperCase();
+      if (adminRoleUpper !== 'ADMIN' && adminRoleUpper !== 'ADMINISTRATOR' && adminRoleUpper !== 'SUPER_ADMIN') {
         res.status(403).json({
           success: false,
           message: 'Only admins can manage cashier permissions',

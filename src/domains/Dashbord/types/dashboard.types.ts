@@ -70,6 +70,20 @@ export interface TopSellingProduct {
   image_path: string | null;
 }
 
+export interface MonthlyRevenueItem {
+  month: string;
+  monthIndex: number;
+  revenue: number;
+}
+
+export interface MonthlyRevenueResponse {
+  year: number;
+  months: MonthlyRevenueItem[];
+  values: number[];
+  total_revenue: number;
+  max_revenue: number;
+}
+
 export interface AdminDashboardOverview {
   today_summary: DashboardTodaySummaryAdmin;
   low_stock_warnings: DashboardLowStockWarning[];

@@ -38,4 +38,9 @@ export const createUserValidator = [
     .trim()
     .notEmpty()
     .withMessage('Role is required'),
+
+  body('allow_dashboard')
+    .optional()
+    .isBoolean()
+    .withMessage('allow_dashboard must be a boolean'),
 ];

@@ -13,25 +13,17 @@ export class PermissionService {
    */
   async getUserPermissions(userId: number, role: string): Promise<UserPermissionItem[]> {
     const roleUpper = (role || '').toUpperCase();
+    const restrictedFeatures = [
+      'users.manage',
+      'roles.manage',
+      'settings.manage',
+      'backup.manage',
+      'security.audit_logs',
+    ];
 
     // 1. ADMINISTRATOR has 100% full feature access automatically
     if (roleUpper === 'ADMINISTRATOR' || roleUpper === 'SUPER_ADMIN') {
       return SYSTEM_FEATURES.map((f) => ({
-        featureKey: f.key,
-        actions: ['all', 'read', 'create', 'update', 'delete'] as PermissionAction[],
-      }));
-    }
-
-    // 2. ADMIN has full operational access EXCEPT the 5 restricted permissions
-    if (roleUpper === 'ADMIN') {
-      const restrictedFeatures = [
-        'users.manage',
-        'roles.manage',
-        'settings.manage',
-        'backup.manage',
-        'security.audit_logs',
-      ];
-      return SYSTEM_FEATURES.filter((f) => !restrictedFeatures.includes(f.key)).map((f) => ({
         featureKey: f.key,
         actions: ['all', 'read', 'create', 'update', 'delete'] as PermissionAction[],
       }));
@@ -43,9 +35,37 @@ export class PermissionService {
     });
 
     if (assigned.length > 0) {
-      return assigned.map((a: { featureKey: string; actions: string }) => ({
+      const filtered = roleUpper === 'ADMIN'
+        ? assigned.filter((a: { featureKey: string }) => !restrictedFeatures.includes(a.featureKey))
+        : assigned;
+      return filtered.map((a: { featureKey: string; actions: string }) => ({
         featureKey: a.featureKey,
         actions: a.actions ? (a.actions.split(',') as PermissionAction[]) : ['read'],
+      }));
+    }
+
+    // 2. Fallback to check Role permissions based on role key if user has a custom role
+    const roleRecord = await prisma.role.findFirst({
+      where: {
+        key: { equals: roleUpper, mode: 'insensitive' },
+      },
+      include: {
+        role_permissions: true,
+      },
+    });
+
+    if (roleRecord && roleRecord.role_permissions && roleRecord.role_permissions.length > 0) {
+      return roleRecord.role_permissions.map((rp: any) => ({
+        featureKey: rp.featureKey,
+        actions: rp.actions ? (rp.actions.split(',') as PermissionAction[]) : ['read'],
+      }));
+    }
+
+    // 3. ADMIN has full operational access EXCEPT the 5 restricted permissions
+    if (roleUpper === 'ADMIN') {
+      return SYSTEM_FEATURES.filter((f) => !restrictedFeatures.includes(f.key)).map((f) => ({
+        featureKey: f.key,
+        actions: ['all', 'read', 'create', 'update', 'delete'] as PermissionAction[],
       }));
     }
 
@@ -72,13 +92,17 @@ export class PermissionService {
 
     const targetRoleUpper = (targetUser.role || '').toUpperCase();
     if (targetRoleUpper === 'ADMINISTRATOR' || targetRoleUpper === 'SUPER_ADMIN') {
-      return SYSTEM_FEATURES.map((f) => ({
-        featureKey: f.key,
-        actions: ['all', 'read', 'create', 'update', 'delete'] as PermissionAction[],
-      }));
+      throw new Error('Cannot modify permissions for Administrator role');
     }
 
     const validKeys = SYSTEM_FEATURES.map((f) => f.key);
+    const restrictedFeatures = [
+      'users.manage',
+      'roles.manage',
+      'settings.manage',
+      'backup.manage',
+      'security.audit_logs',
+    ];
 
     // Normalize input array whether array of strings or array of { featureKey, actions }
     const normalizedItems: UserPermissionItem[] = [];
@@ -86,10 +110,16 @@ export class PermissionService {
     for (const item of permissionsInput) {
       if (typeof item === 'string') {
         if (validKeys.includes(item)) {
+          if (targetRoleUpper === 'ADMIN' && restrictedFeatures.includes(item)) {
+            continue; // Skip restricted features for ADMIN
+          }
           normalizedItems.push({ featureKey: item, actions: ['all'] });
         }
       } else if (item && typeof item === 'object' && item.featureKey) {
         if (validKeys.includes(item.featureKey)) {
+          if (targetRoleUpper === 'ADMIN' && restrictedFeatures.includes(item.featureKey)) {
+            continue; // Skip restricted features for ADMIN
+          }
           const actionsArr = Array.isArray(item.actions) && item.actions.length > 0 ? item.actions : ['read'];
           normalizedItems.push({
             featureKey: item.featureKey,

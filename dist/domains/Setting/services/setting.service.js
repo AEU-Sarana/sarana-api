@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SettingService = void 0;
 const client_1 = __importDefault(require("../../../database/client"));
+const logger_1 = require("../../../shared/utils/logger");
 const audit_log_service_1 = require("../../../shared/services/audit-log.service");
 const event_bus_1 = require("../../../shared/events/event-bus");
 class SettingService {
@@ -53,6 +54,11 @@ class SettingService {
             entityType: 'AppSetting',
             entityId: settings.settingId,
         });
+        logger_1.logger.info('SettingService.getSettings returning exchange_rate', {
+            settingId: receipt.settingId,
+            exchangeRate: receipt.exchangeRate,
+            numberVal: Number(receipt.exchangeRate ?? 4000),
+        });
         return {
             auto_backup: settings.autoBackup,
             backup_frequency: settings.backupFrequency,
@@ -71,6 +77,7 @@ class SettingService {
             store_footer_note: receipt.footerNote,
             is_logo_enabled: receipt.isLogoEnabled,
             is_footer_enabled: receipt.isFooterEnabled,
+            exchange_rate: Number(receipt.exchangeRate ?? 4000),
         };
     }
     /**
@@ -123,9 +130,15 @@ class SettingService {
             request.store_tax_id !== undefined ||
             request.store_footer_note !== undefined ||
             request.is_logo_enabled !== undefined ||
-            request.is_footer_enabled !== undefined;
+            request.is_footer_enabled !== undefined ||
+            request.exchange_rate !== undefined;
         let receipt = await client_1.default.receiptSetting.findFirst({
             orderBy: { updatedAt: 'desc' },
+        });
+        logger_1.logger.info('SettingService.updateSettings receipt fields update', {
+            hasReceiptFields,
+            exchange_rate_in_request: request.exchange_rate,
+            receiptSettingId: receipt?.settingId,
         });
         if (!receipt) {
             receipt = await client_1.default.receiptSetting.create({
@@ -137,6 +150,7 @@ class SettingService {
                     footerNote: request.store_footer_note ?? null,
                     isLogoEnabled: request.is_logo_enabled ?? true,
                     isFooterEnabled: request.is_footer_enabled ?? true,
+                    exchangeRate: request.exchange_rate ? Number(request.exchange_rate) : 4000,
                     updatedBy: currentUserId,
                 },
             });
@@ -152,9 +166,15 @@ class SettingService {
                     ...(request.store_footer_note !== undefined && { footerNote: request.store_footer_note || null }),
                     ...(request.is_logo_enabled !== undefined && { isLogoEnabled: request.is_logo_enabled }),
                     ...(request.is_footer_enabled !== undefined && { isFooterEnabled: request.is_footer_enabled }),
+                    ...(request.exchange_rate !== undefined && { exchangeRate: Number(request.exchange_rate) }),
                     updatedBy: currentUserId,
                     updatedAt: new Date(),
                 },
+            });
+            logger_1.logger.info('SettingService.updateSettings receipt updated successfully', {
+                settingId: receipt.settingId,
+                exchangeRate: receipt.exchangeRate,
+                numberVal: Number(receipt.exchangeRate ?? 4000),
             });
         }
         await audit_log_service_1.auditLogService.createAuditLog({
@@ -177,6 +197,7 @@ class SettingService {
                     store_footer_note: receipt?.footerNote,
                     is_logo_enabled: receipt?.isLogoEnabled,
                     is_footer_enabled: receipt?.isFooterEnabled,
+                    exchange_rate: Number(receipt?.exchangeRate ?? 4000),
                 }),
             },
         });
@@ -210,6 +231,7 @@ class SettingService {
             store_footer_note: receipt?.footerNote,
             is_logo_enabled: receipt?.isLogoEnabled,
             is_footer_enabled: receipt?.isFooterEnabled,
+            exchange_rate: Number(receipt?.exchangeRate ?? 4000),
         };
     }
 }

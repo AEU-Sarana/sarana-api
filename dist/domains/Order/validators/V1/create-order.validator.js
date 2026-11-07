@@ -22,6 +22,10 @@ exports.createOrderValidator = [
         .optional({ nullable: true })
         .isFloat({ min: 0 })
         .withMessage('Service fee must be a positive number'),
+    (0, express_validator_1.body)('exchange_rate')
+        .optional({ nullable: true })
+        .isFloat({ min: 1 })
+        .withMessage('Exchange rate must be a positive number'),
     (0, express_validator_1.body)('items')
         .isArray({ min: 1 })
         .withMessage('Items must be an array with at least one item'),

@@ -1,4 +1,5 @@
 import prisma from '@src/database/client';
+import { logger } from '@src/shared/utils/logger';
 import { ValidationException } from '@src/shared/exceptions';
 import { auditLogService } from '@src/shared/services/audit-log.service';
 
@@ -6,9 +7,7 @@ import { fileStorageService } from '@src/shared/services/file-storage.service';
 
 export class ReceiptSettingService {
   static async getSettings(currentTenantId?: number): Promise<any> {
-    const resolvedTenantId = currentTenantId ?? 1;
     let settings = await prisma.receiptSetting.findFirst({
-      where: { tenantId: resolvedTenantId } as any,
       orderBy: { updatedAt: 'desc' },
     });
 
@@ -17,7 +16,6 @@ export class ReceiptSettingService {
         storeName: 'My Store',
         isLogoEnabled: true,
         isFooterEnabled: true,
-        tenantId: resolvedTenantId,
         updatedBy: 1,
       } as any;
 
@@ -25,6 +23,12 @@ export class ReceiptSettingService {
         data: createData,
       });
     }
+
+    logger.info('ReceiptSettingService.getSettings returning exchange_rate', {
+      settingId: settings.settingId,
+      exchangeRate: settings.exchangeRate,
+      numberVal: Number(settings.exchangeRate ?? 4000),
+    });
 
     return {
       setting_id: settings.settingId,
@@ -36,6 +40,7 @@ export class ReceiptSettingService {
       footer_note: settings.footerNote,
       is_logo_enabled: settings.isLogoEnabled,
       is_footer_enabled: settings.isFooterEnabled,
+      exchange_rate: Number(settings.exchangeRate ?? 4000),
       updated_at: settings.updatedAt,
       created_at: settings.createdAt,
     };
@@ -50,13 +55,12 @@ export class ReceiptSettingService {
       footer_note?: string;
       is_logo_enabled?: boolean;
       is_footer_enabled?: boolean;
+      exchange_rate?: number;
     },
     currentUserId: number,
     currentTenantId?: number
   ): Promise<any> {
-    const resolvedTenantId = currentTenantId ?? 1;
     const existing = await prisma.receiptSetting.findFirst({
-      where: { tenantId: resolvedTenantId } as any,
       orderBy: { updatedAt: 'desc' },
     });
     if (!existing) {
@@ -71,7 +75,9 @@ export class ReceiptSettingService {
       footerNote: payload.footer_note ?? null,
       isLogoEnabled: payload.is_logo_enabled ?? existing.isLogoEnabled,
       isFooterEnabled: payload.is_footer_enabled ?? existing.isFooterEnabled,
-      tenantId: resolvedTenantId,
+      ...(payload.exchange_rate !== undefined && payload.exchange_rate !== null && {
+        exchangeRate: Number(payload.exchange_rate),
+      }),
       updatedBy: currentUserId,
       updatedAt: new Date(),
     } as any;
@@ -96,6 +102,7 @@ export class ReceiptSettingService {
           footer_note: existing.footerNote,
           is_logo_enabled: existing.isLogoEnabled,
           is_footer_enabled: existing.isFooterEnabled,
+          exchange_rate: Number(existing.exchangeRate ?? 4000),
         },
         new_values: {
           store_name: updated.storeName,
@@ -106,6 +113,7 @@ export class ReceiptSettingService {
           footer_note: updated.footerNote,
           is_logo_enabled: updated.isLogoEnabled,
           is_footer_enabled: updated.isFooterEnabled,
+          exchange_rate: Number(updated.exchangeRate ?? 4000),
         },
       },
     });
@@ -120,6 +128,7 @@ export class ReceiptSettingService {
       footer_note: updated.footerNote,
       is_logo_enabled: updated.isLogoEnabled,
       is_footer_enabled: updated.isFooterEnabled,
+      exchange_rate: Number(updated.exchangeRate ?? 4000),
       updated_at: updated.updatedAt,
     };
   }
@@ -128,9 +137,7 @@ export class ReceiptSettingService {
     currentUserId: number,
     currentTenantId?: number
   ): Promise<any> {
-    const resolvedTenantId = currentTenantId ?? 1;
     const existing = await prisma.receiptSetting.findFirst({
-      where: { tenantId: resolvedTenantId } as any,
       orderBy: { updatedAt: 'desc' },
     });
     if (!existing) {
@@ -152,7 +159,6 @@ export class ReceiptSettingService {
 
     const updateData = {
       logoPath: uploadResult.url,
-      tenantId: resolvedTenantId,
       updatedBy: currentUserId,
       updatedAt: new Date(),
     } as any;

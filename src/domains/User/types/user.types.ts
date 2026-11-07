@@ -20,6 +20,7 @@ export interface CreateUserRequest {
   password: string;
   phone?: string;
   role: UserRole;
+  allow_dashboard?: boolean;
 }
 
 export interface UpdateUserRequest {
@@ -29,6 +30,7 @@ export interface UpdateUserRequest {
   status?: UserStatus;
   password?: string;
   role?: string;
+  allow_dashboard?: boolean;
 }
 
 export interface DeactivateUserRequest {
@@ -45,6 +47,7 @@ export interface UserResponse {
   phone?: string | null;
   status: UserStatus;
   device_id?: string | null;
+  allow_dashboard?: boolean;
   created_at: Date;
   updated_at: Date;
 }

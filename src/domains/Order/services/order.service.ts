@@ -21,13 +21,27 @@ type CurrentUserContext = {
 };
 
 const ADMIN_ROLES = new Set<string>([
+  Role.ADMINISTRATOR,
   Role.ADMIN,
+  'ADMINISTRATOR',
+  'ADMIN',
+  'SUPER_ADMIN',
   'COMPANY_ADMIN',
   'OWNER',
   'MANAGER',
 ]);
 
-const isAdminRole = (role?: string): boolean => (role ? ADMIN_ROLES.has(role) : false);
+const isAdminRole = (role?: string): boolean => {
+  if (!role) return false;
+  const cleaned = role.trim().toUpperCase();
+  return (
+    cleaned === 'ADMINISTRATOR' ||
+    cleaned === 'SUPER_ADMIN' ||
+    cleaned === 'ADMIN' ||
+    ADMIN_ROLES.has(role) ||
+    ADMIN_ROLES.has(cleaned)
+  );
+};
 
 export class OrderService {
   /**
@@ -300,6 +314,7 @@ export class OrderService {
           discountAmount: request.discount_amount || 0,
           taxAmount: request.tax_amount || 0,
           serviceFee: request.service_fee || 0,
+          exchangeRate: request.exchange_rate ? Number(request.exchange_rate) : 4000,
           paymentMethod: request.payment_method,
         },
       });
@@ -335,18 +350,23 @@ export class OrderService {
 
       // 4. Record initial customer debt repayment if deposit paid
       if (request.customer_id && initialPaidAmount > 0 && balanceDue > 0) {
-        const cpayRand = Math.random().toString(36).slice(2, 6).toUpperCase();
-        await tx.customerPayment.create({
-          data: {
-            paymentNumber: `CPAY-${dateStr}-${cpayRand}`,
-            customerId: request.customer_id,
-            orderId: newOrder.orderId,
-            amount: initialPaidAmount,
-            paymentMethod: request.payment_method,
-            notes: 'Initial deposit paid at POS checkout',
-            createdBy: currentUser.userId,
-          },
-        });
+        try {
+          const cpayRand = Math.random().toString(36).slice(2, 6).toUpperCase();
+          await tx.customerPayment.create({
+            data: {
+              paymentNumber: `CPAY-${dateStr}-${cpayRand}`,
+              customerId: request.customer_id,
+              orderId: newOrder.orderId,
+              amount: initialPaidAmount,
+              paymentMethod: request.payment_method,
+              notes: 'Initial deposit paid at POS checkout',
+              createdBy: currentUser.userId,
+            },
+            select: { paymentId: true },
+          });
+        } catch (cpayErr: any) {
+          logger.warn('Could not record initial customer debt payment ledger:', { error: cpayErr.message });
+        }
       }
 
       // 3. Process items and decrement stock
@@ -603,7 +623,8 @@ export class OrderService {
   static async listCancellationRequests(
     currentUser: CurrentUserContext
   ): Promise<GetOrderResponse[]> {
-    if (!isAdminRole(currentUser.role)) {
+    const roleUpper = (currentUser?.role || '').trim().toUpperCase();
+    if (roleUpper !== 'ADMINISTRATOR' && roleUpper !== 'SUPER_ADMIN' && !isAdminRole(currentUser?.role)) {
       throw new ForbiddenException('Only admins can view cancellation requests');
     }
 

@@ -46,8 +46,9 @@ export async function authorizeOrderAccess(
       return;
     }
 
-    // Admin can access all orders
-    if (req.user.role === Role.ADMIN) {
+    // Admin and Administrator can access all orders
+    const userRoleUpper = (req.user.role || '').toUpperCase();
+    if (userRoleUpper === 'ADMIN' || userRoleUpper === 'ADMINISTRATOR' || userRoleUpper === 'SUPER_ADMIN') {
       req.order = order;
       return next();
     }

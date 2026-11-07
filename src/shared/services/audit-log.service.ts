@@ -14,11 +14,43 @@ export interface AuditLogData {
   userAgent?: string;
 }
 
+function extractAuditValues(data: AuditLogData): { oldValues: any; newValues: any } {
+  let oldValues = data.oldValues;
+  let newValues = data.newValues;
+
+  if (!oldValues && !newValues && data.details) {
+    const d = data.details;
+    if ('stockBefore' in d || 'stockAfter' in d) {
+      oldValues = {
+        stockQuantity: d.stockBefore ?? null,
+      };
+      newValues = {
+        stockQuantity: d.stockAfter ?? null,
+        ...(d.quantity !== undefined ? { quantityChange: d.quantity } : {}),
+        ...(d.cost !== undefined ? { unitCost: typeof d.cost === 'number' ? `$${d.cost.toFixed(2)}` : d.cost } : {}),
+        ...(d.supplier ? { supplier: d.supplier } : {}),
+        ...(d.reason ? { reason: d.reason } : {}),
+      };
+    } else if ('fromStatus' in d || 'toStatus' in d) {
+      oldValues = { status: d.fromStatus ?? null };
+      newValues = { status: d.toStatus ?? null };
+    } else if ('before' in d || 'after' in d) {
+      oldValues = d.before || null;
+      newValues = d.after || null;
+    } else {
+      newValues = d;
+    }
+  }
+
+  return { oldValues, newValues };
+}
+
 export class AuditLogService {
   /**
    * Create audit log entry
    */
   async createAuditLog(data: AuditLogData): Promise<void> {
+    const { oldValues, newValues } = extractAuditValues(data);
     try {
       await prisma.auditLog.create({
         data: {
@@ -26,8 +58,8 @@ export class AuditLogService {
           action: data.action,
           entityType: data.entityType ?? data.resource,
           entityId: data.entityId,
-          oldValues: data.oldValues as any,
-          newValues: data.newValues as any,
+          oldValues: oldValues as any,
+          newValues: newValues as any,
           ipAddress: data.ipAddress,
           userAgent: data.userAgent,
         },
@@ -53,8 +85,8 @@ export class AuditLogService {
               action: data.action,
               entityType: data.entityType ?? data.resource,
               entityId: data.entityId,
-              oldValues: data.oldValues as any,
-              newValues: data.newValues as any,
+              oldValues: oldValues as any,
+              newValues: newValues as any,
               ipAddress: data.ipAddress,
               userAgent: data.userAgent,
             },
@@ -176,26 +208,128 @@ export class AuditLogService {
       return null;
     }
 
-    const oldVals = (log.oldValues && typeof log.oldValues === 'object' ? log.oldValues : {}) as Record<string, any>;
-    const newVals = (log.newValues && typeof log.newValues === 'object' ? log.newValues : {}) as Record<string, any>;
+    let oldVals = (log.oldValues && typeof log.oldValues === 'object' ? log.oldValues : null) as Record<string, any> | null;
+    let newVals = (log.newValues && typeof log.newValues === 'object' ? log.newValues : null) as Record<string, any> | null;
 
-    const allKeys = Array.from(new Set([...Object.keys(oldVals), ...Object.keys(newVals)]));
+    // Fallback: If both oldValues and newValues are null (e.g. historical logs before mapping was introduced)
+    if (!oldVals && !newVals) {
+      if ((log.entityType === 'Stock' || log.action?.includes('STOCK')) && log.entityId) {
+        try {
+          const stock = await prisma.stock.findUnique({
+            where: { stockId: log.entityId },
+            include: { product: true },
+          });
+          if (stock) {
+            // Find stock movement recorded around the same time (+- 5 minutes)
+            const logTime = new Date(log.createdAt);
+            const movement = await prisma.stockMovement.findFirst({
+              where: {
+                productId: stock.productId,
+                createdAt: {
+                  gte: new Date(logTime.getTime() - 300000),
+                  lte: new Date(logTime.getTime() + 300000),
+                },
+              },
+              orderBy: { createdAt: 'desc' },
+            });
+
+            if (movement) {
+              const qty = movement.quantity;
+              if (log.action === 'STOCK_IN') {
+                const estOld = Math.max(0, stock.quantity - qty);
+                oldVals = {
+                  productName: stock.product?.productName,
+                  stockQuantity: estOld,
+                };
+                newVals = {
+                  productName: stock.product?.productName,
+                  stockQuantity: estOld + qty,
+                  quantityAdded: qty,
+                  ...(movement.cost ? { unitCost: `$${Number(movement.cost).toFixed(2)}` } : {}),
+                  ...(movement.supplier ? { supplier: movement.supplier } : {}),
+                };
+              } else if (log.action === 'STOCK_ADJUSTMENT') {
+                oldVals = {
+                  productName: stock.product?.productName,
+                  stockQuantity: stock.quantity - qty,
+                };
+                newVals = {
+                  productName: stock.product?.productName,
+                  stockQuantity: stock.quantity,
+                  quantityAdjusted: qty,
+                  ...(movement.reason ? { reason: movement.reason } : {}),
+                };
+              } else {
+                newVals = {
+                  productName: stock.product?.productName,
+                  quantity: qty,
+                  movementType: movement.movementType,
+                  ...(movement.supplier ? { supplier: movement.supplier } : {}),
+                };
+              }
+            } else {
+              newVals = {
+                productName: stock.product?.productName,
+                currentStock: stock.quantity,
+                barcode: stock.product?.barcode,
+              };
+            }
+          }
+        } catch (fallbackErr) {
+          logger.warn('Failed to fallback Stock audit diff:', fallbackErr);
+        }
+      } else if (log.entityType === 'PurchaseOrder' && log.entityId) {
+        try {
+          const po = await prisma.purchaseOrder.findUnique({
+            where: { poId: log.entityId },
+            include: { supplier: true },
+          });
+          if (po) {
+            newVals = {
+              poNumber: po.poNumber,
+              supplier: po.supplier?.companyName,
+              totalAmount: `$${Number(po.totalAmount).toFixed(2)}`,
+              status: po.status,
+            };
+          }
+        } catch (e) {}
+      } else if (log.entityType === 'Order' && log.entityId) {
+        try {
+          const order = await prisma.order.findUnique({
+            where: { orderId: log.entityId },
+          });
+          if (order) {
+            newVals = {
+              orderNumber: order.receiptNumber,
+              totalAmount: `$${Number(order.totalAmount).toFixed(2)}`,
+              paymentStatus: order.paymentStatus,
+            };
+          }
+        } catch (e) {}
+      }
+    }
+
+    const safeOld = oldVals || {};
+    const safeNew = newVals || {};
+    const allKeys = Array.from(new Set([...Object.keys(safeOld), ...Object.keys(safeNew)]));
     const diff = allKeys.map((key) => {
-      const oldVal = oldVals[key];
-      const newVal = newVals[key];
-      const isAdded = !(key in oldVals) && key in newVals;
-      const isRemoved = key in oldVals && !(key in newVals);
+      const oldVal = safeOld[key];
+      const newVal = safeNew[key];
+      const isAdded = !(key in safeOld) && key in safeNew;
+      const isRemoved = key in safeOld && !(key in safeNew);
       const isModified = !isAdded && !isRemoved && JSON.stringify(oldVal) !== JSON.stringify(newVal);
       return {
         key,
-        oldValue: oldVal,
-        newValue: newVal,
+        oldValue: oldVal ?? null,
+        newValue: newVal ?? null,
         status: isAdded ? 'added' : isRemoved ? 'removed' : isModified ? 'modified' : 'unchanged',
       };
     });
 
     return {
       ...log,
+      oldValues: oldVals,
+      newValues: newVals,
       diff,
     };
   }

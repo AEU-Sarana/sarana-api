@@ -4,4 +4,6 @@ export {
   DashboardRecentOrderActivity,
   DashboardRecentStockMovementActivity,
   TopSellingProduct,
+  MonthlyRevenueItem,
+  MonthlyRevenueResponse,
 } from './dashboard.types';
