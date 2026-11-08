@@ -160,6 +160,14 @@ export const SYSTEM_FEATURES: SystemFeature[] = [
     defaultCashier: false,
     supportedActions: ['read', 'all'],
   },
+  {
+    key: 'reports.profit_loss',
+    name: 'View Profit & Loss (P&L)',
+    category: 'Reports',
+    description: 'Detailed financial statement with gross/net profit, COGS, and stock shrinkage losses (Administrator Only)',
+    defaultCashier: false,
+    supportedActions: ['read', 'create', 'all'],
+  },
 
   // Customers & Users
   {

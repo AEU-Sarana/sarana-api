@@ -255,6 +255,48 @@ export class ReportController {
   }
 
   /**
+   * GET /api/v1/reports/profit-loss
+   * Financial Profit and Loss Statement (Administrator Only)
+   */
+  static async getProfitLossReport(req: Request, res: Response): Promise<void> {
+    try {
+      const user = req.user as UserPayload;
+      const period = (getStringValue(req.query.period) || 'monthly') as any;
+      const startDate = getStringValue(req.query.start_date);
+      const endDate = getStringValue(req.query.end_date);
+      const comparePrevious = req.query.compare_previous === 'true' || req.query.compare_previous === '1';
+
+      logger.info('Get profit and loss report request', {
+        userId: user?.userId,
+        role: user?.role,
+        period,
+        startDate,
+        endDate,
+        comparePrevious,
+      });
+
+      const response = await ReportService.getProfitLossReport({
+        period,
+        start_date: startDate,
+        end_date: endDate,
+        compare_previous: comparePrevious,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: response,
+        message: 'Profit & Loss report retrieved successfully',
+      });
+    } catch (error: any) {
+      logger.error('Get profit and loss report error', {
+        error: error.message,
+        stack: error.stack,
+      });
+      throw error;
+    }
+  }
+
+  /**
    * POST /api/v1/reports/export
    * Queue a report export job for background processing
    */

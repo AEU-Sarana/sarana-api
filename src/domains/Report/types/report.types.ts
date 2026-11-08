@@ -191,3 +191,82 @@ export interface ReportPagination {
   total: number;
   totalPages: number;
 }
+
+/**
+ * Profit and Loss (P&L) Report
+ */
+export type ProfitLossPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
+
+export interface ProfitLossReportRequest {
+  period?: ProfitLossPeriod;
+  start_date?: string;
+  end_date?: string;
+  compare_previous?: boolean;
+}
+
+export interface ProfitLossSummary {
+  gross_sales: number;
+  discounts: number;
+  net_sales: number;
+  cogs: number;
+  gross_profit: number;
+  gross_margin_pct: number;
+  stock_loss: number;
+  net_profit: number;
+  net_margin_pct: number;
+  total_orders: number;
+  total_items_sold: number;
+}
+
+export interface ProfitLossGrowthComparison {
+  sales_growth_pct: number;
+  profit_growth_pct: number;
+  previous_net_sales: number;
+  previous_net_profit: number;
+}
+
+export interface ProfitLossCategoryBreakdown {
+  category_id: number;
+  category_name: string;
+  quantity_sold: number;
+  revenue: number;
+  cogs: number;
+  profit: number;
+  margin_pct: number;
+}
+
+export interface ProfitLossProductItem {
+  product_id: number;
+  product_name: string;
+  product_code: string;
+  category_name: string;
+  quantity_sold: number;
+  revenue: number;
+  cogs: number;
+  profit: number;
+  margin_pct: number;
+}
+
+export interface ProfitLossStockLossItem {
+  movement_id: number;
+  product_id: number;
+  product_name: string;
+  quantity: number;
+  movement_type: string;
+  cost_loss: number;
+  date: string;
+}
+
+export interface ProfitLossReportResponse {
+  period: ProfitLossPeriod;
+  date_range: {
+    start: string;
+    end: string;
+  };
+  summary: ProfitLossSummary;
+  growth_comparison: ProfitLossGrowthComparison | null;
+  category_breakdown: ProfitLossCategoryBreakdown[];
+  top_profitable_products: ProfitLossProductItem[];
+  least_profitable_products: ProfitLossProductItem[];
+  stock_loss_items: ProfitLossStockLossItem[];
+}

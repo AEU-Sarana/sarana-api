@@ -24,6 +24,11 @@ router.get('/stock', (0, auth_middleware_1.requirePermission)('reports.full_anal
  */
 router.get('/income', (0, auth_middleware_1.requirePermission)('reports.full_analytics', 'read'), ...(0, validation_middleware_1.validateRequest)(index_1.getIncomeReportValidator), report_controller_1.ReportController.getIncomeReport);
 /**
+ * GET /api/v1/reports/profit-loss
+ * Financial Profit & Loss Statement (Administrator / Admin)
+ */
+router.get('/profit-loss', (0, auth_middleware_1.requirePermission)('reports.profit_loss', 'read'), report_controller_1.ReportController.getProfitLossReport);
+/**
  * POST /api/v1/reports/export
  */
 router.post('/export', (0, auth_middleware_1.requirePermission)('reports.full_analytics', 'create'), ...(0, validation_middleware_1.validateRequest)(index_1.exportReportValidator), report_controller_1.ReportController.exportReport);

@@ -56,6 +56,16 @@ router.get(
 );
 
 /**
+ * GET /api/v1/reports/profit-loss
+ * Financial Profit & Loss Statement (Administrator / Admin)
+ */
+router.get(
+  '/profit-loss',
+  requirePermission('reports.profit_loss', 'read'),
+  ReportController.getProfitLossReport
+);
+
+/**
  * POST /api/v1/reports/export
  */
 router.post(

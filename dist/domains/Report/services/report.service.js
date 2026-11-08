@@ -794,6 +794,256 @@ class ReportService {
         });
         return rows;
     }
+    /**
+     * Profit & Loss (P&L) Report for Administrator
+     */
+    static async getProfitLossReport(request, tenantId) {
+        const period = (request.period || 'monthly');
+        let start;
+        let end;
+        if (period === 'custom') {
+            if (!request.start_date || !request.end_date) {
+                throw new exceptions_1.ValidationException('Custom period requires start_date and end_date (YYYY-MM-DD)');
+            }
+            start = new Date(`${request.start_date}T00:00:00+07:00`);
+            end = new Date(`${request.end_date}T23:59:59.999+07:00`);
+        }
+        else {
+            const resolved = this.resolvePeriodRange(period);
+            start = resolved.start;
+            end = resolved.end;
+        }
+        // 1. Order Aggregation (Gross Sales, Net Sales, Discounts, Orders Count)
+        const ordersAgg = await client_1.default.order.aggregate({
+            where: {
+                orderDate: { gte: start, lte: end },
+                orderStatus: { not: 'CANCELLED' },
+            },
+            _sum: {
+                totalAmount: true,
+                discountAmount: true,
+            },
+            _count: {
+                orderId: true,
+            },
+        });
+        const netSales = Number(ordersAgg._sum.totalAmount || 0);
+        const discounts = Number(ordersAgg._sum.discountAmount || 0);
+        const grossSales = Number((netSales + discounts).toFixed(2));
+        const totalOrders = Number(ordersAgg._count.orderId || 0);
+        // 2. OrderItems with Product and Category details for COGS, category & product breakdown
+        const orderItems = await client_1.default.orderItem.findMany({
+            where: {
+                order: {
+                    orderDate: { gte: start, lte: end },
+                    orderStatus: { not: 'CANCELLED' },
+                },
+            },
+            include: {
+                product: {
+                    include: {
+                        category: true,
+                    },
+                },
+            },
+        });
+        let totalCogs = 0;
+        let totalItemsSold = 0;
+        const categoryMap = new Map();
+        const productMap = new Map();
+        for (const item of orderItems) {
+            const qty = Number(item.quantity || 0);
+            const rev = Number(item.subtotal || 0);
+            const cogs = Number(item.cogsLineTotal || (Number(item.costPerUnitAtSale || 0) * qty));
+            totalCogs += cogs;
+            totalItemsSold += qty;
+            // Group by Category
+            const catId = item.product?.categoryId || 0;
+            const catName = item.product?.category?.name || 'Uncategorized';
+            if (!categoryMap.has(catId)) {
+                categoryMap.set(catId, {
+                    category_id: catId,
+                    category_name: catName,
+                    quantity_sold: 0,
+                    revenue: 0,
+                    cogs: 0,
+                });
+            }
+            const catEntry = categoryMap.get(catId);
+            catEntry.quantity_sold += qty;
+            catEntry.revenue += rev;
+            catEntry.cogs += cogs;
+            // Group by Product
+            const prodId = item.productId;
+            const prodName = item.productName || item.product?.productName || `Product #${prodId}`;
+            const prodCode = item.product?.productCode || '';
+            if (!productMap.has(prodId)) {
+                productMap.set(prodId, {
+                    product_id: prodId,
+                    product_name: prodName,
+                    product_code: prodCode,
+                    category_name: catName,
+                    quantity_sold: 0,
+                    revenue: 0,
+                    cogs: 0,
+                });
+            }
+            const prodEntry = productMap.get(prodId);
+            prodEntry.quantity_sold += qty;
+            prodEntry.revenue += rev;
+            prodEntry.cogs += cogs;
+        }
+        // 3. Stock Shrinkage / Inventory Losses (Damaged / Expired stock)
+        const stockMovements = await client_1.default.stockMovement.findMany({
+            where: {
+                createdAt: { gte: start, lte: end },
+                OR: [
+                    { movementType: { in: ['ADJUSTMENT_DAMAGE', 'ADJUSTMENT_EXPIRED'] } },
+                    { reason: { contains: 'damage', mode: 'insensitive' } },
+                    { reason: { contains: 'expire', mode: 'insensitive' } },
+                    { reason: { contains: 'loss', mode: 'insensitive' } },
+                    { reason: { contains: 'spoil', mode: 'insensitive' } },
+                ],
+            },
+            include: {
+                product: true,
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        let totalStockLoss = 0;
+        const stockLossItems = [];
+        for (const sm of stockMovements) {
+            const qty = Math.abs(Number(sm.quantity || 0));
+            const unitCost = Number(sm.cost ?? sm.price ?? sm.product?.avgCost ?? 0);
+            const costLoss = Number((qty * unitCost).toFixed(2));
+            totalStockLoss += costLoss;
+            stockLossItems.push({
+                movement_id: sm.movementId,
+                product_id: sm.productId,
+                product_name: sm.product?.productName || `Product #${sm.productId}`,
+                quantity: qty,
+                movement_type: sm.reason || sm.movementType,
+                cost_loss: costLoss,
+                date: sm.createdAt.toISOString(),
+            });
+        }
+        // 4. Summaries & Margins
+        const roundedCogs = Number(totalCogs.toFixed(2));
+        const roundedStockLoss = Number(totalStockLoss.toFixed(2));
+        const grossProfit = Number((netSales - roundedCogs).toFixed(2));
+        const grossMarginPct = netSales > 0 ? Number(((grossProfit / netSales) * 100).toFixed(1)) : 0;
+        const netProfit = Number((grossProfit - roundedStockLoss).toFixed(2));
+        const netMarginPct = netSales > 0 ? Number(((netProfit / netSales) * 100).toFixed(1)) : 0;
+        // 5. Category Breakdown array
+        const categoryBreakdown = Array.from(categoryMap.values())
+            .map((c) => {
+            const profit = Number((c.revenue - c.cogs).toFixed(2));
+            const margin = c.revenue > 0 ? Number(((profit / c.revenue) * 100).toFixed(1)) : 0;
+            return {
+                category_id: c.category_id,
+                category_name: c.category_name,
+                quantity_sold: c.quantity_sold,
+                revenue: Number(c.revenue.toFixed(2)),
+                cogs: Number(c.cogs.toFixed(2)),
+                profit,
+                margin_pct: margin,
+            };
+        })
+            .sort((a, b) => b.profit - a.profit);
+        // 6. Product Performance lists
+        const productItems = Array.from(productMap.values()).map((p) => {
+            const profit = Number((p.revenue - p.cogs).toFixed(2));
+            const margin = p.revenue > 0 ? Number(((profit / p.revenue) * 100).toFixed(1)) : 0;
+            return {
+                product_id: p.product_id,
+                product_name: p.product_name,
+                product_code: p.product_code,
+                category_name: p.category_name,
+                quantity_sold: p.quantity_sold,
+                revenue: Number(p.revenue.toFixed(2)),
+                cogs: Number(p.cogs.toFixed(2)),
+                profit,
+                margin_pct: margin,
+            };
+        });
+        const topProfitable = [...productItems].sort((a, b) => b.profit - a.profit).slice(0, 10);
+        const leastProfitable = [...productItems].sort((a, b) => a.profit - b.profit).slice(0, 5);
+        // 7. Previous Period Comparison if requested
+        let growthComparison = null;
+        if (request.compare_previous) {
+            const durationMs = end.getTime() - start.getTime();
+            const prevEnd = new Date(start.getTime() - 1);
+            const prevStart = new Date(prevEnd.getTime() - durationMs);
+            const prevOrdersAgg = await client_1.default.order.aggregate({
+                where: {
+                    orderDate: { gte: prevStart, lte: prevEnd },
+                    orderStatus: { not: 'CANCELLED' },
+                },
+                _sum: { totalAmount: true },
+            });
+            const prevCogsAgg = await client_1.default.orderItem.aggregate({
+                where: {
+                    order: {
+                        orderDate: { gte: prevStart, lte: prevEnd },
+                        orderStatus: { not: 'CANCELLED' },
+                    },
+                },
+                _sum: { cogsLineTotal: true },
+            });
+            const prevLossMovements = await client_1.default.stockMovement.findMany({
+                where: {
+                    createdAt: { gte: prevStart, lte: prevEnd },
+                    OR: [
+                        { movementType: { in: ['ADJUSTMENT_DAMAGE', 'ADJUSTMENT_EXPIRED'] } },
+                        { reason: { contains: 'damage', mode: 'insensitive' } },
+                        { reason: { contains: 'expire', mode: 'insensitive' } },
+                        { reason: { contains: 'loss', mode: 'insensitive' } },
+                    ],
+                },
+                select: { quantity: true, cost: true },
+            });
+            let prevStockLoss = 0;
+            for (const m of prevLossMovements) {
+                prevStockLoss += Math.abs(Number(m.quantity || 0)) * Number(m.cost || 0);
+            }
+            const prevNetSales = Number(prevOrdersAgg._sum.totalAmount || 0);
+            const prevCogs = Number(prevCogsAgg._sum.cogsLineTotal || 0);
+            const prevNetProfit = prevNetSales - prevCogs - prevStockLoss;
+            const salesGrowth = prevNetSales > 0 ? ((netSales - prevNetSales) / prevNetSales) * 100 : 0;
+            const profitGrowth = prevNetProfit !== 0 ? ((netProfit - prevNetProfit) / Math.abs(prevNetProfit)) * 100 : 0;
+            growthComparison = {
+                sales_growth_pct: Number(salesGrowth.toFixed(1)),
+                profit_growth_pct: Number(profitGrowth.toFixed(1)),
+                previous_net_sales: Number(prevNetSales.toFixed(2)),
+                previous_net_profit: Number(prevNetProfit.toFixed(2)),
+            };
+        }
+        return {
+            period,
+            date_range: {
+                start: start.toISOString(),
+                end: end.toISOString(),
+            },
+            summary: {
+                gross_sales: grossSales,
+                discounts: Number(discounts.toFixed(2)),
+                net_sales: Number(netSales.toFixed(2)),
+                cogs: roundedCogs,
+                gross_profit: grossProfit,
+                gross_margin_pct: grossMarginPct,
+                stock_loss: roundedStockLoss,
+                net_profit: netProfit,
+                net_margin_pct: netMarginPct,
+                total_orders: totalOrders,
+                total_items_sold: totalItemsSold,
+            },
+            growth_comparison: growthComparison,
+            category_breakdown: categoryBreakdown,
+            top_profitable_products: topProfitable,
+            least_profitable_products: leastProfitable,
+            stock_loss_items: stockLossItems.slice(0, 20),
+        };
+    }
 }
 exports.ReportService = ReportService;
 //# sourceMappingURL=report.service.js.map
