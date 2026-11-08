@@ -83,6 +83,8 @@ app.use((0, cors_1.default)({
             normalizedOrigin.includes('pichchamrouen.com') ||
             normalizedOrigin.includes('localhost') ||
             normalizedOrigin.includes('127.0.0.1') ||
+            process.env.VERCEL ||
+            /^https?:\/\//.test(normalizedOrigin) ||
             /^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(normalizedOrigin)) {
             return callback(null, true);
         }

@@ -26,8 +26,4 @@ async function disconnectDatabase() {
     await exports.prisma.$disconnect();
     logger_1.logger.info('Database disconnected');
 }
-// Graceful shutdown
-process.on('beforeExit', async () => {
-    await disconnectDatabase();
-});
 //# sourceMappingURL=database.js.map
