@@ -21,9 +21,24 @@ export class LocalStorageProvider implements IStorageProvider {
   private baseDir: string;
 
   constructor() {
-    this.baseDir = path.resolve(process.cwd(), 'uploads');
-    if (!fs.existsSync(this.baseDir)) {
-      fs.mkdirSync(this.baseDir, { recursive: true });
+    this.baseDir = process.env.VERCEL
+      ? path.resolve('/tmp', 'uploads')
+      : path.resolve(process.cwd(), 'uploads');
+
+    try {
+      if (!fs.existsSync(this.baseDir)) {
+        fs.mkdirSync(this.baseDir, { recursive: true });
+      }
+    } catch (err: any) {
+      logger.warn('Failed to create local uploads directory, falling back to /tmp/uploads:', err.message);
+      try {
+        this.baseDir = path.resolve('/tmp', 'uploads');
+        if (!fs.existsSync(this.baseDir)) {
+          fs.mkdirSync(this.baseDir, { recursive: true });
+        }
+      } catch (fallbackErr: any) {
+        logger.warn('Could not initialize fallback /tmp/uploads directory:', fallbackErr.message);
+      }
     }
   }
 

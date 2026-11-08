@@ -17,9 +17,25 @@ const helpers_1 = require("../../../shared/utils/helpers");
  */
 class LocalStorageProvider {
     constructor() {
-        this.baseDir = path_1.default.resolve(process.cwd(), 'uploads');
-        if (!fs_1.default.existsSync(this.baseDir)) {
-            fs_1.default.mkdirSync(this.baseDir, { recursive: true });
+        this.baseDir = process.env.VERCEL
+            ? path_1.default.resolve('/tmp', 'uploads')
+            : path_1.default.resolve(process.cwd(), 'uploads');
+        try {
+            if (!fs_1.default.existsSync(this.baseDir)) {
+                fs_1.default.mkdirSync(this.baseDir, { recursive: true });
+            }
+        }
+        catch (err) {
+            logger_1.logger.warn('Failed to create local uploads directory, falling back to /tmp/uploads:', err.message);
+            try {
+                this.baseDir = path_1.default.resolve('/tmp', 'uploads');
+                if (!fs_1.default.existsSync(this.baseDir)) {
+                    fs_1.default.mkdirSync(this.baseDir, { recursive: true });
+                }
+            }
+            catch (fallbackErr) {
+                logger_1.logger.warn('Could not initialize fallback /tmp/uploads directory:', fallbackErr.message);
+            }
         }
     }
     getBaseUrl() {
